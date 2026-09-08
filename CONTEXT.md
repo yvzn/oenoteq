@@ -1,0 +1,36 @@
+# Wine Cellar
+
+Personal, single-user app to track wines owned, their drinking window, and which meals pair well with them.
+
+## Language
+
+**Wine**:
+The tracked entity: millesime + appellation + producer + color + garde + quantity on hand. No per-bottle identity — "bottle" is just the unit quantity is counted in, not a separate record. Stays in the cellar as a record even once quantity reaches 0, since Consumption history references it.
+_Avoid_: Bottle (as an entity)
+
+**Producer**:
+Free-text name of who made the wine (e.g. "Château Margaux", "Domaine Leflaive"). Type (château/domaine/maison/...) is treated as part of the name, not a separate field.
+
+**Consumption**:
+A record of drinking one unit of a Wine: date (required), rating 1-5 (optional), notes (optional). Decrements the Wine's quantity.
+_Avoid_: Drink event, tasting
+
+**Millesime**:
+The vintage year a wine was produced. Optional — non-vintage wines (e.g. Champagne NV) have no Millesime.
+_Avoid_: Vintage, year
+
+**Garde**:
+The drinking window for a wine, expressed as a range (`garde_debut` start year, `garde_fin` end year) rather than a single target year.
+_Avoid_: Peak year, optimal year
+
+**Appellation**:
+The designated wine-growing region/classification a wine is produced under (e.g. AOC-style designation). Combined with Color, determines the default Meal Pairing.
+_Avoid_: Region, AOC (unless referring specifically to the French system)
+
+**Color**:
+The wine's category: rouge, blanc, or rose. Combined with Appellation, determines the default Meal Pairing.
+_Avoid_: Type, category
+
+**Meal Pairing**:
+A shared, reusable lookup keyed by (Appellation, Color) that suggests which meals fit a wine. Not customized per wine.
+_Avoid_: Food match, pairing (ambiguous alone)
