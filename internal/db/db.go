@@ -89,3 +89,94 @@ func (d *DB) applyMigration(ctx context.Context, name string) error {
 
 	return nil
 }
+
+type Appellation struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func (d *DB) CreateAppellation(ctx context.Context, name string) (*Appellation, error) {
+	_, err := d.ExecContext(ctx, "INSERT INTO appellation (name) VALUES (?)", name)
+	if err != nil {
+		// Check for UNIQUE constraint violation
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return nil, fmt.Errorf("appellation already exists: %s", name)
+		}
+		return nil, fmt.Errorf("creating appellation: %w", err)
+	}
+
+	var id int
+	if err := d.QueryRowContext(ctx, "SELECT last_insert_rowid()").Scan(&id); err != nil {
+		return nil, fmt.Errorf("getting last insert id: %w", err)
+	}
+
+	return &Appellation{ID: id, Name: name}, nil
+}
+
+func (d *DB) ListAppellations(ctx context.Context) ([]Appellation, error) {
+	rows, err := d.QueryContext(ctx, "SELECT id, name FROM appellation ORDER BY name")
+	if err != nil {
+		return nil, fmt.Errorf("querying appellations: %w", err)
+	}
+	defer rows.Close()
+
+	var appellations []Appellation
+	for rows.Next() {
+		var a Appellation
+		if err := rows.Scan(&a.ID, &a.Name); err != nil {
+			return nil, fmt.Errorf("scanning appellation: %w", err)
+		}
+		appellations = append(appellations, a)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating appellations: %w", err)
+	}
+
+	return appellations, nil
+}
+
+type Meal struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func (d *DB) CreateMeal(ctx context.Context, name string) (*Meal, error) {
+	_, err := d.ExecContext(ctx, "INSERT INTO meal (name) VALUES (?)", name)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return nil, fmt.Errorf("meal already exists: %s", name)
+		}
+		return nil, fmt.Errorf("creating meal: %w", err)
+	}
+
+	var id int
+	if err := d.QueryRowContext(ctx, "SELECT last_insert_rowid()").Scan(&id); err != nil {
+		return nil, fmt.Errorf("getting last insert id: %w", err)
+	}
+
+	return &Meal{ID: id, Name: name}, nil
+}
+
+func (d *DB) ListMeals(ctx context.Context) ([]Meal, error) {
+	rows, err := d.QueryContext(ctx, "SELECT id, name FROM meal ORDER BY name")
+	if err != nil {
+		return nil, fmt.Errorf("querying meals: %w", err)
+	}
+	defer rows.Close()
+
+	var meals []Meal
+	for rows.Next() {
+		var m Meal
+		if err := rows.Scan(&m.ID, &m.Name); err != nil {
+			return nil, fmt.Errorf("scanning meal: %w", err)
+		}
+		meals = append(meals, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating meals: %w", err)
+	}
+
+	return meals, nil
+}
