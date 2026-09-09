@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/younited/wine-cellar-tracker/internal/db"
 )
@@ -45,7 +45,7 @@ func (h *Handler) CreateAppellation(w http.ResponseWriter, r *http.Request) {
 	appellation, err := h.db.CreateAppellation(r.Context(), req.Name)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
-		if strings.Contains(err.Error(), "already exists") {
+		if errors.Is(err, db.ErrUniqueConstraint) {
 			w.WriteHeader(http.StatusConflict)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -92,7 +92,7 @@ func (h *Handler) CreateMeal(w http.ResponseWriter, r *http.Request) {
 	meal, err := h.db.CreateMeal(r.Context(), req.Name)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
-		if strings.Contains(err.Error(), "already exists") {
+		if errors.Is(err, db.ErrUniqueConstraint) {
 			w.WriteHeader(http.StatusConflict)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -90,6 +91,8 @@ func (d *DB) applyMigration(ctx context.Context, name string) error {
 	return nil
 }
 
+var ErrUniqueConstraint = errors.New("unique constraint violation")
+
 type Appellation struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
@@ -98,9 +101,8 @@ type Appellation struct {
 func (d *DB) CreateAppellation(ctx context.Context, name string) (*Appellation, error) {
 	_, err := d.ExecContext(ctx, "INSERT INTO appellation (name) VALUES (?)", name)
 	if err != nil {
-		// Check for UNIQUE constraint violation
 		if strings.Contains(err.Error(), "UNIQUE") {
-			return nil, fmt.Errorf("appellation already exists: %s", name)
+			return nil, fmt.Errorf("appellation already exists: %s: %w", name, ErrUniqueConstraint)
 		}
 		return nil, fmt.Errorf("creating appellation: %w", err)
 	}
@@ -145,7 +147,7 @@ func (d *DB) CreateMeal(ctx context.Context, name string) (*Meal, error) {
 	_, err := d.ExecContext(ctx, "INSERT INTO meal (name) VALUES (?)", name)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
-			return nil, fmt.Errorf("meal already exists: %s", name)
+			return nil, fmt.Errorf("meal already exists: %s: %w", name, ErrUniqueConstraint)
 		}
 		return nil, fmt.Errorf("creating meal: %w", err)
 	}
