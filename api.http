@@ -2,3 +2,29 @@
 
 ### Health check
 GET {{baseUrl}}/health
+
+### Create Appellation
+POST {{baseUrl}}/appellations
+Content-Type: application/json
+
+{
+  "name": "Saint Nicolas de Bourgueil"
+}
+
+### List Appellations
+GET {{baseUrl}}/appellations
+
+
+
+### Create Meal
+POST {{baseUrl}}/meals
+Content-Type: application/json
+
+{
+  "name": "Boeuf bourguignon"
+}
+
+### List Meals
+GET {{baseUrl}}/meals
+
+
