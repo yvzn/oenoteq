@@ -292,6 +292,28 @@ func (d *DB) ListWines(ctx context.Context) ([]Wine, error) {
 	return wines, nil
 }
 
+type WineDetail struct {
+	Wine
+	SuggestedMeals []Meal `json:"suggested_meals"`
+}
+
+func (d *DB) GetWineDetail(ctx context.Context, id int) (*WineDetail, error) {
+	wine, err := d.GetWine(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	meals, err := d.ListMealsForPairing(ctx, wine.AppellationID, wine.Color)
+	if err != nil {
+		return nil, err
+	}
+	if meals == nil {
+		meals = []Meal{}
+	}
+
+	return &WineDetail{Wine: *wine, SuggestedMeals: meals}, nil
+}
+
 func (d *DB) mealExists(ctx context.Context, id int) error {
 	var exists int
 	if err := d.QueryRowContext(ctx, "SELECT COUNT(*) FROM meal WHERE id = ?", id).Scan(&exists); err != nil {

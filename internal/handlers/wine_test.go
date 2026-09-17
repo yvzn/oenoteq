@@ -407,3 +407,129 @@ func TestWineGetDetailNotFound(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
 	}
 }
+
+func TestWineDetailIncludesSuggestedMeals(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Chablis")
+	mealA := createTestMeal(t, harness, "Oysters")
+	mealB := createTestMeal(t, harness, "Grilled Fish")
+
+	harness.Do("POST", "/meal-pairings", map[string]interface{}{
+		"appellation_id": appellationID,
+		"color":          "blanc",
+		"meal_id":        mealA,
+	})
+	harness.Do("POST", "/meal-pairings", map[string]interface{}{
+		"appellation_id": appellationID,
+		"color":          "blanc",
+		"meal_id":        mealB,
+	})
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer":       "Domaine C",
+		"color":          "blanc",
+		"garde_debut":    2022,
+		"garde_fin":      2027,
+		"quantity":       1,
+	})
+	var created db.Wine
+	harness.JSONResponse(resp, &created)
+
+	resp = harness.Do("GET", "/wines/"+strconv.Itoa(created.ID), nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var detail db.WineDetail
+	harness.JSONResponse(resp, &detail)
+
+	if len(detail.SuggestedMeals) != 2 {
+		t.Fatalf("Expected 2 suggested meals, got %d", len(detail.SuggestedMeals))
+	}
+	if detail.SuggestedMeals[0].Name != "Grilled Fish" || detail.SuggestedMeals[1].Name != "Oysters" {
+		t.Errorf("Expected suggested meals ordered by name, got %q, %q", detail.SuggestedMeals[0].Name, detail.SuggestedMeals[1].Name)
+	}
+}
+
+func TestWineDetailEmptySuggestedMealsWhenNoPairing(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Morgon")
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer":       "Domaine D",
+		"color":          "rouge",
+		"garde_debut":    2020,
+		"garde_fin":      2026,
+		"quantity":       2,
+	})
+	var created db.Wine
+	harness.JSONResponse(resp, &created)
+
+	resp = harness.Do("GET", "/wines/"+strconv.Itoa(created.ID), nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var detail db.WineDetail
+	harness.JSONResponse(resp, &detail)
+
+	if detail.SuggestedMeals == nil {
+		t.Errorf("Expected suggested_meals to be an empty list, got nil")
+	}
+	if len(detail.SuggestedMeals) != 0 {
+		t.Errorf("Expected 0 suggested meals, got %d", len(detail.SuggestedMeals))
+	}
+}
+
+func TestWineDetailReflectsMealPairingEdits(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Fleurie")
+	mealA := createTestMeal(t, harness, "Charcuterie")
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer":       "Domaine E",
+		"color":          "rouge",
+		"garde_debut":    2021,
+		"garde_fin":      2025,
+		"quantity":       3,
+	})
+	var created db.Wine
+	harness.JSONResponse(resp, &created)
+
+	resp = harness.Do("GET", "/wines/"+strconv.Itoa(created.ID), nil)
+	var detail db.WineDetail
+	harness.JSONResponse(resp, &detail)
+	if len(detail.SuggestedMeals) != 0 {
+		t.Fatalf("Expected 0 suggested meals before pairing, got %d", len(detail.SuggestedMeals))
+	}
+
+	harness.Do("POST", "/meal-pairings", map[string]interface{}{
+		"appellation_id": appellationID,
+		"color":          "rouge",
+		"meal_id":        mealA,
+	})
+
+	resp = harness.Do("GET", "/wines/"+strconv.Itoa(created.ID), nil)
+	harness.JSONResponse(resp, &detail)
+	if len(detail.SuggestedMeals) != 1 {
+		t.Fatalf("Expected 1 suggested meal after pairing, got %d", len(detail.SuggestedMeals))
+	}
+	if detail.SuggestedMeals[0].Name != "Charcuterie" {
+		t.Errorf("Expected suggested meal 'Charcuterie', got %q", detail.SuggestedMeals[0].Name)
+	}
+
+	harness.Do("DELETE", "/meal-pairings", map[string]interface{}{
+		"appellation_id": appellationID,
+		"color":          "rouge",
+		"meal_id":        mealA,
+	})
+
+	resp = harness.Do("GET", "/wines/"+strconv.Itoa(created.ID), nil)
+	harness.JSONResponse(resp, &detail)
+	if len(detail.SuggestedMeals) != 0 {
+		t.Errorf("Expected 0 suggested meals after pairing removed, got %d", len(detail.SuggestedMeals))
+	}
+}

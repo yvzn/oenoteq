@@ -46,7 +46,7 @@ Content-Type: application/json
 ### List Wines
 GET {{baseUrl}}/wines
 
-### Get Wine detail
+### Get Wine detail (response includes suggested_meals, derived from appellation+color)
 GET {{baseUrl}}/wines/1
 
 ### Edit Wine

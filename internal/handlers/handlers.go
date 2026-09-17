@@ -214,7 +214,7 @@ func (h *Handler) GetWine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wine, err := h.db.GetWine(r.Context(), id)
+	wine, err := h.db.GetWineDetail(r.Context(), id)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(wineErrorStatus(err))
