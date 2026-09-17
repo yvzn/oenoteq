@@ -182,3 +182,140 @@ func (d *DB) ListMeals(ctx context.Context) ([]Meal, error) {
 
 	return meals, nil
 }
+
+var (
+	ErrInvalidColor        = errors.New("invalid color")
+	ErrInvalidQuantity     = errors.New("quantity must be >= 0")
+	ErrAppellationNotFound = errors.New("appellation not found")
+	ErrWineNotFound        = errors.New("wine not found")
+)
+
+var validColors = map[string]bool{"rouge": true, "blanc": true, "rose": true}
+
+type Wine struct {
+	ID            int    `json:"id"`
+	Millesime     *int   `json:"millesime"`
+	AppellationID int    `json:"appellation_id"`
+	Producer      string `json:"producer"`
+	Color         string `json:"color"`
+	GardeDebut    int    `json:"garde_debut"`
+	GardeFin      int    `json:"garde_fin"`
+	Quantity      int    `json:"quantity"`
+}
+
+func validateWine(w Wine) error {
+	if !validColors[w.Color] {
+		return fmt.Errorf("%q: %w", w.Color, ErrInvalidColor)
+	}
+	if w.Quantity < 0 {
+		return fmt.Errorf("%d: %w", w.Quantity, ErrInvalidQuantity)
+	}
+	return nil
+}
+
+func (d *DB) appellationExists(ctx context.Context, id int) error {
+	var exists int
+	if err := d.QueryRowContext(ctx, "SELECT COUNT(*) FROM appellation WHERE id = ?", id).Scan(&exists); err != nil {
+		return fmt.Errorf("checking appellation: %w", err)
+	}
+	if exists == 0 {
+		return fmt.Errorf("appellation id %d: %w", id, ErrAppellationNotFound)
+	}
+	return nil
+}
+
+func (d *DB) CreateWine(ctx context.Context, w Wine) (*Wine, error) {
+	if err := validateWine(w); err != nil {
+		return nil, err
+	}
+	if err := d.appellationExists(ctx, w.AppellationID); err != nil {
+		return nil, err
+	}
+
+	res, err := d.ExecContext(ctx, `
+		INSERT INTO wine (millesime, appellation_id, producer, color, garde_debut, garde_fin, quantity)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, w.Millesime, w.AppellationID, w.Producer, w.Color, w.GardeDebut, w.GardeFin, w.Quantity)
+	if err != nil {
+		return nil, fmt.Errorf("creating wine: %w", err)
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("getting last insert id: %w", err)
+	}
+
+	w.ID = int(id)
+	return &w, nil
+}
+
+func (d *DB) GetWine(ctx context.Context, id int) (*Wine, error) {
+	var w Wine
+	err := d.QueryRowContext(ctx, `
+		SELECT id, millesime, appellation_id, producer, color, garde_debut, garde_fin, quantity
+		FROM wine WHERE id = ?
+	`, id).Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.Producer, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("wine id %d: %w", id, ErrWineNotFound)
+		}
+		return nil, fmt.Errorf("getting wine: %w", err)
+	}
+
+	return &w, nil
+}
+
+func (d *DB) ListWines(ctx context.Context) ([]Wine, error) {
+	rows, err := d.QueryContext(ctx, `
+		SELECT id, millesime, appellation_id, producer, color, garde_debut, garde_fin, quantity
+		FROM wine ORDER BY id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("querying wines: %w", err)
+	}
+	defer rows.Close()
+
+	var wines []Wine
+	for rows.Next() {
+		var w Wine
+		if err := rows.Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.Producer, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity); err != nil {
+			return nil, fmt.Errorf("scanning wine: %w", err)
+		}
+		wines = append(wines, w)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating wines: %w", err)
+	}
+
+	return wines, nil
+}
+
+func (d *DB) UpdateWine(ctx context.Context, id int, w Wine) (*Wine, error) {
+	if err := validateWine(w); err != nil {
+		return nil, err
+	}
+	if err := d.appellationExists(ctx, w.AppellationID); err != nil {
+		return nil, err
+	}
+
+	res, err := d.ExecContext(ctx, `
+		UPDATE wine
+		SET millesime = ?, appellation_id = ?, producer = ?, color = ?, garde_debut = ?, garde_fin = ?, quantity = ?
+		WHERE id = ?
+	`, w.Millesime, w.AppellationID, w.Producer, w.Color, w.GardeDebut, w.GardeFin, w.Quantity, id)
+	if err != nil {
+		return nil, fmt.Errorf("updating wine: %w", err)
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("getting rows affected: %w", err)
+	}
+	if affected == 0 {
+		return nil, fmt.Errorf("wine id %d: %w", id, ErrWineNotFound)
+	}
+
+	w.ID = id
+	return &w, nil
+}

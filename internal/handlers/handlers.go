@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/younited/wine-cellar-tracker/internal/db"
 )
@@ -22,6 +23,10 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /appellations", h.ListAppellations)
 	mux.HandleFunc("POST /meals", h.CreateMeal)
 	mux.HandleFunc("GET /meals", h.ListMeals)
+	mux.HandleFunc("POST /wines", h.CreateWine)
+	mux.HandleFunc("GET /wines", h.ListWines)
+	mux.HandleFunc("GET /wines/{id}", h.GetWine)
+	mux.HandleFunc("PUT /wines/{id}", h.UpdateWine)
 }
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
@@ -122,4 +127,129 @@ func (h *Handler) ListMeals(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(meals)
+}
+
+type wineRequest struct {
+	Millesime     *int   `json:"millesime"`
+	AppellationID int    `json:"appellation_id"`
+	Producer      string `json:"producer"`
+	Color         string `json:"color"`
+	GardeDebut    int    `json:"garde_debut"`
+	GardeFin      int    `json:"garde_fin"`
+	Quantity      int    `json:"quantity"`
+}
+
+func (req wineRequest) toWine() db.Wine {
+	return db.Wine{
+		Millesime:     req.Millesime,
+		AppellationID: req.AppellationID,
+		Producer:      req.Producer,
+		Color:         req.Color,
+		GardeDebut:    req.GardeDebut,
+		GardeFin:      req.GardeFin,
+		Quantity:      req.Quantity,
+	}
+}
+
+func wineErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, db.ErrInvalidColor), errors.Is(err, db.ErrInvalidQuantity), errors.Is(err, db.ErrAppellationNotFound):
+		return http.StatusBadRequest
+	case errors.Is(err, db.ErrWineNotFound):
+		return http.StatusNotFound
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func (h *Handler) CreateWine(w http.ResponseWriter, r *http.Request) {
+	var req wineRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	wine, err := h.db.CreateWine(r.Context(), req.toWine())
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(wineErrorStatus(err))
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(wine)
+}
+
+func (h *Handler) ListWines(w http.ResponseWriter, r *http.Request) {
+	wines, err := h.db.ListWines(r.Context())
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	if wines == nil {
+		wines = []db.Wine{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(wines)
+}
+
+func (h *Handler) GetWine(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid wine id"})
+		return
+	}
+
+	wine, err := h.db.GetWine(r.Context(), id)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(wineErrorStatus(err))
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(wine)
+}
+
+func (h *Handler) UpdateWine(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid wine id"})
+		return
+	}
+
+	var req wineRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	wine, err := h.db.UpdateWine(r.Context(), id, req.toWine())
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(wineErrorStatus(err))
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(wine)
 }

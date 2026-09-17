@@ -28,3 +28,39 @@ Content-Type: application/json
 GET {{baseUrl}}/meals
 
 
+
+### Create Wine
+POST {{baseUrl}}/wines
+Content-Type: application/json
+
+{
+  "millesime": 2018,
+  "appellation_id": 1,
+  "producer": "Domaine du Closel",
+  "color": "rouge",
+  "garde_debut": 2020,
+  "garde_fin": 2028,
+  "quantity": 6
+}
+
+### List Wines
+GET {{baseUrl}}/wines
+
+### Get Wine detail
+GET {{baseUrl}}/wines/1
+
+### Edit Wine
+PUT {{baseUrl}}/wines/1
+Content-Type: application/json
+
+{
+  "millesime": 2018,
+  "appellation_id": 1,
+  "producer": "Domaine du Closel",
+  "color": "rouge",
+  "garde_debut": 2020,
+  "garde_fin": 2028,
+  "quantity": 5
+}
+
+
