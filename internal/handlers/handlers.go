@@ -31,6 +31,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /meal-pairings", h.CreateMealPairing)
 	mux.HandleFunc("GET /meal-pairings", h.ListMealPairings)
 	mux.HandleFunc("DELETE /meal-pairings", h.DeleteMealPairing)
+	mux.HandleFunc("GET /search", h.Search)
 }
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
@@ -362,6 +363,64 @@ func (h *Handler) ListMealPairings(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(meals)
+}
+
+func searchErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, db.ErrInvalidColor):
+		return http.StatusBadRequest
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	var filters db.SearchFilters
+
+	if v := q.Get("meal_id"); v != "" {
+		id, err := strconv.Atoi(v)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid meal_id"})
+			return
+		}
+		filters.MealID = &id
+	}
+
+	if v := q.Get("appellation_id"); v != "" {
+		id, err := strconv.Atoi(v)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid appellation_id"})
+			return
+		}
+		filters.AppellationID = &id
+	}
+
+	if v := q.Get("color"); v != "" {
+		filters.Color = &v
+	}
+
+	filters.ReadyNow = q.Get("ready_now") == "true"
+
+	results, err := h.db.SearchWines(r.Context(), filters)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(searchErrorStatus(err))
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	if results == nil {
+		results = []db.WineSearchResult{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(results)
 }
 
 func (h *Handler) UpdateWine(w http.ResponseWriter, r *http.Request) {

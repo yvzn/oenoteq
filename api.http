@@ -101,3 +101,16 @@ Content-Type: application/json
 }
 
 
+
+### Search: filters (meal, appellation, color, ready_now) combine with AND; quantity=0 excluded by default; each result carries garde_status (too_young/ready/past_peak)
+GET {{baseUrl}}/search?appellation_id=1&color=rouge&ready_now=true
+
+### Search: by meal alone (matches Wines whose appellation+color is paired with the meal)
+GET {{baseUrl}}/search?meal_id=1
+
+### Search: ready_now alone (everything currently in its garde window)
+GET {{baseUrl}}/search?ready_now=true
+
+### Search: no filters (everything in stock, flagged with garde_status)
+GET {{baseUrl}}/search
+

@@ -4,15 +4,15 @@
 
 **Blocked by:** 03 (Wine CRUD), 04 (Meal Pairing management)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Search accepts optional filters: meal, appellation, color, ready_now — each independently optional
-- [ ] Multiple filters combine with AND semantics (e.g. appellation + ready_now narrows to both)
-- [ ] Search by ready_now alone (no meal/appellation) returns everything currently in its garde window
-- [ ] Search by appellation alone (no meal) returns everything owned from that appellation
-- [ ] Search by meal filters to Wines whose (appellation, color) is paired with that meal, per the Meal Pairing lookup
-- [ ] Every result includes a garde status: too_young, ready, or past_peak, computed from today's date vs. the Wine's garde range
-- [ ] Without ready_now set, too_young and past_peak Wines are still included in results (flagged, not excluded)
-- [ ] With ready_now set, only Wines currently in their garde window are returned
-- [ ] Wines with quantity 0 are excluded from results by default
-- [ ] Tests drive all of the above through the real-SQLite HTTP seam, covering each filter alone and in combination
+- [x] Search accepts optional filters: meal, appellation, color, ready_now — each independently optional
+- [x] Multiple filters combine with AND semantics (e.g. appellation + ready_now narrows to both)
+- [x] Search by ready_now alone (no meal/appellation) returns everything currently in its garde window
+- [x] Search by appellation alone (no meal) returns everything owned from that appellation
+- [x] Search by meal filters to Wines whose (appellation, color) is paired with that meal, per the Meal Pairing lookup
+- [x] Every result includes a garde status: too_young, ready, or past_peak, computed from today's date vs. the Wine's garde range
+- [x] Without ready_now set, too_young and past_peak Wines are still included in results (flagged, not excluded)
+- [x] With ready_now set, only Wines currently in their garde window are returned
+- [x] Wines with quantity 0 are excluded from results by default
+- [x] Tests drive all of the above through the real-SQLite HTTP seam, covering each filter alone and in combination

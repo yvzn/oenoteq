@@ -515,6 +515,90 @@ func (d *DB) CreateConsumption(ctx context.Context, c Consumption) (*Consumption
 	return &c, nil
 }
 
+type WineSearchResult struct {
+	Wine
+	GardeStatus string `json:"garde_status"`
+}
+
+type SearchFilters struct {
+	MealID        *int
+	AppellationID *int
+	Color         *string
+	ReadyNow      bool
+}
+
+func gardeStatus(w Wine, year int) string {
+	switch {
+	case year < w.GardeDebut:
+		return "too_young"
+	case year > w.GardeFin:
+		return "past_peak"
+	default:
+		return "ready"
+	}
+}
+
+func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResult, error) {
+	query := `
+		SELECT wine.id, wine.millesime, wine.appellation_id, wine.producer, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity
+		FROM wine
+		WHERE wine.quantity > 0
+	`
+	var args []interface{}
+
+	if f.AppellationID != nil {
+		query += " AND wine.appellation_id = ?"
+		args = append(args, *f.AppellationID)
+	}
+	if f.Color != nil {
+		if err := validateColor(*f.Color); err != nil {
+			return nil, err
+		}
+		query += " AND wine.color = ?"
+		args = append(args, *f.Color)
+	}
+	if f.MealID != nil {
+		query += `
+			AND EXISTS (
+				SELECT 1 FROM meal_pairing mp
+				WHERE mp.appellation_id = wine.appellation_id
+				  AND mp.color = wine.color
+				  AND mp.meal_id = ?
+			)
+		`
+		args = append(args, *f.MealID)
+	}
+	query += " ORDER BY wine.id"
+
+	rows, err := d.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("searching wines: %w", err)
+	}
+	defer rows.Close()
+
+	year := time.Now().Year()
+	var results []WineSearchResult
+	for rows.Next() {
+		var w Wine
+		if err := rows.Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.Producer, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity); err != nil {
+			return nil, fmt.Errorf("scanning wine: %w", err)
+		}
+
+		status := gardeStatus(w, year)
+		if f.ReadyNow && status != "ready" {
+			continue
+		}
+
+		results = append(results, WineSearchResult{Wine: w, GardeStatus: status})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating wines: %w", err)
+	}
+
+	return results, nil
+}
+
 func (d *DB) ListConsumptions(ctx context.Context, wineID int) ([]Consumption, error) {
 	rows, err := d.QueryContext(ctx, `
 		SELECT id, wine_id, date, rating, notes FROM consumption WHERE wine_id = ? ORDER BY date, id
