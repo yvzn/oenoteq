@@ -36,7 +36,7 @@ Content-Type: application/json
 {
   "millesime": 2018,
   "appellation_id": 1,
-  "producer": "Domaine du Closel",
+  "producer": "Les Garillères",
   "color": "rouge",
   "garde_debut": 2020,
   "garde_fin": 2028,
@@ -56,11 +56,36 @@ Content-Type: application/json
 {
   "millesime": 2018,
   "appellation_id": 1,
-  "producer": "Domaine du Closel",
+  "producer": "Domaine Les Garillères",
   "color": "rouge",
   "garde_debut": 2020,
   "garde_fin": 2028,
   "quantity": 5
+}
+
+
+
+### Associate Meal with (Appellation, Color)
+POST {{baseUrl}}/meal-pairings
+Content-Type: application/json
+
+{
+  "appellation_id": 1,
+  "color": "rouge",
+  "meal_id": 1
+}
+
+### List Meals for (Appellation, Color)
+GET {{baseUrl}}/meal-pairings?appellation_id=1&color=rouge
+
+### Remove Meal from (Appellation, Color)
+DELETE {{baseUrl}}/meal-pairings
+Content-Type: application/json
+
+{
+  "appellation_id": 1,
+  "color": "rouge",
+  "meal_id": 1
 }
 
 

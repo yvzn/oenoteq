@@ -188,6 +188,7 @@ var (
 	ErrInvalidQuantity     = errors.New("quantity must be >= 0")
 	ErrAppellationNotFound = errors.New("appellation not found")
 	ErrWineNotFound        = errors.New("wine not found")
+	ErrMealNotFound        = errors.New("meal not found")
 )
 
 var validColors = map[string]bool{"rouge": true, "blanc": true, "rose": true}
@@ -289,6 +290,97 @@ func (d *DB) ListWines(ctx context.Context) ([]Wine, error) {
 	}
 
 	return wines, nil
+}
+
+func (d *DB) mealExists(ctx context.Context, id int) error {
+	var exists int
+	if err := d.QueryRowContext(ctx, "SELECT COUNT(*) FROM meal WHERE id = ?", id).Scan(&exists); err != nil {
+		return fmt.Errorf("checking meal: %w", err)
+	}
+	if exists == 0 {
+		return fmt.Errorf("meal id %d: %w", id, ErrMealNotFound)
+	}
+	return nil
+}
+
+func validateColor(color string) error {
+	if !validColors[color] {
+		return fmt.Errorf("%q: %w", color, ErrInvalidColor)
+	}
+	return nil
+}
+
+func (d *DB) CreateMealPairing(ctx context.Context, appellationID int, color string, mealID int) error {
+	if err := validateColor(color); err != nil {
+		return err
+	}
+	if err := d.appellationExists(ctx, appellationID); err != nil {
+		return err
+	}
+	if err := d.mealExists(ctx, mealID); err != nil {
+		return err
+	}
+
+	if _, err := d.ExecContext(ctx, `
+		INSERT OR IGNORE INTO meal_pairing (appellation_id, color, meal_id) VALUES (?, ?, ?)
+	`, appellationID, color, mealID); err != nil {
+		return fmt.Errorf("creating meal pairing: %w", err)
+	}
+
+	return nil
+}
+
+func (d *DB) DeleteMealPairing(ctx context.Context, appellationID int, color string, mealID int) error {
+	if err := validateColor(color); err != nil {
+		return err
+	}
+	if err := d.appellationExists(ctx, appellationID); err != nil {
+		return err
+	}
+	if err := d.mealExists(ctx, mealID); err != nil {
+		return err
+	}
+
+	if _, err := d.ExecContext(ctx, `
+		DELETE FROM meal_pairing WHERE appellation_id = ? AND color = ? AND meal_id = ?
+	`, appellationID, color, mealID); err != nil {
+		return fmt.Errorf("deleting meal pairing: %w", err)
+	}
+
+	return nil
+}
+
+func (d *DB) ListMealsForPairing(ctx context.Context, appellationID int, color string) ([]Meal, error) {
+	if err := validateColor(color); err != nil {
+		return nil, err
+	}
+
+	rows, err := d.QueryContext(ctx, `
+		SELECT meal.id, meal.name
+		FROM meal_pairing
+		JOIN meal ON meal.id = meal_pairing.meal_id
+		WHERE meal_pairing.appellation_id = ? AND meal_pairing.color = ?
+		ORDER BY meal.name
+	`, appellationID, color)
+	if err != nil {
+		return nil, fmt.Errorf("querying meal pairing: %w", err)
+	}
+	defer rows.Close()
+
+	var meals []Meal
+	for rows.Next() {
+		var m Meal
+		if err := rows.Scan(&m.ID, &m.Name); err != nil {
+			return nil, fmt.Errorf("scanning meal: %w", err)
+		}
+		meals = append(meals, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating meal pairing: %w", err)
+	}
+
+	return meals, nil
 }
 
 func (d *DB) UpdateWine(ctx context.Context, id int, w Wine) (*Wine, error) {

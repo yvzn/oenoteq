@@ -27,6 +27,9 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /wines", h.ListWines)
 	mux.HandleFunc("GET /wines/{id}", h.GetWine)
 	mux.HandleFunc("PUT /wines/{id}", h.UpdateWine)
+	mux.HandleFunc("POST /meal-pairings", h.CreateMealPairing)
+	mux.HandleFunc("GET /meal-pairings", h.ListMealPairings)
+	mux.HandleFunc("DELETE /meal-pairings", h.DeleteMealPairing)
 }
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
@@ -222,6 +225,88 @@ func (h *Handler) GetWine(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(wine)
+}
+
+func mealPairingErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, db.ErrInvalidColor), errors.Is(err, db.ErrAppellationNotFound), errors.Is(err, db.ErrMealNotFound):
+		return http.StatusBadRequest
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+type mealPairingRequest struct {
+	AppellationID int    `json:"appellation_id"`
+	Color         string `json:"color"`
+	MealID        int    `json:"meal_id"`
+}
+
+func (h *Handler) CreateMealPairing(w http.ResponseWriter, r *http.Request) {
+	var req mealPairingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	if err := h.db.CreateMealPairing(r.Context(), req.AppellationID, req.Color, req.MealID); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(mealPairingErrorStatus(err))
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(req)
+}
+
+func (h *Handler) DeleteMealPairing(w http.ResponseWriter, r *http.Request) {
+	var req mealPairingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	if err := h.db.DeleteMealPairing(r.Context(), req.AppellationID, req.Color, req.MealID); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(mealPairingErrorStatus(err))
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) ListMealPairings(w http.ResponseWriter, r *http.Request) {
+	appellationID, err := strconv.Atoi(r.URL.Query().Get("appellation_id"))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid appellation_id"})
+		return
+	}
+	color := r.URL.Query().Get("color")
+
+	meals, err := h.db.ListMealsForPairing(r.Context(), appellationID, color)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(mealPairingErrorStatus(err))
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	if meals == nil {
+		meals = []db.Meal{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(meals)
 }
 
 func (h *Handler) UpdateWine(w http.ResponseWriter, r *http.Request) {
