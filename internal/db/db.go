@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -189,6 +190,10 @@ var (
 	ErrAppellationNotFound = errors.New("appellation not found")
 	ErrWineNotFound        = errors.New("wine not found")
 	ErrMealNotFound        = errors.New("meal not found")
+	ErrDateRequired        = errors.New("date is required")
+	ErrInvalidDate         = errors.New("date must be in YYYY-MM-DD format")
+	ErrInvalidRating       = errors.New("rating must be between 1 and 5")
+	ErrQuantityZero        = errors.New("wine quantity is already 0")
 )
 
 var validColors = map[string]bool{"rouge": true, "blanc": true, "rose": true}
@@ -294,7 +299,8 @@ func (d *DB) ListWines(ctx context.Context) ([]Wine, error) {
 
 type WineDetail struct {
 	Wine
-	SuggestedMeals []Meal `json:"suggested_meals"`
+	SuggestedMeals     []Meal        `json:"suggested_meals"`
+	ConsumptionHistory []Consumption `json:"consumption_history"`
 }
 
 func (d *DB) GetWineDetail(ctx context.Context, id int) (*WineDetail, error) {
@@ -311,7 +317,15 @@ func (d *DB) GetWineDetail(ctx context.Context, id int) (*WineDetail, error) {
 		meals = []Meal{}
 	}
 
-	return &WineDetail{Wine: *wine, SuggestedMeals: meals}, nil
+	consumptions, err := d.ListConsumptions(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if consumptions == nil {
+		consumptions = []Consumption{}
+	}
+
+	return &WineDetail{Wine: *wine, SuggestedMeals: meals, ConsumptionHistory: consumptions}, nil
 }
 
 func (d *DB) mealExists(ctx context.Context, id int) error {
@@ -432,4 +446,98 @@ func (d *DB) UpdateWine(ctx context.Context, id int, w Wine) (*Wine, error) {
 
 	w.ID = id
 	return &w, nil
+}
+
+type Consumption struct {
+	ID     int     `json:"id"`
+	WineID int     `json:"wine_id"`
+	Date   string  `json:"date"`
+	Rating *int    `json:"rating"`
+	Notes  *string `json:"notes"`
+}
+
+func validateConsumption(c Consumption) error {
+	if c.Date == "" {
+		return ErrDateRequired
+	}
+	if _, err := time.Parse("2006-01-02", c.Date); err != nil {
+		return fmt.Errorf("%q: %w", c.Date, ErrInvalidDate)
+	}
+	if c.Rating != nil && (*c.Rating < 1 || *c.Rating > 5) {
+		return fmt.Errorf("%d: %w", *c.Rating, ErrInvalidRating)
+	}
+	return nil
+}
+
+func (d *DB) CreateConsumption(ctx context.Context, c Consumption) (*Consumption, error) {
+	if err := validateConsumption(c); err != nil {
+		return nil, err
+	}
+
+	tx, err := d.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var quantity int
+	if err := tx.QueryRowContext(ctx, "SELECT quantity FROM wine WHERE id = ?", c.WineID).Scan(&quantity); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("wine id %d: %w", c.WineID, ErrWineNotFound)
+		}
+		return nil, fmt.Errorf("checking wine quantity: %w", err)
+	}
+	if quantity == 0 {
+		return nil, fmt.Errorf("wine id %d: %w", c.WineID, ErrQuantityZero)
+	}
+
+	res, err := tx.ExecContext(ctx, `
+		INSERT INTO consumption (wine_id, date, rating, notes) VALUES (?, ?, ?, ?)
+	`, c.WineID, c.Date, c.Rating, c.Notes)
+	if err != nil {
+		return nil, fmt.Errorf("creating consumption: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, "UPDATE wine SET quantity = quantity - 1 WHERE id = ?", c.WineID); err != nil {
+		return nil, fmt.Errorf("decrementing wine quantity: %w", err)
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("getting last insert id: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing transaction: %w", err)
+	}
+
+	c.ID = int(id)
+	return &c, nil
+}
+
+func (d *DB) ListConsumptions(ctx context.Context, wineID int) ([]Consumption, error) {
+	rows, err := d.QueryContext(ctx, `
+		SELECT id, wine_id, date, rating, notes FROM consumption WHERE wine_id = ? ORDER BY date, id
+	`, wineID)
+	if err != nil {
+		return nil, fmt.Errorf("querying consumptions: %w", err)
+	}
+	defer rows.Close()
+
+	var consumptions []Consumption
+	for rows.Next() {
+		var c Consumption
+		var date time.Time
+		if err := rows.Scan(&c.ID, &c.WineID, &date, &c.Rating, &c.Notes); err != nil {
+			return nil, fmt.Errorf("scanning consumption: %w", err)
+		}
+		c.Date = date.Format("2006-01-02")
+		consumptions = append(consumptions, c)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating consumptions: %w", err)
+	}
+
+	return consumptions, nil
 }

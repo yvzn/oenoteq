@@ -46,7 +46,7 @@ Content-Type: application/json
 ### List Wines
 GET {{baseUrl}}/wines
 
-### Get Wine detail (response includes suggested_meals, derived from appellation+color)
+### Get Wine detail (response includes suggested_meals derived from appellation+color, and consumption_history ordered by date)
 GET {{baseUrl}}/wines/1
 
 ### Edit Wine
@@ -61,6 +61,18 @@ Content-Type: application/json
   "garde_debut": 2020,
   "garde_fin": 2028,
   "quantity": 5
+}
+
+
+
+### Record a Consumption for a Wine (decrements quantity, rejected if quantity is 0)
+POST {{baseUrl}}/wines/1/consumptions
+Content-Type: application/json
+
+{
+  "date": "2026-01-15",
+  "rating": 4,
+  "notes": "Great with duck"
 }
 
 

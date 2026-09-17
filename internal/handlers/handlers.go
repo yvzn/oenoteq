@@ -27,6 +27,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /wines", h.ListWines)
 	mux.HandleFunc("GET /wines/{id}", h.GetWine)
 	mux.HandleFunc("PUT /wines/{id}", h.UpdateWine)
+	mux.HandleFunc("POST /wines/{id}/consumptions", h.CreateConsumption)
 	mux.HandleFunc("POST /meal-pairings", h.CreateMealPairing)
 	mux.HandleFunc("GET /meal-pairings", h.ListMealPairings)
 	mux.HandleFunc("DELETE /meal-pairings", h.DeleteMealPairing)
@@ -225,6 +226,60 @@ func (h *Handler) GetWine(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(wine)
+}
+
+type consumptionRequest struct {
+	Date   string  `json:"date"`
+	Rating *int    `json:"rating"`
+	Notes  *string `json:"notes"`
+}
+
+func consumptionErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, db.ErrDateRequired), errors.Is(err, db.ErrInvalidDate), errors.Is(err, db.ErrInvalidRating):
+		return http.StatusBadRequest
+	case errors.Is(err, db.ErrWineNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, db.ErrQuantityZero):
+		return http.StatusConflict
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func (h *Handler) CreateConsumption(w http.ResponseWriter, r *http.Request) {
+	wineID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid wine id"})
+		return
+	}
+
+	var req consumptionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		return
+	}
+
+	consumption, err := h.db.CreateConsumption(r.Context(), db.Consumption{
+		WineID: wineID,
+		Date:   req.Date,
+		Rating: req.Rating,
+		Notes:  req.Notes,
+	})
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(consumptionErrorStatus(err))
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(consumption)
 }
 
 func mealPairingErrorStatus(err error) int {
