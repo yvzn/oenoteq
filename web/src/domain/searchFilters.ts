@@ -32,12 +32,12 @@ export function queryParamsToFilters(query: Record<string, unknown>): SearchFilt
   }
 }
 
-function parseId(value: unknown): number | null {
+export function parseId(value: unknown): number | null {
   if (typeof value !== 'string' || value === '') return null
   const id = Number(value)
   return Number.isInteger(id) ? id : null
 }
 
-function parseColor(value: unknown): Color | null {
+export function parseColor(value: unknown): Color | null {
   return value === 'rouge' || value === 'blanc' || value === 'rose' ? value : null
 }

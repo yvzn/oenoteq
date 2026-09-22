@@ -6,6 +6,8 @@ export function useMeals() {
   const meals = ref<Meal[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const creating = ref(false)
+  const createError = ref<string | null>(null)
 
   async function load() {
     loading.value = true
@@ -19,5 +21,20 @@ export function useMeals() {
     }
   }
 
-  return { meals, loading, error, load }
+  async function create(name: string): Promise<Meal | null> {
+    creating.value = true
+    createError.value = null
+    try {
+      const meal = await apiClient.post<Meal>('/meals', { name })
+      meals.value = [...meals.value, meal]
+      return meal
+    } catch (e) {
+      createError.value = e instanceof ApiError ? e.message : 'Unknown error'
+      return null
+    } finally {
+      creating.value = false
+    }
+  }
+
+  return { meals, loading, error, load, create, creating, createError }
 }

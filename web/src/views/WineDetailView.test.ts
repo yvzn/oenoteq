@@ -55,6 +55,7 @@ function makeRouter(): Router {
     routes: [
       { path: '/wines/:id', name: 'wine-detail', component: WineDetailView },
       { path: '/wines/:id/edit', name: 'wine-edit', component: WineDetailView },
+      { path: '/meal-pairings', name: 'meal-pairings', component: WineDetailView },
     ],
   })
 }
@@ -119,6 +120,16 @@ describe('WineDetailView', () => {
     const { wrapper } = await mountAt('/wines/1')
 
     expect(wrapper.get('[data-testid="edit-wine-link"]').attributes('href')).toBe('/wines/1/edit')
+  })
+
+  it('links to meal pairing admin pre-filled with this wine\'s appellation and color', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    expect(wrapper.get('[data-testid="manage-pairings-link"]').attributes('href')).toBe(
+      '/meal-pairings?appellation_id=1&color=rouge',
+    )
   })
 
   it('shows an empty state when there are no suggested meals or consumption history', async () => {

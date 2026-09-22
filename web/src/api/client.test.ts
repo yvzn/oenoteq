@@ -89,3 +89,18 @@ describe('apiClient.put', () => {
     expect(init.body).toBe(JSON.stringify({ producer: 'Domaine X' }))
   })
 })
+
+describe('apiClient.delete', () => {
+  it('sends a JSON body and resolves with undefined on a 204 response', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await apiClient.delete('/meal-pairings', { appellation_id: 1, color: 'rouge', meal_id: 2 })
+
+    expect(result).toBeUndefined()
+    const [path, init] = fetchMock.mock.calls[0]
+    expect(path).toBe('/meal-pairings')
+    expect(init.method).toBe('DELETE')
+    expect(init.body).toBe(JSON.stringify({ appellation_id: 1, color: 'rouge', meal_id: 2 }))
+  })
+})
