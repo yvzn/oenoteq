@@ -11,8 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/younited/wine-cellar-tracker/internal/config"
 	"github.com/younited/wine-cellar-tracker/internal/db"
 	"github.com/younited/wine-cellar-tracker/internal/handlers"
+	"github.com/younited/wine-cellar-tracker/internal/static"
 )
 
 func main() {
@@ -22,9 +24,9 @@ func main() {
 }
 
 func run() error {
-	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" {
-		dbPath = "cellar.db"
+	dbPath, err := config.DBPath()
+	if err != nil {
+		return fmt.Errorf("resolving DB path: %w", err)
 	}
 
 	database, err := db.Open(dbPath)
@@ -37,9 +39,14 @@ func run() error {
 		return fmt.Errorf("running migrations: %w", err)
 	}
 
+	staticHandler, err := static.Handler()
+	if err != nil {
+		return fmt.Errorf("setting up static handler: %w", err)
+	}
+
 	router := http.NewServeMux()
 	h := handlers.New(database)
-	h.Register(router)
+	h.Register(router, staticHandler)
 
 	server := &http.Server{
 		Addr:         ":8080",

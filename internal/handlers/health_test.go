@@ -10,7 +10,7 @@ import (
 func TestHealth(t *testing.T) {
 	mux := http.NewServeMux()
 	handler := New(nil) // DB not used by health endpoint
-	handler.Register(mux)
+	handler.Register(mux, http.NotFoundHandler())
 
 	harness := test.New(t, mux)
 

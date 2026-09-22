@@ -23,7 +23,7 @@ func setupHandlerWithDB(t *testing.T) (*test.Harness, *db.DB) {
 
 	mux := http.NewServeMux()
 	handler := New(database)
-	handler.Register(mux)
+	handler.Register(mux, http.NotFoundHandler())
 
 	harness := test.New(t, mux)
 	t.Cleanup(func() {

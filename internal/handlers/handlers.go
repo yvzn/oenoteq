@@ -17,7 +17,10 @@ func New(database *db.DB) *Handler {
 	return &Handler{db: database}
 }
 
-func (h *Handler) Register(mux *http.ServeMux) {
+// Register wires the API routes onto mux, plus spa as the catch-all "/"
+// handler serving the frontend. Go 1.22+ ServeMux dispatches by pattern
+// specificity, so the API routes above always win over the "/" catch-all.
+func (h *Handler) Register(mux *http.ServeMux, spa http.Handler) {
 	mux.HandleFunc("GET /health", h.Health)
 	mux.HandleFunc("POST /appellations", h.CreateAppellation)
 	mux.HandleFunc("GET /appellations", h.ListAppellations)
@@ -32,6 +35,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /meal-pairings", h.ListMealPairings)
 	mux.HandleFunc("DELETE /meal-pairings", h.DeleteMealPairing)
 	mux.HandleFunc("GET /search", h.Search)
+	mux.Handle("/", spa)
 }
 
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
