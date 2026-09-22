@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
 import CellarListView from './CellarListView.vue'
 
@@ -11,7 +11,7 @@ vi.mock('../api/client', async () => {
 
 const currentYear = new Date().getFullYear()
 
-const wines = [
+const searchResults = [
   {
     id: 1,
     millesime: 2018,
@@ -21,6 +21,7 @@ const wines = [
     garde_debut: currentYear - 5,
     garde_fin: currentYear + 5,
     quantity: 3,
+    garde_status: 'ready',
   },
   {
     id: 2,
@@ -31,6 +32,7 @@ const wines = [
     garde_debut: currentYear + 1,
     garde_fin: currentYear + 10,
     quantity: 1,
+    garde_status: 'too_young',
   },
 ]
 
@@ -38,6 +40,31 @@ const appellations = [
   { id: 1, name: 'Chinon' },
   { id: 2, name: 'Sancerre' },
 ]
+
+const meals = [{ id: 1, name: 'Boeuf bourguignon' }]
+
+function mockApi(overrides: Record<string, unknown> = {}) {
+  vi.mocked(apiClient.get).mockImplementation((path: string) => {
+    if (path === '/appellations') return Promise.resolve(appellations)
+    if (path === '/meals') return Promise.resolve(meals)
+    if (path.startsWith('/search')) return Promise.resolve(overrides.search ?? searchResults)
+    throw new Error(`unexpected path: ${path}`)
+  })
+}
+
+async function mountAt(initialPath: string, { flush = true }: { flush?: boolean } = {}) {
+  const router: Router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/', name: 'cellar', component: CellarListView }],
+  })
+  router.push(initialPath)
+  await router.isReady()
+
+  const wrapper = mount(CellarListView, { global: { plugins: [router] } })
+  if (flush) await flushPromises()
+  else await wrapper.vm.$nextTick()
+  return { wrapper, router }
+}
 
 afterEach(() => {
   vi.mocked(apiClient.get).mockReset()
@@ -47,67 +74,77 @@ describe('CellarListView', () => {
   it('shows a loading indicator before the fetches resolve', async () => {
     vi.mocked(apiClient.get).mockReturnValue(new Promise(() => {}))
 
-    const wrapper = mount(CellarListView)
-    await nextTick()
+    const { wrapper } = await mountAt('/', { flush: false })
 
     expect(wrapper.find('[role="status"]').exists()).toBe(true)
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="wine-list"]').exists()).toBe(false)
   })
 
-  it('renders one item per wine with resolved appellation name, fields, and garde badge', async () => {
-    vi.mocked(apiClient.get).mockImplementation((path: string) => {
-      if (path === '/wines') return Promise.resolve(wines)
-      if (path === '/appellations') return Promise.resolve(appellations)
-      throw new Error(`unexpected path: ${path}`)
-    })
+  it('searches with no filters and renders one item per result with garde badge', async () => {
+    mockApi()
 
-    const wrapper = mount(CellarListView)
-    await flushPromises()
+    const { wrapper } = await mountAt('/')
+
+    expect(apiClient.get).toHaveBeenCalledWith('/search')
 
     const items = wrapper.findAll('[data-testid="wine-item"]')
     expect(items).toHaveLength(2)
-
-    expect(items[0].text()).toContain('Les Garillères')
-    expect(items[0].text()).toContain('Chinon')
-    expect(items[0].text()).toContain('2018')
-    expect(items[0].text()).toContain('rouge')
-    expect(items[0].text()).toContain('3')
-    expect(items[0].text()).toContain('Ready')
-
-    expect(items[1].text()).toContain('Domaine X')
-    expect(items[1].text()).toContain('Sancerre')
-    expect(items[1].text()).toContain('NV')
-    expect(items[1].text()).toContain('Too young')
+    expect(items[0]!.text()).toContain('Les Garillères')
+    expect(items[0]!.text()).toContain('Chinon')
+    expect(items[0]!.text()).toContain('Ready')
+    expect(items[1]!.text()).toContain('Domaine X')
+    expect(items[1]!.text()).toContain('Too young')
   })
 
   it('shows an error state distinct from loading when a fetch fails', async () => {
     vi.mocked(apiClient.get).mockImplementation((path: string) => {
-      if (path === '/wines') return Promise.reject(new Error('server exploded'))
-      return Promise.resolve(appellations)
+      if (path.startsWith('/search')) return Promise.reject(new Error('server exploded'))
+      return Promise.resolve([])
     })
 
-    const wrapper = mount(CellarListView)
-    await flushPromises()
+    const { wrapper } = await mountAt('/')
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
     expect(wrapper.find('[role="status"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="wine-list"]').exists()).toBe(false)
   })
 
-  it('renders an empty list with no loading or error when there are no wines', async () => {
-    vi.mocked(apiClient.get).mockImplementation((path: string) => {
-      if (path === '/wines') return Promise.resolve([])
-      return Promise.resolve(appellations)
-    })
+  it('pre-applies filters from the URL query params on load', async () => {
+    mockApi()
 
-    const wrapper = mount(CellarListView)
+    await mountAt('/?appellation_id=1&color=rouge&ready_now=true')
+
+    expect(apiClient.get).toHaveBeenCalledWith('/search?appellation_id=1&color=rouge&ready_now=true')
+  })
+
+  it('combines filter changes from the filter bar with AND semantics and reflects them in the URL', async () => {
+    mockApi()
+
+    const { wrapper, router } = await mountAt('/')
+
+    await wrapper.find('[data-testid="color-filter"]').setValue('rouge')
+    await flushPromises()
+    await wrapper.find('[data-testid="ready-now-filter"]').setValue(true)
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="wine-list"]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-testid="wine-item"]')).toHaveLength(0)
-    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    expect(router.currentRoute.value.query).toEqual({ color: 'rouge', ready_now: 'true' })
+    expect(apiClient.get).toHaveBeenLastCalledWith('/search?color=rouge&ready_now=true')
+  })
+
+  it('moves between prior filter states on browser back', async () => {
+    mockApi()
+
+    const { wrapper, router } = await mountAt('/')
+
+    await wrapper.find('[data-testid="color-filter"]').setValue('rouge')
+    await flushPromises()
+
+    await router.back()
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({})
+    expect(apiClient.get).toHaveBeenLastCalledWith('/search')
   })
 })
 

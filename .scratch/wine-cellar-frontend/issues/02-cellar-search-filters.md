@@ -4,11 +4,11 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Filter bar on the Cellar screen: meal, appellation, color, "ready now"
-- [ ] Filters combine with AND semantics (matches `GET /search`'s behavior)
-- [ ] Active filters are reflected in the URL as query params; loading the screen with query params pre-applies those filters; browser back/forward moves between prior filter states
-- [ ] Appellation and meal filter fields autocomplete against the full appellation/meal lists (fetched once client-side), narrowing as the user types
-- [ ] Wines with quantity 0 excluded by default (matches API default); wines outside their garde window are still shown, flagged with their status, never hidden by a filter
-- [ ] Tests cover: filter combination logic, URL query-param round-trip, autocomplete narrowing
+- [x] Filter bar on the Cellar screen: meal, appellation, color, "ready now"
+- [x] Filters combine with AND semantics (matches `GET /search`'s behavior)
+- [x] Active filters are reflected in the URL as query params; loading the screen with query params pre-applies those filters; browser back/forward moves between prior filter states
+- [x] Appellation and meal filter fields autocomplete against the full appellation/meal lists (fetched once client-side), narrowing as the user types
+- [x] Wines with quantity 0 excluded by default (matches API default); wines outside their garde window are still shown, flagged with their status, never hidden by a filter
+- [x] Tests cover: filter combination logic, URL query-param round-trip, autocomplete narrowing

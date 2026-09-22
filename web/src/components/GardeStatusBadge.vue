@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { GardeStatus } from '../domain/gardeStatus'
+import type { GardeStatus } from '../api/types'
 
 const props = defineProps<{ status: GardeStatus }>()
 

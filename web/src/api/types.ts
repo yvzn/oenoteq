@@ -1,4 +1,5 @@
 export type Color = 'rouge' | 'blanc' | 'rose'
+export type GardeStatus = 'too_young' | 'ready' | 'past_peak'
 
 export interface Wine {
   id: number
@@ -11,7 +12,16 @@ export interface Wine {
   quantity: number
 }
 
+export interface WineSearchResult extends Wine {
+  garde_status: GardeStatus
+}
+
 export interface Appellation {
+  id: number
+  name: string
+}
+
+export interface Meal {
   id: number
   name: string
 }

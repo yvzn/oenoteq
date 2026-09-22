@@ -1,9 +1,9 @@
 import { ref } from 'vue'
 import { apiClient, ApiError } from '../api/client'
-import type { Wine } from '../api/types'
+import type { Meal } from '../api/types'
 
-export function useWines() {
-  const wines = ref<Wine[]>([])
+export function useMeals() {
+  const meals = ref<Meal[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -11,7 +11,7 @@ export function useWines() {
     loading.value = true
     error.value = null
     try {
-      wines.value = await apiClient.get<Wine[]>('/wines')
+      meals.value = await apiClient.get<Meal[]>('/meals')
     } catch (e) {
       error.value = e instanceof ApiError ? e.message : 'Unknown error'
     } finally {
@@ -19,5 +19,5 @@ export function useWines() {
     }
   }
 
-  return { wines, loading, error, load }
+  return { meals, loading, error, load }
 }

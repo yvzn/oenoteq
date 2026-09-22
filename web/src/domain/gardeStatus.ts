@@ -1,6 +1,4 @@
-import type { Wine } from '../api/types'
-
-export type GardeStatus = 'too_young' | 'ready' | 'past_peak'
+import type { GardeStatus, Wine } from '../api/types'
 
 export function computeGardeStatus(
   wine: Pick<Wine, 'garde_debut' | 'garde_fin'>,
