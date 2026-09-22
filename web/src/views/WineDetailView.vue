@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import GardeStatusBadge from '../components/GardeStatusBadge.vue'
 import { useAppellations } from '../composables/useAppellations'
@@ -8,7 +8,15 @@ import { computeGardeStatus } from '../domain/gardeStatus'
 
 const route = useRoute()
 
-const { wine, loading: wineLoading, error: wineError, load: loadWine } = useWines()
+const {
+  wine,
+  loading: wineLoading,
+  error: wineError,
+  load: loadWine,
+  recordConsumption,
+  submittingConsumption,
+  consumptionError,
+} = useWines()
 const {
   appellations,
   loading: appellationsLoading,
@@ -17,6 +25,23 @@ const {
 } = useAppellations()
 
 const id = computed(() => Number(route.params.id))
+
+const consumptionDate = ref('')
+const consumptionRating = ref('')
+const consumptionNotes = ref('')
+
+async function submitConsumption() {
+  await recordConsumption(id.value, {
+    date: consumptionDate.value,
+    rating: consumptionRating.value === '' ? null : Number(consumptionRating.value),
+    notes: consumptionNotes.value === '' ? null : consumptionNotes.value,
+  })
+  if (!consumptionError.value) {
+    consumptionDate.value = ''
+    consumptionRating.value = ''
+    consumptionNotes.value = ''
+  }
+}
 
 const loading = computed(() => wineLoading.value || appellationsLoading.value)
 const error = computed(() =>
@@ -31,7 +56,17 @@ const appellationName = computed(() => {
 
 const gardeStatus = computed(() => (wine.value ? computeGardeStatus(wine.value) : null))
 
-watch(id, (next) => loadWine(next), { immediate: true })
+watch(
+  id,
+  (next) => {
+    consumptionError.value = null
+    consumptionDate.value = ''
+    consumptionRating.value = ''
+    consumptionNotes.value = ''
+    loadWine(next)
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   loadAppellations()
@@ -81,6 +116,52 @@ onMounted(() => {
             <span v-if="consumption.notes">{{ consumption.notes }}</span>
           </li>
         </ul>
+      </section>
+
+      <section class="mt-6">
+        <h3 class="font-serif text-lg text-stone-900">Record a consumption</h3>
+        <p v-if="wine.quantity === 0" data-testid="consumption-blocked-message" class="text-stone-600">
+          No bottles left to record a consumption — quantity is already 0.
+        </p>
+        <form
+          v-else
+          data-testid="consumption-form"
+          class="mt-2 flex flex-col gap-2"
+          @submit.prevent="submitConsumption"
+        >
+          <label class="flex flex-col text-sm text-stone-700">
+            Date
+            <input
+              v-model="consumptionDate"
+              data-testid="consumption-date-input"
+              type="date"
+              required
+            />
+          </label>
+          <label class="flex flex-col text-sm text-stone-700">
+            Rating (1–5)
+            <input
+              v-model="consumptionRating"
+              data-testid="consumption-rating-input"
+              type="number"
+              min="1"
+              max="5"
+            />
+          </label>
+          <label class="flex flex-col text-sm text-stone-700">
+            Notes
+            <textarea v-model="consumptionNotes" data-testid="consumption-notes-input"></textarea>
+          </label>
+          <p v-if="consumptionError" role="alert" class="text-red-700">{{ consumptionError }}</p>
+          <button
+            type="submit"
+            data-testid="consumption-submit"
+            :disabled="submittingConsumption"
+            class="self-start rounded bg-stone-800 px-3 py-1 text-white disabled:opacity-50"
+          >
+            Record
+          </button>
+        </form>
       </section>
     </div>
   </section>

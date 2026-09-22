@@ -9,6 +9,15 @@ vi.mock('../api/client', async () => {
   return { ...actual, apiClient: { get: vi.fn(), post: vi.fn() } }
 })
 
+function fillConsumptionForm(
+  wrapper: ReturnType<typeof mount>,
+  { date, rating, notes }: { date: string; rating?: string; notes?: string },
+) {
+  wrapper.get('[data-testid="consumption-date-input"]').setValue(date)
+  if (rating !== undefined) wrapper.get('[data-testid="consumption-rating-input"]').setValue(rating)
+  if (notes !== undefined) wrapper.get('[data-testid="consumption-notes-input"]').setValue(notes)
+}
+
 const currentYear = new Date().getFullYear()
 
 const wineDetail = {
@@ -123,6 +132,82 @@ describe('WineDetailView', () => {
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
     expect(wrapper.find('[role="status"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="wine-detail"]').exists()).toBe(false)
+  })
+
+  it('records a consumption and refreshes quantity and history on success', async () => {
+    let consumptionRecorded = false
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/appellations') return Promise.resolve(appellations)
+      if (path === '/wines/1') {
+        return Promise.resolve(
+          consumptionRecorded
+            ? {
+                ...wineDetail,
+                quantity: 2,
+                consumption_history: [
+                  ...wineDetail.consumption_history,
+                  { id: 3, wine_id: 1, date: '2026-03-01', rating: 5, notes: 'Superb' },
+                ],
+              }
+            : wineDetail,
+        )
+      }
+      throw new Error(`unexpected path: ${path}`)
+    })
+    vi.mocked(apiClient.post).mockImplementation(() => {
+      consumptionRecorded = true
+      return Promise.resolve({ id: 3, wine_id: 1, date: '2026-03-01', rating: 5, notes: 'Superb' })
+    })
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    fillConsumptionForm(wrapper, { date: '2026-03-01', rating: '5', notes: 'Superb' })
+    await wrapper.get('[data-testid="consumption-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledWith('/wines/1/consumptions', {
+      date: '2026-03-01',
+      rating: 5,
+      notes: 'Superb',
+    })
+
+    const detail = wrapper.get('[data-testid="wine-detail"]')
+    expect(detail.text()).toContain('Qty: 2')
+    expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(3)
+  })
+
+  it('clears a stale consumption error when navigating to a different wine', async () => {
+    const wineTwo = { ...wineDetail, id: 2, producer: 'Domaine Autre' }
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/appellations') return Promise.resolve(appellations)
+      if (path === '/wines/1') return Promise.resolve(wineDetail)
+      if (path === '/wines/2') return Promise.resolve(wineTwo)
+      throw new Error(`unexpected path: ${path}`)
+    })
+    vi.mocked(apiClient.post).mockRejectedValue(new Error('server exploded'))
+
+    const { wrapper, router } = await mountAt('/wines/1')
+
+    fillConsumptionForm(wrapper, { date: '2026-03-01' })
+    await wrapper.get('[data-testid="consumption-form"]').trigger('submit.prevent')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+
+    await router.push('/wines/2')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
+  it('blocks the consumption form when quantity is already zero', async () => {
+    mockApi({ wine: { ...wineDetail, quantity: 0 } })
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    expect(wrapper.find('[data-testid="consumption-form"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="consumption-blocked-message"]').text()).toMatch(
+      /no bottles left/i,
+    )
   })
 })
 
