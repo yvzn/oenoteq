@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] Create a Wine: millesime (nullable int), appellation (must reference an existing Appellation), producer (free text), color (rouge/blanc/rose only), garde_debut/garde_fin (ints), quantity (int ≥ 0)
-- [ ] Creating a Wine with an unknown appellation id, an invalid color, or a negative quantity is rejected
-- [ ] Creating a Wine with no millesime succeeds (non-vintage support)
-- [ ] Edit any field of an existing Wine
-- [ ] List all Wines, including those with quantity 0, showing quantity
-- [ ] Get a single Wine's full detail (millesime, appellation, producer, color, garde, quantity)
-- [ ] Tests drive all of the above through the real-SQLite HTTP seam
+- [x] Create a Wine: millesime (nullable int), appellation (must reference an existing Appellation), producer (free text), color (rouge/blanc/rose only), garde_debut/garde_fin (ints), quantity (int ≥ 0)
+- [x] Creating a Wine with an unknown appellation id, an invalid color, or a negative quantity is rejected
+- [x] Creating a Wine with no millesime succeeds (non-vintage support)
+- [x] Edit any field of an existing Wine
+- [x] List all Wines, including those with quantity 0, showing quantity
+- [x] Get a single Wine's full detail (millesime, appellation, producer, color, garde, quantity)
+- [x] Tests drive all of the above through the real-SQLite HTTP seam

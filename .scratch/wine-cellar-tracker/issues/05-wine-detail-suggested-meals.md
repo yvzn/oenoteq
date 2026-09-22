@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] Getting a Wine's detail includes the Meals associated with its (appellation, color) pair
-- [ ] A Wine whose (appellation, color) has no Meal Pairing entries yet returns an empty suggested-meals list, not an error
-- [ ] Editing the Meal Pairing for a pair (ticket 04) is reflected immediately in every Wine detail of that pair — no per-wine copy to keep in sync
-- [ ] Tests drive this through the real-SQLite HTTP seam
+- [x] Getting a Wine's detail includes the Meals associated with its (appellation, color) pair
+- [x] A Wine whose (appellation, color) has no Meal Pairing entries yet returns an empty suggested-meals list, not an error
+- [x] Editing the Meal Pairing for a pair (ticket 04) is reflected immediately in every Wine detail of that pair — no per-wine copy to keep in sync
+- [x] Tests drive this through the real-SQLite HTTP seam

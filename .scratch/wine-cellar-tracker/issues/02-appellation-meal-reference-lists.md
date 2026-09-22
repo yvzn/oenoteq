@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] `Appellation` has a create endpoint (name) and a list endpoint
-- [ ] `Meal` has a create endpoint (name) and a list endpoint
-- [ ] Creating an Appellation/Meal that already exists (by name) is rejected rather than silently duplicated
-- [ ] Tests drive both endpoints through the real-SQLite HTTP seam: create then list, and the duplicate-rejection case
+- [x] `Appellation` has a create endpoint (name) and a list endpoint
+- [x] `Meal` has a create endpoint (name) and a list endpoint
+- [x] Creating an Appellation/Meal that already exists (by name) is rejected rather than silently duplicated
+- [x] Tests drive both endpoints through the real-SQLite HTTP seam: create then list, and the duplicate-rejection case

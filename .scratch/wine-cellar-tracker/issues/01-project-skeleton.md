@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Go module set up with an HTTP server that starts and serves requests
-- [ ] SQLite wired up with a migration mechanism (schema versioned, repeatable)
-- [ ] A health-check endpoint (e.g. `GET /health`) returns a success response
-- [ ] Test harness exists that spins up a real SQLite (temp-file or in-memory) per test run and drives the HTTP layer — no mocking of storage
-- [ ] At least one test exercises the health-check endpoint through this harness, establishing the pattern later tickets will follow
+- [x] Go module set up with an HTTP server that starts and serves requests
+- [x] SQLite wired up with a migration mechanism (schema versioned, repeatable)
+- [x] A health-check endpoint (e.g. `GET /health`) returns a success response
+- [x] Test harness exists that spins up a real SQLite (temp-file or in-memory) per test run and drives the HTTP layer — no mocking of storage
+- [x] At least one test exercises the health-check endpoint through this harness, establishing the pattern later tickets will follow
