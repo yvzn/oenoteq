@@ -57,6 +57,7 @@ async function mountAt(initialPath: string, { flush = true }: { flush?: boolean 
     history: createMemoryHistory(),
     routes: [
       { path: '/', name: 'cellar', component: CellarListView },
+      { path: '/wines/new', name: 'wine-new', component: CellarListView },
       { path: '/wines/:id', name: 'wine-detail', component: CellarListView },
     ],
   })
@@ -109,6 +110,14 @@ describe('CellarListView', () => {
     expect(links).toHaveLength(2)
     expect(links[0]!.attributes('href')).toBe('/wines/1')
     expect(links[1]!.attributes('href')).toBe('/wines/2')
+  })
+
+  it('links to the add-wine form', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/')
+
+    expect(wrapper.get('[data-testid="add-wine-link"]').attributes('href')).toBe('/wines/new')
   })
 
   it('shows an error state distinct from loading when a fetch fails', async () => {

@@ -80,7 +80,16 @@ onMounted(() => {
       Couldn't load this wine: {{ error }}
     </p>
     <div v-else-if="wine" data-testid="wine-detail">
-      <h2 class="font-serif text-xl text-stone-900">{{ wine.producer }}</h2>
+      <div class="flex items-center justify-between">
+        <h2 class="font-serif text-xl text-stone-900">{{ wine.producer }}</h2>
+        <RouterLink
+          :to="{ name: 'wine-edit', params: { id: wine.id } }"
+          data-testid="edit-wine-link"
+          class="text-sm text-stone-600 underline"
+        >
+          Edit
+        </RouterLink>
+      </div>
       <div class="mt-2 flex flex-wrap items-center gap-3 text-stone-700">
         <span>{{ appellationName }}</span>
         <span>{{ wine.millesime ?? 'NV' }}</span>

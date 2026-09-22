@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { apiClient, ApiError } from '../api/client'
-import type { Consumption, WineDetail } from '../api/types'
+import type { Consumption, Wine, WineDetail, WineInput } from '../api/types'
 
 export interface ConsumptionInput {
   date: string
@@ -14,6 +14,8 @@ export function useWines() {
   const error = ref<string | null>(null)
   const submittingConsumption = ref(false)
   const consumptionError = ref<string | null>(null)
+  const submitting = ref(false)
+  const submitError = ref<string | null>(null)
 
   async function load(id: number) {
     loading.value = true
@@ -40,6 +42,32 @@ export function useWines() {
     }
   }
 
+  async function create(input: WineInput): Promise<Wine | null> {
+    submitting.value = true
+    submitError.value = null
+    try {
+      return await apiClient.post<Wine>('/wines', input)
+    } catch (e) {
+      submitError.value = e instanceof ApiError ? e.message : 'Unknown error'
+      return null
+    } finally {
+      submitting.value = false
+    }
+  }
+
+  async function update(id: number, input: WineInput): Promise<Wine | null> {
+    submitting.value = true
+    submitError.value = null
+    try {
+      return await apiClient.put<Wine>(`/wines/${id}`, input)
+    } catch (e) {
+      submitError.value = e instanceof ApiError ? e.message : 'Unknown error'
+      return null
+    } finally {
+      submitting.value = false
+    }
+  }
+
   return {
     wine,
     loading,
@@ -48,5 +76,9 @@ export function useWines() {
     recordConsumption,
     submittingConsumption,
     consumptionError,
+    create,
+    update,
+    submitting,
+    submitError,
   }
 }

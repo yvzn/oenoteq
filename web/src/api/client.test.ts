@@ -74,3 +74,18 @@ describe('apiClient.post', () => {
     expect(init.body).toBe(JSON.stringify({ name: 'Chinon' }))
   })
 })
+
+describe('apiClient.put', () => {
+  it('sends a JSON body and resolves with the parsed response', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { id: 1, producer: 'Domaine X' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await apiClient.put('/wines/1', { producer: 'Domaine X' })
+
+    expect(result).toEqual({ id: 1, producer: 'Domaine X' })
+    const [path, init] = fetchMock.mock.calls[0]
+    expect(path).toBe('/wines/1')
+    expect(init.method).toBe('PUT')
+    expect(init.body).toBe(JSON.stringify({ producer: 'Domaine X' }))
+  })
+})

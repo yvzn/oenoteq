@@ -16,6 +16,8 @@ export interface WineSearchResult extends Wine {
   garde_status: GardeStatus
 }
 
+export type WineInput = Omit<Wine, 'id'>
+
 export interface Appellation {
   id: number
   name: string

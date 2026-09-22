@@ -64,6 +64,15 @@ onMounted(() => {
     />
 
     <div class="px-6 py-4">
+      <div class="mb-4 flex justify-end">
+        <RouterLink
+          :to="{ name: 'wine-new' }"
+          data-testid="add-wine-link"
+          class="rounded bg-stone-800 px-3 py-1 text-sm text-white"
+        >
+          Add wine
+        </RouterLink>
+      </div>
       <p v-if="loading" role="status" class="text-stone-600">Loading your cellar…</p>
       <p v-else-if="hasError" role="alert" class="text-red-700">
         Couldn't load your cellar: {{ error }}

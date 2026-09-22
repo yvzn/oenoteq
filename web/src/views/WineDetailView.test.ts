@@ -52,7 +52,10 @@ function mockApi(overrides: Record<string, unknown> = {}) {
 function makeRouter(): Router {
   return createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/wines/:id', name: 'wine-detail', component: WineDetailView }],
+    routes: [
+      { path: '/wines/:id', name: 'wine-detail', component: WineDetailView },
+      { path: '/wines/:id/edit', name: 'wine-edit', component: WineDetailView },
+    ],
   })
 }
 
@@ -108,6 +111,14 @@ describe('WineDetailView', () => {
     expect(consumptions[0]!.text()).toContain('Rating: 4')
     expect(consumptions[0]!.text()).toContain('Great with duck')
     expect(consumptions[1]!.text()).toContain('2026-02-01')
+  })
+
+  it('links to the edit form for this wine', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    expect(wrapper.get('[data-testid="edit-wine-link"]').attributes('href')).toBe('/wines/1/edit')
   })
 
   it('shows an empty state when there are no suggested meals or consumption history', async () => {
