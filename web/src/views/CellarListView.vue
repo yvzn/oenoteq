@@ -69,18 +69,19 @@ onMounted(() => {
         Couldn't load your cellar: {{ error }}
       </p>
       <ul v-else data-testid="wine-list" class="divide-y divide-stone-200">
-        <li
-          v-for="wine in results"
-          :key="wine.id"
-          data-testid="wine-item"
-          class="flex flex-wrap items-center gap-3 py-3"
-        >
-          <span class="font-medium text-stone-900">{{ wine.producer }}</span>
-          <span class="text-stone-600">{{ appellationName(wine.appellation_id) }}</span>
-          <span class="text-stone-600">{{ wine.millesime ?? 'NV' }}</span>
-          <span class="text-stone-600">{{ wine.color }}</span>
-          <span class="text-stone-600">Qty: {{ wine.quantity }}</span>
-          <GardeStatusBadge :status="wine.garde_status" />
+        <li v-for="wine in results" :key="wine.id" data-testid="wine-item" class="py-3">
+          <RouterLink
+            :to="{ name: 'wine-detail', params: { id: wine.id } }"
+            data-testid="wine-link"
+            class="flex flex-wrap items-center gap-3"
+          >
+            <span class="font-medium text-stone-900">{{ wine.producer }}</span>
+            <span class="text-stone-600">{{ appellationName(wine.appellation_id) }}</span>
+            <span class="text-stone-600">{{ wine.millesime ?? 'NV' }}</span>
+            <span class="text-stone-600">{{ wine.color }}</span>
+            <span class="text-stone-600">Qty: {{ wine.quantity }}</span>
+            <GardeStatusBadge :status="wine.garde_status" />
+          </RouterLink>
         </li>
       </ul>
     </div>

@@ -55,7 +55,10 @@ function mockApi(overrides: Record<string, unknown> = {}) {
 async function mountAt(initialPath: string, { flush = true }: { flush?: boolean } = {}) {
   const router: Router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/', name: 'cellar', component: CellarListView }],
+    routes: [
+      { path: '/', name: 'cellar', component: CellarListView },
+      { path: '/wines/:id', name: 'wine-detail', component: CellarListView },
+    ],
   })
   router.push(initialPath)
   await router.isReady()
@@ -95,6 +98,17 @@ describe('CellarListView', () => {
     expect(items[0]!.text()).toContain('Ready')
     expect(items[1]!.text()).toContain('Domaine X')
     expect(items[1]!.text()).toContain('Too young')
+  })
+
+  it('links each wine item to its detail view', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/')
+
+    const links = wrapper.findAll('[data-testid="wine-link"]')
+    expect(links).toHaveLength(2)
+    expect(links[0]!.attributes('href')).toBe('/wines/1')
+    expect(links[1]!.attributes('href')).toBe('/wines/2')
   })
 
   it('shows an error state distinct from loading when a fetch fails', async () => {
