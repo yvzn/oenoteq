@@ -34,3 +34,7 @@ _Avoid_: Type, category
 **Meal Pairing**:
 A shared, reusable lookup keyed by (Appellation, Color) that suggests which meals fit a wine. Not customized per wine.
 _Avoid_: Food match, pairing (ambiguous alone)
+
+**Garde Status**:
+A Wine's position in its Garde window, derived (not stored) by comparing the current year to `garde_debut`/`garde_fin`: `too_young` (before the window), `ready` (inside it), or `past_peak` (after it). Computed at read time, e.g. by Search.
+_Avoid_: Drinking status, maturity
