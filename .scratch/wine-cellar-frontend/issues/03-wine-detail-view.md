@@ -4,11 +4,11 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `/wines/:id` route renders millesime, appellation, producer, color, garde range, garde status, and quantity
-- [ ] Suggested meals for this wine (derived from its appellation+color pairing) are displayed
-- [ ] Full consumption history (date, rating, notes) is displayed, ordered by date
-- [ ] Each wine in the Cellar list (ticket 01/02) links to its Detail view
-- [ ] Loading/error states handled consistently with ticket 01's convention
-- [ ] Tests cover: rendering of wine fields, suggested meals, and consumption history from the API response shape
+- [x] `/wines/:id` route renders millesime, appellation, producer, color, garde range, garde status, and quantity
+- [x] Suggested meals for this wine (derived from its appellation+color pairing) are displayed
+- [x] Full consumption history (date, rating, notes) is displayed, ordered by date
+- [x] Each wine in the Cellar list (ticket 01/02) links to its Detail view
+- [x] Loading/error states handled consistently with ticket 01's convention
+- [x] Tests cover: rendering of wine fields, suggested meals, and consumption history from the API response shape
