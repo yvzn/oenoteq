@@ -61,6 +61,23 @@ afterEach(() => {
 })
 
 describe('MealPairingView', () => {
+  it('retries the failed load when the retry action is clicked', async () => {
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/meals') return Promise.reject(new Error('server exploded'))
+      return Promise.resolve(appellations)
+    })
+
+    const { wrapper } = await mountAt('/meal-pairings')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+
+    mockApi()
+    await wrapper.get('[data-testid="meal-pairing-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="meal-pairing-appellation-input"]').exists()).toBe(true)
+  })
+
   it('lists the meals currently paired once an appellation and color are picked', async () => {
     mockApi()
 

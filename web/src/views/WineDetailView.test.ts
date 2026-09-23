@@ -156,6 +156,23 @@ describe('WineDetailView', () => {
     expect(wrapper.find('[data-testid="wine-detail"]').exists()).toBe(false)
   })
 
+  it('retries loading the wine when the retry action is clicked', async () => {
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/wines/1') return Promise.reject(new Error('server exploded'))
+      return Promise.resolve([])
+    })
+
+    const { wrapper } = await mountAt('/wines/1')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+
+    mockApi()
+    await wrapper.get('[data-testid="wine-detail-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="wine-detail"]').exists()).toBe(true)
+  })
+
   it('records a consumption and refreshes quantity and history on success', async () => {
     let consumptionRecorded = false
     vi.mocked(apiClient.get).mockImplementation((path: string) => {

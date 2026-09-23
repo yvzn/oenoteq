@@ -94,10 +94,12 @@ watch(
   { immediate: true },
 )
 
-onMounted(() => {
+function retry() {
   loadAppellations()
   if (editId.value !== null) loadWine(editId.value)
-})
+}
+
+onMounted(retry)
 
 function toggleNewAppellation() {
   showNewAppellation.value = !showNewAppellation.value
@@ -132,7 +134,12 @@ async function submit() {
     <PageHeader :title="isEdit ? 'Edit wine' : 'Add wine'" />
 
     <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
-    <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">Couldn't load: {{ loadError }}</StatusLine>
+    <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">
+      Couldn't load: {{ loadError }}
+      <template #retry>
+        <AppButton variant="ghost" data-testid="wine-form-retry" @click="retry">Retry</AppButton>
+      </template>
+    </StatusLine>
     <form
       v-else
       data-testid="wine-form"

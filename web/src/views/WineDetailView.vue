@@ -76,12 +76,21 @@ watch(
 onMounted(() => {
   loadAppellations()
 })
+
+function retry() {
+  loadWine(id.value)
+}
 </script>
 
 <template>
   <section class="px-6 py-6">
     <StatusLine v-if="loading">Loading wine…</StatusLine>
-    <StatusLine v-else-if="hasError" tone="error">Couldn't load this wine: {{ error }}</StatusLine>
+    <StatusLine v-else-if="hasError" tone="error">
+      Couldn't load this wine: {{ error }}
+      <template #retry>
+        <AppButton variant="ghost" data-testid="wine-detail-retry" @click="retry">Retry</AppButton>
+      </template>
+    </StatusLine>
     <div v-else-if="wine" data-testid="wine-detail" class="max-w-2xl">
       <PageHeader :title="wine.producer">
         <template #actions>

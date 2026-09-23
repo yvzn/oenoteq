@@ -63,9 +63,13 @@ watch([appellationId, color], ([nextAppellationId, nextColor]) => {
   }
 })
 
-onMounted(() => {
+function retry() {
   loadAppellations()
   loadMeals()
+}
+
+onMounted(() => {
+  retry()
   if (selectionReady.value) loadPairings(appellationId.value as number, color.value as Color)
 })
 
@@ -108,7 +112,12 @@ async function submitNewMeal() {
     <PageHeader title="Meal pairings" />
 
     <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
-    <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">Couldn't load: {{ loadError }}</StatusLine>
+    <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">
+      Couldn't load: {{ loadError }}
+      <template #retry>
+        <AppButton variant="ghost" data-testid="meal-pairing-retry" @click="retry">Retry</AppButton>
+      </template>
+    </StatusLine>
     <template v-else>
       <div class="mt-6 flex max-w-md flex-col gap-4">
         <FormField label="Appellation">

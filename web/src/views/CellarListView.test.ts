@@ -133,6 +133,23 @@ describe('CellarListView', () => {
     expect(wrapper.find('[data-testid="wine-list"]').exists()).toBe(false)
   })
 
+  it('retries the failed load when the retry action is clicked', async () => {
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path.startsWith('/search')) return Promise.reject(new Error('server exploded'))
+      return Promise.resolve([])
+    })
+
+    const { wrapper } = await mountAt('/')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+
+    mockApi()
+    await wrapper.get('[data-testid="cellar-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="wine-list"]').exists()).toBe(true)
+  })
+
   it('pre-applies filters from the URL query params on load', async () => {
     mockApi()
 

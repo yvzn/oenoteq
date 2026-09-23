@@ -50,12 +50,19 @@ function updateFilters(next: SearchFilters) {
   router.push({ query: filtersToQueryParams(next) })
 }
 
-watch(filters, (next) => search(next), { immediate: true })
-
-onMounted(() => {
+function loadFilterOptions() {
   loadAppellations()
   loadMeals()
-})
+}
+
+function retry() {
+  loadFilterOptions()
+  search(filters.value)
+}
+
+watch(filters, (next) => search(next), { immediate: true })
+
+onMounted(loadFilterOptions)
 </script>
 
 <template>
@@ -77,6 +84,9 @@ onMounted(() => {
       <StatusLine v-if="loading" class="mt-6">Loading your cellar…</StatusLine>
       <StatusLine v-else-if="hasError" tone="error" class="mt-6">
         Couldn't load your cellar: {{ error }}
+        <template #retry>
+          <AppButton variant="ghost" data-testid="cellar-retry" @click="retry">Retry</AppButton>
+        </template>
       </StatusLine>
       <ul v-else data-testid="wine-list" class="mt-6 flex flex-col gap-3">
         <li v-for="wine in results" :key="wine.id" data-testid="wine-item">

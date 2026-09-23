@@ -190,6 +190,23 @@ describe('WineFormView — add', () => {
 })
 
 describe('WineFormView — edit', () => {
+  it('retries the failed load when the retry action is clicked', async () => {
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/wines/5') return Promise.reject(new Error('server exploded'))
+      return Promise.resolve(appellations)
+    })
+
+    const { wrapper } = await mountAt('/wines/5/edit')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+
+    mockGet()
+    await wrapper.get('[data-testid="wine-form-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="wine-form"]').exists()).toBe(true)
+  })
+
   it('pre-fills the form with the existing wine values', async () => {
     mockGet()
 
