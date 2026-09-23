@@ -1,5 +1,6 @@
 import { ref } from 'vue'
-import { apiClient, ApiError } from '../api/client'
+import { apiClient } from '../api/client'
+import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Consumption, Wine, WineDetail, WineInput } from '../api/types'
 
 export interface ConsumptionInput {
@@ -23,7 +24,7 @@ export function useWines() {
     try {
       wine.value = await apiClient.get<WineDetail>(`/wines/${id}`)
     } catch (e) {
-      error.value = e instanceof ApiError ? e.message : 'Unknown error'
+      error.value = friendlyErrorMessage(e)
     } finally {
       loading.value = false
     }
@@ -36,7 +37,7 @@ export function useWines() {
       await apiClient.post<Consumption>(`/wines/${id}/consumptions`, input)
       await load(id)
     } catch (e) {
-      consumptionError.value = e instanceof ApiError ? e.message : 'Unknown error'
+      consumptionError.value = friendlyErrorMessage(e)
     } finally {
       submittingConsumption.value = false
     }
@@ -48,7 +49,7 @@ export function useWines() {
     try {
       return await apiClient.post<Wine>('/wines', input)
     } catch (e) {
-      submitError.value = e instanceof ApiError ? e.message : 'Unknown error'
+      submitError.value = friendlyErrorMessage(e)
       return null
     } finally {
       submitting.value = false
@@ -61,7 +62,7 @@ export function useWines() {
     try {
       return await apiClient.put<Wine>(`/wines/${id}`, input)
     } catch (e) {
-      submitError.value = e instanceof ApiError ? e.message : 'Unknown error'
+      submitError.value = friendlyErrorMessage(e)
       return null
     } finally {
       submitting.value = false

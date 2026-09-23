@@ -1,5 +1,6 @@
 import { ref } from 'vue'
-import { apiClient, ApiError } from '../api/client'
+import { apiClient } from '../api/client'
+import { friendlyErrorMessage } from '../api/errorMessages'
 import type { WineSearchResult } from '../api/types'
 import { filtersToQueryParams, type SearchFilters } from '../domain/searchFilters'
 
@@ -15,7 +16,7 @@ export function useSearch() {
       const query = new URLSearchParams(filtersToQueryParams(filters)).toString()
       results.value = await apiClient.get<WineSearchResult[]>(query ? `/search?${query}` : '/search')
     } catch (e) {
-      error.value = e instanceof ApiError ? e.message : 'Unknown error'
+      error.value = friendlyErrorMessage(e)
     } finally {
       loading.value = false
     }

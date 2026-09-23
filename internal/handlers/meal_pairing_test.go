@@ -135,6 +135,9 @@ func TestMealPairingRejectsUnknownAppellation(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "appellation_not_found" {
+		t.Errorf("Expected error code 'appellation_not_found', got %q", code)
+	}
 }
 
 func TestMealPairingRejectsInvalidColor(t *testing.T) {
@@ -150,6 +153,9 @@ func TestMealPairingRejectsInvalidColor(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "invalid_color" {
+		t.Errorf("Expected error code 'invalid_color', got %q", code)
+	}
 }
 
 func TestMealPairingRejectsUnknownMeal(t *testing.T) {
@@ -164,6 +170,9 @@ func TestMealPairingRejectsUnknownMeal(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "meal_not_found" {
+		t.Errorf("Expected error code 'meal_not_found', got %q", code)
+	}
 }
 
 func TestMealPairingRemoveRejectsUnknownAppellation(t *testing.T) {
@@ -177,6 +186,9 @@ func TestMealPairingRemoveRejectsUnknownAppellation(t *testing.T) {
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "appellation_not_found" {
+		t.Errorf("Expected error code 'appellation_not_found', got %q", code)
 	}
 }
 
@@ -193,6 +205,9 @@ func TestMealPairingRemoveRejectsInvalidColor(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "invalid_color" {
+		t.Errorf("Expected error code 'invalid_color', got %q", code)
+	}
 }
 
 func TestMealPairingRemoveRejectsUnknownMeal(t *testing.T) {
@@ -206,6 +221,9 @@ func TestMealPairingRemoveRejectsUnknownMeal(t *testing.T) {
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "meal_not_found" {
+		t.Errorf("Expected error code 'meal_not_found', got %q", code)
 	}
 }
 

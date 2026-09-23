@@ -245,6 +245,9 @@ func TestSearchRejectsInvalidColor(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "invalid_color" {
+		t.Errorf("Expected error code 'invalid_color', got %q", code)
+	}
 }
 
 func itoa(n int) string {

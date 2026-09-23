@@ -17,6 +17,63 @@ func New(database *db.DB) *Handler {
 	return &Handler{db: database}
 }
 
+// Machine-readable error codes returned to the client. The frontend owns the
+// user-facing copy for each of these; new codes must be paired with a mapping
+// there (see web/src/api/errorMessages.ts).
+const (
+	codeInvalidRequest       = "invalid_request"
+	codeInvalidWineID        = "invalid_wine_id"
+	codeInvalidMealID        = "invalid_meal_id"
+	codeInvalidAppellationID = "invalid_appellation_id"
+	codeAlreadyExists        = "already_exists"
+	codeInvalidColor         = "invalid_color"
+	codeInvalidQuantity      = "invalid_quantity"
+	codeAppellationNotFound  = "appellation_not_found"
+	codeWineNotFound         = "wine_not_found"
+	codeMealNotFound         = "meal_not_found"
+	codeDateRequired         = "date_required"
+	codeInvalidDate          = "invalid_date"
+	codeInvalidRating        = "invalid_rating"
+	codeQuantityZero         = "quantity_zero"
+	codeInternal             = "internal_error"
+)
+
+// dbErrorCode maps known db sentinel errors to a stable code. Unrecognized
+// errors (including raw driver/SQL errors) fall back to codeInternal so no
+// backend implementation detail reaches the client.
+func dbErrorCode(err error) string {
+	switch {
+	case errors.Is(err, db.ErrUniqueConstraint):
+		return codeAlreadyExists
+	case errors.Is(err, db.ErrInvalidColor):
+		return codeInvalidColor
+	case errors.Is(err, db.ErrInvalidQuantity):
+		return codeInvalidQuantity
+	case errors.Is(err, db.ErrAppellationNotFound):
+		return codeAppellationNotFound
+	case errors.Is(err, db.ErrWineNotFound):
+		return codeWineNotFound
+	case errors.Is(err, db.ErrMealNotFound):
+		return codeMealNotFound
+	case errors.Is(err, db.ErrDateRequired):
+		return codeDateRequired
+	case errors.Is(err, db.ErrInvalidDate):
+		return codeInvalidDate
+	case errors.Is(err, db.ErrInvalidRating):
+		return codeInvalidRating
+	case errors.Is(err, db.ErrQuantityZero):
+		return codeQuantityZero
+	default:
+		return codeInternal
+	}
+}
+
+func writeError(w http.ResponseWriter, status int, code string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": code})
+}
+
 // Register wires the API routes onto mux, plus spa as the catch-all "/"
 // handler serving the frontend. Go 1.22+ ServeMux dispatches by pattern
 // specificity, so the API routes above always win over the "/" catch-all.
@@ -50,21 +107,17 @@ func (h *Handler) CreateAppellation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
 		return
 	}
 
 	appellation, err := h.db.CreateAppellation(r.Context(), req.Name)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
+		status := http.StatusInternalServerError
 		if errors.Is(err, db.ErrUniqueConstraint) {
-			w.WriteHeader(http.StatusConflict)
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
+			status = http.StatusConflict
 		}
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, status, dbErrorCode(err))
 		return
 	}
 
@@ -76,9 +129,7 @@ func (h *Handler) CreateAppellation(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListAppellations(w http.ResponseWriter, r *http.Request) {
 	appellations, err := h.db.ListAppellations(r.Context())
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, http.StatusInternalServerError, dbErrorCode(err))
 		return
 	}
 
@@ -97,21 +148,17 @@ func (h *Handler) CreateMeal(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
 		return
 	}
 
 	meal, err := h.db.CreateMeal(r.Context(), req.Name)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
+		status := http.StatusInternalServerError
 		if errors.Is(err, db.ErrUniqueConstraint) {
-			w.WriteHeader(http.StatusConflict)
-		} else {
-			w.WriteHeader(http.StatusInternalServerError)
+			status = http.StatusConflict
 		}
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, status, dbErrorCode(err))
 		return
 	}
 
@@ -123,9 +170,7 @@ func (h *Handler) CreateMeal(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListMeals(w http.ResponseWriter, r *http.Request) {
 	meals, err := h.db.ListMeals(r.Context())
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, http.StatusInternalServerError, dbErrorCode(err))
 		return
 	}
 
@@ -174,17 +219,13 @@ func wineErrorStatus(err error) int {
 func (h *Handler) CreateWine(w http.ResponseWriter, r *http.Request) {
 	var req wineRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
 		return
 	}
 
 	wine, err := h.db.CreateWine(r.Context(), req.toWine())
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(wineErrorStatus(err))
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, wineErrorStatus(err), dbErrorCode(err))
 		return
 	}
 
@@ -196,9 +237,7 @@ func (h *Handler) CreateWine(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListWines(w http.ResponseWriter, r *http.Request) {
 	wines, err := h.db.ListWines(r.Context())
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, http.StatusInternalServerError, dbErrorCode(err))
 		return
 	}
 
@@ -214,17 +253,13 @@ func (h *Handler) ListWines(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetWine(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid wine id"})
+		writeError(w, http.StatusBadRequest, codeInvalidWineID)
 		return
 	}
 
 	wine, err := h.db.GetWineDetail(r.Context(), id)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(wineErrorStatus(err))
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, wineErrorStatus(err), dbErrorCode(err))
 		return
 	}
 
@@ -255,17 +290,13 @@ func consumptionErrorStatus(err error) int {
 func (h *Handler) CreateConsumption(w http.ResponseWriter, r *http.Request) {
 	wineID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid wine id"})
+		writeError(w, http.StatusBadRequest, codeInvalidWineID)
 		return
 	}
 
 	var req consumptionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
 		return
 	}
 
@@ -276,9 +307,7 @@ func (h *Handler) CreateConsumption(w http.ResponseWriter, r *http.Request) {
 		Notes:  req.Notes,
 	})
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(consumptionErrorStatus(err))
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, consumptionErrorStatus(err), dbErrorCode(err))
 		return
 	}
 
@@ -305,16 +334,12 @@ type mealPairingRequest struct {
 func (h *Handler) CreateMealPairing(w http.ResponseWriter, r *http.Request) {
 	var req mealPairingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
 		return
 	}
 
 	if err := h.db.CreateMealPairing(r.Context(), req.AppellationID, req.Color, req.MealID); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(mealPairingErrorStatus(err))
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, mealPairingErrorStatus(err), dbErrorCode(err))
 		return
 	}
 
@@ -326,16 +351,12 @@ func (h *Handler) CreateMealPairing(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteMealPairing(w http.ResponseWriter, r *http.Request) {
 	var req mealPairingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
 		return
 	}
 
 	if err := h.db.DeleteMealPairing(r.Context(), req.AppellationID, req.Color, req.MealID); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(mealPairingErrorStatus(err))
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, mealPairingErrorStatus(err), dbErrorCode(err))
 		return
 	}
 
@@ -345,18 +366,14 @@ func (h *Handler) DeleteMealPairing(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListMealPairings(w http.ResponseWriter, r *http.Request) {
 	appellationID, err := strconv.Atoi(r.URL.Query().Get("appellation_id"))
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid appellation_id"})
+		writeError(w, http.StatusBadRequest, codeInvalidAppellationID)
 		return
 	}
 	color := r.URL.Query().Get("color")
 
 	meals, err := h.db.ListMealsForPairing(r.Context(), appellationID, color)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(mealPairingErrorStatus(err))
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, mealPairingErrorStatus(err), dbErrorCode(err))
 		return
 	}
 
@@ -385,9 +402,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("meal_id"); v != "" {
 		id, err := strconv.Atoi(v)
 		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "invalid meal_id"})
+			writeError(w, http.StatusBadRequest, codeInvalidMealID)
 			return
 		}
 		filters.MealID = &id
@@ -396,9 +411,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("appellation_id"); v != "" {
 		id, err := strconv.Atoi(v)
 		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "invalid appellation_id"})
+			writeError(w, http.StatusBadRequest, codeInvalidAppellationID)
 			return
 		}
 		filters.AppellationID = &id
@@ -412,9 +425,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 
 	results, err := h.db.SearchWines(r.Context(), filters)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(searchErrorStatus(err))
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, searchErrorStatus(err), dbErrorCode(err))
 		return
 	}
 
@@ -430,25 +441,19 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateWine(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid wine id"})
+		writeError(w, http.StatusBadRequest, codeInvalidWineID)
 		return
 	}
 
 	var req wineRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid request"})
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
 		return
 	}
 
 	wine, err := h.db.UpdateWine(r.Context(), id, req.toWine())
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(wineErrorStatus(err))
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		writeError(w, wineErrorStatus(err), dbErrorCode(err))
 		return
 	}
 

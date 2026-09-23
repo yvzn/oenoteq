@@ -104,11 +104,8 @@ func TestAppellationDuplicateRejection(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", http.StatusConflict, resp.StatusCode)
 	}
 
-	var errResp map[string]string
-	harness.JSONResponse(resp, &errResp)
-
-	if errResp["error"] == "" {
-		t.Errorf("Expected error message in response")
+	if code := harness.ErrorCode(resp); code != "already_exists" {
+		t.Errorf("Expected error code 'already_exists', got %q", code)
 	}
 }
 
@@ -183,10 +180,7 @@ func TestMealDuplicateRejection(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", http.StatusConflict, resp.StatusCode)
 	}
 
-	var errResp map[string]string
-	harness.JSONResponse(resp, &errResp)
-
-	if errResp["error"] == "" {
-		t.Errorf("Expected error message in response")
+	if code := harness.ErrorCode(resp); code != "already_exists" {
+		t.Errorf("Expected error code 'already_exists', got %q", code)
 	}
 }

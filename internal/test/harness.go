@@ -78,3 +78,12 @@ func (h *Harness) JSONResponse(resp *http.Response, v interface{}) {
 		h.t.Fatalf("Decoding response: %v", err)
 	}
 }
+
+// ErrorCode decodes an error response body and returns its "error" code.
+func (h *Harness) ErrorCode(resp *http.Response) string {
+	h.t.Helper()
+
+	var body map[string]string
+	h.JSONResponse(resp, &body)
+	return body["error"]
+}

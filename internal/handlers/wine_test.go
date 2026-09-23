@@ -107,6 +107,9 @@ func TestWineCreateRejectsUnknownAppellation(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "appellation_not_found" {
+		t.Errorf("Expected error code 'appellation_not_found', got %q", code)
+	}
 }
 
 func TestWineCreateRejectsInvalidColor(t *testing.T) {
@@ -125,6 +128,9 @@ func TestWineCreateRejectsInvalidColor(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "invalid_color" {
+		t.Errorf("Expected error code 'invalid_color', got %q", code)
+	}
 }
 
 func TestWineCreateRejectsNegativeQuantity(t *testing.T) {
@@ -142,6 +148,9 @@ func TestWineCreateRejectsNegativeQuantity(t *testing.T) {
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "invalid_quantity" {
+		t.Errorf("Expected error code 'invalid_quantity', got %q", code)
 	}
 }
 
@@ -236,6 +245,9 @@ func TestWineEditRejectsUnknownAppellation(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "appellation_not_found" {
+		t.Errorf("Expected error code 'appellation_not_found', got %q", code)
+	}
 }
 
 func TestWineEditRejectsInvalidColor(t *testing.T) {
@@ -264,6 +276,9 @@ func TestWineEditRejectsInvalidColor(t *testing.T) {
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "invalid_color" {
+		t.Errorf("Expected error code 'invalid_color', got %q", code)
 	}
 }
 
@@ -294,6 +309,9 @@ func TestWineEditRejectsNegativeQuantity(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "invalid_quantity" {
+		t.Errorf("Expected error code 'invalid_quantity', got %q", code)
+	}
 }
 
 func TestWineEditNotFound(t *testing.T) {
@@ -311,6 +329,9 @@ func TestWineEditNotFound(t *testing.T) {
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("Expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "wine_not_found" {
+		t.Errorf("Expected error code 'wine_not_found', got %q", code)
 	}
 }
 
@@ -405,6 +426,9 @@ func TestWineGetDetailNotFound(t *testing.T) {
 	resp := harness.Do("GET", "/wines/9999", nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("Expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "wine_not_found" {
+		t.Errorf("Expected error code 'wine_not_found', got %q", code)
 	}
 }
 

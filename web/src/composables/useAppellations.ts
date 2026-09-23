@@ -1,5 +1,6 @@
 import { ref } from 'vue'
-import { apiClient, ApiError } from '../api/client'
+import { apiClient } from '../api/client'
+import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Appellation } from '../api/types'
 
 export function useAppellations() {
@@ -15,7 +16,7 @@ export function useAppellations() {
     try {
       appellations.value = await apiClient.get<Appellation[]>('/appellations')
     } catch (e) {
-      error.value = e instanceof ApiError ? e.message : 'Unknown error'
+      error.value = friendlyErrorMessage(e)
     } finally {
       loading.value = false
     }
@@ -29,7 +30,7 @@ export function useAppellations() {
       appellations.value = [...appellations.value, appellation]
       return appellation
     } catch (e) {
-      createError.value = e instanceof ApiError ? e.message : 'Unknown error'
+      createError.value = friendlyErrorMessage(e)
       return null
     } finally {
       creating.value = false

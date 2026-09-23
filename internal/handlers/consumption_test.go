@@ -106,6 +106,9 @@ func TestConsumptionRequiresDate(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "date_required" {
+		t.Errorf("Expected error code 'date_required', got %q", code)
+	}
 }
 
 func TestConsumptionRejectsInvalidRating(t *testing.T) {
@@ -119,6 +122,9 @@ func TestConsumptionRejectsInvalidRating(t *testing.T) {
 	})
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "invalid_rating" {
+		t.Errorf("Expected error code 'invalid_rating', got %q", code)
 	}
 
 	resp = harness.Do("POST", "/wines/"+strconv.Itoa(wine.ID)+"/consumptions", map[string]interface{}{
@@ -163,6 +169,9 @@ func TestConsumptionRejectsInvalidDateFormat(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
+	if code := harness.ErrorCode(resp); code != "invalid_date" {
+		t.Errorf("Expected error code 'invalid_date', got %q", code)
+	}
 }
 
 func TestConsumptionRejectsWhenQuantityZero(t *testing.T) {
@@ -175,6 +184,9 @@ func TestConsumptionRejectsWhenQuantityZero(t *testing.T) {
 	})
 	if resp.StatusCode != http.StatusConflict {
 		t.Errorf("Expected status %d, got %d", http.StatusConflict, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "quantity_zero" {
+		t.Errorf("Expected error code 'quantity_zero', got %q", code)
 	}
 
 	resp = harness.Do("GET", "/wines/"+strconv.Itoa(wine.ID), nil)
@@ -193,6 +205,9 @@ func TestConsumptionForUnknownWine(t *testing.T) {
 	})
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("Expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "wine_not_found" {
+		t.Errorf("Expected error code 'wine_not_found', got %q", code)
 	}
 }
 
