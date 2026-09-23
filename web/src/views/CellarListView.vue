@@ -88,6 +88,9 @@ onMounted(loadFilterOptions)
           <AppButton variant="ghost" data-testid="cellar-retry" @click="retry">Retry</AppButton>
         </template>
       </StatusLine>
+      <StatusLine v-else-if="results.length === 0" class="mt-6">
+        No wines match these filters.
+      </StatusLine>
       <ul v-else data-testid="wine-list" class="mt-6 flex flex-col gap-3">
         <li v-for="wine in results" :key="wine.id" data-testid="wine-item">
           <RouterLink

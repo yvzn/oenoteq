@@ -150,6 +150,24 @@ describe('CellarListView', () => {
     expect(wrapper.find('[data-testid="wine-list"]').exists()).toBe(true)
   })
 
+  it('shows an empty-state message when the filters match no wines', async () => {
+    mockApi({ search: [] })
+
+    const { wrapper } = await mountAt('/')
+
+    expect(wrapper.text()).toContain('No wines match these filters.')
+    expect(wrapper.find('[data-testid="wine-list"]').exists()).toBe(false)
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
+  it('does not flash the empty state while still loading', async () => {
+    vi.mocked(apiClient.get).mockReturnValue(new Promise(() => {}))
+
+    const { wrapper } = await mountAt('/', { flush: false })
+
+    expect(wrapper.text()).not.toContain('No wines match these filters.')
+  })
+
   it('pre-applies filters from the URL query params on load', async () => {
     mockApi()
 
