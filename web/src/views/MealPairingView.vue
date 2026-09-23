@@ -104,13 +104,18 @@ function toggleNewMeal() {
 }
 
 async function submitNewMeal() {
+  if (!selectionReady.value) return
   const name = newMealName.value.trim()
   if (name === '') return
   const created = await createMeal(name)
-  if (created) {
+  if (!created) return
+  await addPairing(appellationId.value as number, color.value as Color, created.id)
+  showNewMeal.value = false
+  newMealName.value = ''
+  if (mutateError.value) {
     selectedMealId.value = created.id
-    showNewMeal.value = false
-    newMealName.value = ''
+  } else {
+    pairingSuccess.show('Meal pairing added.')
   }
 }
 </script>

@@ -249,10 +249,47 @@ describe('MealPairingView', () => {
     expect(apiClient.post).toHaveBeenCalledWith('/meals', { name: 'Tartiflette' })
   })
 
-  it('creates a new meal inline and selects it when no match exists', async () => {
+  it('creates a new meal inline and pairs it immediately when no match exists', async () => {
     mockApi()
     vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
       if (path === '/meals') return Promise.resolve({ id: 3, ...(body as object) })
+      if (path === '/meal-pairings') return Promise.resolve({ appellation_id: 1, color: 'rouge', meal_id: 3 })
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/meal-pairings')
+    await selectAppellationAndColor(wrapper)
+
+    mockApi({ pairedMeals: [...pairedMeals, { id: 3, name: 'Tartiflette' }] })
+
+    await wrapper.get('[data-testid="new-meal-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="new-meal-name-input"]').setValue('Tartiflette')
+    await wrapper.get('[data-testid="new-meal-submit"]').trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledWith('/meals', { name: 'Tartiflette' })
+    expect(apiClient.post).toHaveBeenCalledWith('/meal-pairings', {
+      appellation_id: 1,
+      color: 'rouge',
+      meal_id: 3,
+    })
+    const items = wrapper.findAll('[data-testid="paired-meal"]')
+    expect(items.some((i) => i.text().includes('Tartiflette'))).toBe(true)
+    expect(wrapper.find('[data-testid="new-meal-name-input"]').exists()).toBe(false)
+    expect(useSuccessMessage().message.value).toMatch(/added/i)
+  })
+
+  it('surfaces a pairing error if the auto-pair fails after a successful create, and lets the user retry without re-creating the meal', async () => {
+    mockApi()
+    let pairingAttempts = 0
+    vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
+      if (path === '/meals') return Promise.resolve({ id: 3, ...(body as object) })
+      if (path === '/meal-pairings') {
+        pairingAttempts += 1
+        if (pairingAttempts === 1) return Promise.reject(new Error('pairing exploded'))
+        return Promise.resolve({ appellation_id: 1, color: 'rouge', meal_id: 3 })
+      }
       throw new Error(`unexpected path: ${path}`)
     })
 
@@ -264,11 +301,39 @@ describe('MealPairingView', () => {
     await wrapper.get('[data-testid="new-meal-submit"]').trigger('click')
     await flushPromises()
 
-    expect(apiClient.post).toHaveBeenCalledWith('/meals', { name: 'Tartiflette' })
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    expect(useSuccessMessage().message.value).toBeNull()
+    expect(wrapper.find('[data-testid="new-meal-name-input"]').exists()).toBe(false)
     expect(
       (wrapper.get('[data-testid="add-meal-autocomplete-input"]').element as HTMLInputElement).value,
     ).toBe('Tartiflette')
-    expect(wrapper.find('[data-testid="new-meal-name-input"]').exists()).toBe(false)
+
+    mockApi({ pairedMeals: [...pairedMeals, { id: 3, name: 'Tartiflette' }] })
+    await wrapper.get('[data-testid="add-meal-button"]').trigger('click')
+    await flushPromises()
+
+    const mealCreateCalls = vi.mocked(apiClient.post).mock.calls.filter(([path]) => path === '/meals')
+    expect(mealCreateCalls).toHaveLength(1)
+    expect(useSuccessMessage().message.value).toMatch(/added/i)
+  })
+
+  it('does not attempt to pair when the create step fails', async () => {
+    mockApi()
+    vi.mocked(apiClient.post).mockImplementation((path: string) => {
+      if (path === '/meals') return Promise.reject(new Error('create exploded'))
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/meal-pairings')
+    await selectAppellationAndColor(wrapper)
+
+    await wrapper.get('[data-testid="new-meal-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="new-meal-name-input"]').setValue('Tartiflette')
+    await wrapper.get('[data-testid="new-meal-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-testid="new-meal-error"]').exists()).toBe(true)
   })
 })
 
