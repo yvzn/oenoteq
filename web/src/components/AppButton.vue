@@ -12,11 +12,11 @@ const props = withDefaults(
   { variant: 'primary', type: 'button', disabled: false },
 )
 
-const baseClass = 'rounded-md text-sm font-medium transition-colors'
+const baseClass = 'rounded-lg text-sm font-semibold transition-colors'
 
 const variantClass = computed(() => ({
-  'bg-bordeaux hover:bg-bordeaux-hover px-4 py-1.5 text-white shadow-sm': props.variant === 'primary',
-  'text-muted hover:text-ink px-0 py-0 underline underline-offset-2': props.variant === 'ghost',
+  'bg-bordeaux hover:bg-bordeaux-hover px-5 py-3 text-white shadow-sm': props.variant === 'primary',
+  'text-muted hover:text-ink px-0 py-0 font-medium underline underline-offset-2': props.variant === 'ghost',
 }))
 </script>
 

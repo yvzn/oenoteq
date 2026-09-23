@@ -91,24 +91,39 @@ onMounted(loadFilterOptions)
       <StatusLine v-else-if="results.length === 0" class="mt-6">
         No wines match these filters.
       </StatusLine>
-      <ul v-else data-testid="wine-list" class="mt-6 flex flex-col gap-3">
-        <li v-for="wine in results" :key="wine.id" data-testid="wine-item">
-          <RouterLink
-            :to="{ name: 'wine-detail', params: { id: wine.id } }"
-            data-testid="wine-link"
-            class="border-line bg-parchment-raised hover:border-gold flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 shadow-sm transition-colors"
-          >
-            <span class="font-display text-ink text-base">{{ wine.producer }}</span>
-            <span class="text-muted flex items-center gap-1.5 text-sm">
-              <ColorSwatch :color="wine.color" />{{ wine.color }}
-            </span>
-            <span class="text-muted text-sm">{{ appellationName(wine.appellation_id) }}</span>
-            <span class="text-muted text-sm">{{ wine.millesime ?? 'NV' }}</span>
-            <span class="text-muted text-sm">Qty: {{ wine.quantity }}</span>
-            <GardeStatusBadge :status="wine.garde_status" />
-          </RouterLink>
-        </li>
-      </ul>
+      <template v-else>
+        <div class="mt-8 grid grid-cols-[5px_1fr_78px_60px_118px] gap-5 px-[22px]">
+          <div></div>
+          <div class="text-label text-xs font-medium">Wine</div>
+          <div class="text-label text-right text-xs font-medium">Vintage</div>
+          <div class="text-label text-right text-xs font-medium">Qty</div>
+          <div class="text-label text-right text-xs font-medium">Status</div>
+        </div>
+        <ul data-testid="wine-list" class="mt-2 flex flex-col gap-2.5">
+          <li v-for="wine in results" :key="wine.id" data-testid="wine-item">
+            <RouterLink
+              :to="{ name: 'wine-detail', params: { id: wine.id } }"
+              data-testid="wine-link"
+              class="border-line bg-surface hover:border-gold grid grid-cols-[5px_1fr_78px_60px_118px] items-center gap-5 rounded-[10px] border px-[22px] py-4 shadow-sm transition-colors"
+            >
+              <ColorSwatch :color="wine.color" variant="rail" />
+              <div class="min-w-0">
+                <div class="font-display text-ink text-[19px] leading-[1.25] font-semibold">
+                  {{ wine.producer }}
+                </div>
+                <div class="text-muted mt-0.5 text-[13.5px] capitalize">
+                  {{ wine.color }} · {{ appellationName(wine.appellation_id) }}
+                </div>
+              </div>
+              <div class="text-ink-soft text-right text-[15px] tabular-nums">
+                {{ wine.millesime ?? 'NV' }}
+              </div>
+              <div class="text-ink-soft text-right text-[15px] tabular-nums">×{{ wine.quantity }}</div>
+              <div class="text-right"><GardeStatusBadge :status="wine.garde_status" /></div>
+            </RouterLink>
+          </li>
+        </ul>
+      </template>
     </div>
   </section>
 </template>

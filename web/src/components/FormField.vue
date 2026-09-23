@@ -7,7 +7,7 @@ withDefaults(
 
 <template>
   <label class="flex flex-col gap-1 text-sm">
-    <span class="text-muted text-xs font-semibold tracking-wide uppercase">{{ label }}</span>
+    <span class="text-label text-[11.5px] font-semibold tracking-wide uppercase">{{ label }}</span>
     <slot />
     <p v-if="error" :data-testid="errorTestid" class="text-danger text-xs">{{ error }}</p>
   </label>

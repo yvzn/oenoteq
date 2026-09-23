@@ -11,9 +11,9 @@ const label: Record<GardeStatus, string> = {
 }
 
 const classByStatus: Record<GardeStatus, string> = {
-  too_young: 'bg-parchment-raised text-muted border border-line',
-  ready: 'bg-gold-soft text-ink border border-gold',
-  past_peak: 'bg-danger-soft text-danger border border-transparent',
+  too_young: 'bg-status-young-soft text-status-young',
+  ready: 'bg-status-ready-soft text-status-ready',
+  past_peak: 'bg-status-past-soft text-status-past',
 }
 
 const classes = computed(() => classByStatus[props.status])
@@ -22,7 +22,7 @@ const text = computed(() => label[props.status])
 
 <template>
   <span
-    class="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium"
+    class="inline-block rounded-full px-3 py-[5px] text-[12.5px] font-semibold whitespace-nowrap"
     :class="classes"
     >{{ text }}</span
   >

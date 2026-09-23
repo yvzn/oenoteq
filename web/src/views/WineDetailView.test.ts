@@ -105,7 +105,7 @@ describe('WineDetailView', () => {
     expect(detail.text()).toContain('2018')
     expect(detail.text()).toContain('rouge')
     expect(detail.text()).toContain('Ready')
-    expect(detail.text()).toContain('Qty: 3')
+    expect(detail.text()).toContain('×3')
 
     const meals = wrapper.findAll('[data-testid="suggested-meal"]')
     expect(meals).toHaveLength(2)
@@ -217,7 +217,7 @@ describe('WineDetailView', () => {
     })
 
     const detail = wrapper.get('[data-testid="wine-detail"]')
-    expect(detail.text()).toContain('Qty: 2')
+    expect(detail.text()).toContain('×2')
     expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(3)
     expect(useSuccessMessage().message.value).toMatch(/recorded/i)
   })
