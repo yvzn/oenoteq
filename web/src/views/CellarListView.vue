@@ -74,7 +74,7 @@ onMounted(loadFilterOptions)
       @update:filters="updateFilters"
     />
 
-    <div class="px-6 py-6">
+    <div class="max-w-4xl px-6 py-6">
       <PageHeader title="Cellar">
         <template #actions>
           <AppButton :to="{ name: 'wine-new' }" data-testid="add-wine-link">Add wine</AppButton>
