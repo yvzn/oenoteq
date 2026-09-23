@@ -77,14 +77,10 @@ function clearFilters() {
       Ready now
     </label>
 
-    <AppButton
-      v-if="hasActiveFilters"
-      variant="ghost"
-      type="button"
-      data-testid="clear-filters-button"
-      @click="clearFilters"
-    >
-      Clear filters
-    </AppButton>
+    <div v-if="hasActiveFilters" class="flex items-center pb-1.5">
+      <AppButton variant="ghost" type="button" data-testid="clear-filters-button" @click="clearFilters">
+        Clear filters
+      </AppButton>
+    </div>
   </form>
 </template>
