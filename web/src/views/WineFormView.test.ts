@@ -169,6 +169,24 @@ describe('WineFormView — add', () => {
     ).toBe('Bourgueil')
     expect(wrapper.find('[data-testid="new-appellation-name-input"]').exists()).toBe(false)
   })
+
+  it('creates a new appellation on Enter in its name input, without submitting the wine form', async () => {
+    mockGet()
+    vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
+      if (path === '/appellations') return Promise.resolve({ id: 3, ...(body as object) })
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="new-appellation-toggle"]').trigger('click')
+    const nameInput = wrapper.get('[data-testid="new-appellation-name-input"]')
+    await nameInput.setValue('Bourgueil')
+    await nameInput.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledWith('/appellations', { name: 'Bourgueil' })
+    expect(apiClient.post).not.toHaveBeenCalledWith('/wines', expect.anything())
+  })
 })
 
 describe('WineFormView — edit', () => {

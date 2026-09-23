@@ -123,6 +123,71 @@ describe('MealPairingView', () => {
     })
   })
 
+  it('submits the add-meal form on Enter once a match is selected', async () => {
+    mockApi()
+    vi.mocked(apiClient.post).mockResolvedValue({ appellation_id: 1, color: 'rouge', meal_id: 2 })
+
+    const { wrapper } = await mountAt('/meal-pairings')
+    await selectAppellationAndColor(wrapper)
+
+    const input = wrapper.get('[data-testid="add-meal-autocomplete-input"]')
+    await input.setValue('Canard')
+    await wrapper.findAll('[data-testid="add-meal-autocomplete-option"]')[0]!.trigger('mousedown')
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledWith('/meal-pairings', {
+      appellation_id: 1,
+      color: 'rouge',
+      meal_id: 2,
+    })
+  })
+
+  it('lets Enter highlight-select an autocomplete match before submitting the add-meal form', async () => {
+    mockApi()
+    vi.mocked(apiClient.post).mockResolvedValue({ appellation_id: 1, color: 'rouge', meal_id: 2 })
+
+    const { wrapper } = await mountAt('/meal-pairings')
+    await selectAppellationAndColor(wrapper)
+
+    const input = wrapper.get('[data-testid="add-meal-autocomplete-input"]')
+    await input.setValue('Canard')
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(apiClient.post).not.toHaveBeenCalled()
+    expect((input.element as HTMLInputElement).value).toBe('Canard')
+
+    await input.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledWith('/meal-pairings', {
+      appellation_id: 1,
+      color: 'rouge',
+      meal_id: 2,
+    })
+  })
+
+  it('submits the create-meal form on Enter in the new meal name input', async () => {
+    mockApi()
+    vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
+      if (path === '/meals') return Promise.resolve({ id: 3, ...(body as object) })
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/meal-pairings')
+    await selectAppellationAndColor(wrapper)
+
+    await wrapper.get('[data-testid="new-meal-toggle"]').trigger('click')
+    const nameInput = wrapper.get('[data-testid="new-meal-name-input"]')
+    await nameInput.setValue('Tartiflette')
+    await nameInput.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledWith('/meals', { name: 'Tartiflette' })
+  })
+
   it('creates a new meal inline and selects it when no match exists', async () => {
     mockApi()
     vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
