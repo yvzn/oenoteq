@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
+import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import WineDetailView from './WineDetailView.vue'
 
 vi.mock('../api/client', async () => {
@@ -50,14 +52,16 @@ function mockApi(overrides: Record<string, unknown> = {}) {
 }
 
 function makeRouter(): Router {
-  return createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/wines/:id', name: 'wine-detail', component: WineDetailView },
-      { path: '/wines/:id/edit', name: 'wine-edit', component: WineDetailView },
-      { path: '/meal-pairings', name: 'meal-pairings', component: WineDetailView },
-    ],
-  })
+  return withAutoClear(
+    createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/wines/:id', name: 'wine-detail', component: WineDetailView },
+        { path: '/wines/:id/edit', name: 'wine-edit', component: WineDetailView },
+        { path: '/meal-pairings', name: 'meal-pairings', component: WineDetailView },
+      ],
+    }),
+  )
 }
 
 async function mountAt(initialPath: string, { flush = true }: { flush?: boolean } = {}) {
@@ -74,6 +78,8 @@ async function mountAt(initialPath: string, { flush = true }: { flush?: boolean 
 afterEach(() => {
   vi.mocked(apiClient.get).mockReset()
 })
+
+resetSuccessMessageAfterEach()
 
 describe('WineDetailView', () => {
   it('shows a loading indicator before the fetches resolve', async () => {
@@ -213,7 +219,7 @@ describe('WineDetailView', () => {
     const detail = wrapper.get('[data-testid="wine-detail"]')
     expect(detail.text()).toContain('Qty: 2')
     expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(3)
-    expect(wrapper.get('[data-testid="consumption-success"]').text()).toMatch(/recorded/i)
+    expect(useSuccessMessage().message.value).toMatch(/recorded/i)
   })
 
   it('clears a stale consumption success message when navigating to a different wine', async () => {
@@ -231,12 +237,12 @@ describe('WineDetailView', () => {
     fillConsumptionForm(wrapper, { date: '2026-03-01' })
     await wrapper.get('[data-testid="consumption-form"]').trigger('submit.prevent')
     await flushPromises()
-    expect(wrapper.find('[data-testid="consumption-success"]').exists()).toBe(true)
+    expect(useSuccessMessage().message.value).not.toBeNull()
 
     await router.push('/wines/2')
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="consumption-success"]').exists()).toBe(false)
+    expect(useSuccessMessage().message.value).toBeNull()
   })
 
   it('clears a stale consumption error when navigating to a different wine', async () => {

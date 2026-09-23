@@ -10,7 +10,7 @@ import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useMealPairings } from '../composables/useMealPairings'
 import { useMeals } from '../composables/useMeals'
-import { useTransientMessage } from '../composables/useTransientMessage'
+import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { parseColor, parseId } from '../domain/searchFilters'
 
 const route = useRoute()
@@ -50,7 +50,7 @@ const selectedMealId = ref<number | null>(null)
 const showNewMeal = ref(false)
 const newMealName = ref('')
 
-const pairingSuccess = useTransientMessage()
+const pairingSuccess = useSuccessMessage()
 
 const selectionReady = computed(() => appellationId.value !== null && color.value !== '')
 
@@ -153,14 +153,6 @@ async function submitNewMeal() {
         </StatusLine>
         <section v-else class="border-line mt-8 border-t pt-6">
           <h3 class="font-display text-ink text-lg">Currently paired</h3>
-          <StatusLine
-            v-if="pairingSuccess.message.value"
-            tone="success"
-            data-testid="pairing-success"
-            class="mt-2"
-          >
-            {{ pairingSuccess.message.value }}
-          </StatusLine>
           <StatusLine v-if="pairedMeals.length === 0" class="mt-2">No meals paired yet.</StatusLine>
           <ul v-else data-testid="paired-meals" class="mt-2 flex flex-col gap-1">
             <li

@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
+import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import WineDetailView from './WineDetailView.vue'
 import WineFormView from './WineFormView.vue'
 
@@ -37,14 +39,16 @@ function mockGet(overrides: Record<string, unknown> = {}) {
 }
 
 function makeRouter(): Router {
-  return createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/wines/new', name: 'wine-new', component: WineFormView },
-      { path: '/wines/:id', name: 'wine-detail', component: WineDetailView },
-      { path: '/wines/:id/edit', name: 'wine-edit', component: WineFormView },
-    ],
-  })
+  return withAutoClear(
+    createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/wines/new', name: 'wine-new', component: WineFormView },
+        { path: '/wines/:id', name: 'wine-detail', component: WineDetailView },
+        { path: '/wines/:id/edit', name: 'wine-edit', component: WineFormView },
+      ],
+    }),
+  )
 }
 
 async function mountAt(initialPath: string) {
@@ -75,6 +79,8 @@ afterEach(() => {
   vi.mocked(apiClient.put).mockReset()
   vi.useRealTimers()
 })
+
+resetSuccessMessageAfterEach()
 
 describe('WineFormView — add', () => {
   it('shows a blank form ready to submit a new wine', async () => {
@@ -137,9 +143,8 @@ describe('WineFormView — add', () => {
     const { wrapper, router } = await mountAt('/wines/new')
     await fillValidForm(wrapper)
 
-    vi.useFakeTimers()
     await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
-    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
 
     expect(apiClient.post).toHaveBeenCalledWith('/wines', {
       millesime: null,
@@ -150,10 +155,7 @@ describe('WineFormView — add', () => {
       garde_fin: 2028,
       quantity: 6,
     })
-    expect(wrapper.get('[data-testid="wine-form-success"]').text()).toMatch(/added/i)
-    expect(router.currentRoute.value.fullPath).toBe('/wines/new')
-
-    await vi.advanceTimersByTimeAsync(1000)
+    expect(useSuccessMessage().message.value).toMatch(/added/i)
     expect(router.currentRoute.value.fullPath).toBe('/wines/9')
   })
 
@@ -241,9 +243,8 @@ describe('WineFormView — edit', () => {
     const { wrapper, router } = await mountAt('/wines/5/edit')
     await wrapper.get('[data-testid="wine-producer-input"]').setValue('Domaine Les Garillères')
 
-    vi.useFakeTimers()
     await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
-    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
 
     expect(apiClient.put).toHaveBeenCalledWith('/wines/5', {
       millesime: 2018,
@@ -254,10 +255,7 @@ describe('WineFormView — edit', () => {
       garde_fin: 2028,
       quantity: 3,
     })
-    expect(wrapper.get('[data-testid="wine-form-success"]').text()).toMatch(/updated/i)
-    expect(router.currentRoute.value.fullPath).toBe('/wines/5/edit')
-
-    await vi.advanceTimersByTimeAsync(1000)
+    expect(useSuccessMessage().message.value).toMatch(/updated/i)
     expect(router.currentRoute.value.fullPath).toBe('/wines/5')
   })
 

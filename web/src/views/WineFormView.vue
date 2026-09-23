@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Color } from '../api/types'
 import AppButton from '../components/AppButton.vue'
@@ -8,7 +8,7 @@ import FormField from '../components/FormField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
-import { useTransientMessage } from '../composables/useTransientMessage'
+import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { useWines } from '../composables/useWines'
 import {
   emptyWineFormFields,
@@ -18,8 +18,6 @@ import {
   type WineFormErrors,
   type WineFormFields,
 } from '../domain/wineForm'
-
-const REDIRECT_DELAY_MS = 400
 
 const route = useRoute()
 const router = useRouter()
@@ -120,13 +118,7 @@ async function submitNewAppellation() {
   }
 }
 
-const formSuccess = useTransientMessage()
-const redirecting = ref(false)
-let redirectTimeoutId: ReturnType<typeof setTimeout> | undefined
-
-onUnmounted(() => {
-  if (redirectTimeoutId) clearTimeout(redirectTimeoutId)
-})
+const formSuccess = useSuccessMessage()
 
 async function submit() {
   const validationErrors = validateWineForm(fields.value)
@@ -137,11 +129,11 @@ async function submit() {
   const saved = isEdit.value ? await updateWine(editId.value as number, input) : await createWine(input)
 
   if (saved) {
-    formSuccess.show(isEdit.value ? 'Wine updated.' : 'Wine added.')
-    redirecting.value = true
-    redirectTimeoutId = setTimeout(() => {
-      router.push({ name: 'wine-detail', params: { id: saved.id } })
-    }, REDIRECT_DELAY_MS)
+    formSuccess.showAndNavigate(
+      isEdit.value ? 'Wine updated.' : 'Wine added.',
+      { name: 'wine-detail', params: { id: saved.id } },
+      router,
+    )
   }
 }
 </script>
@@ -232,14 +224,11 @@ async function submit() {
       </FormField>
 
       <StatusLine v-if="submitError" tone="error">{{ submitError }}</StatusLine>
-      <StatusLine v-if="formSuccess.message.value" tone="success" data-testid="wine-form-success">
-        {{ formSuccess.message.value }}
-      </StatusLine>
 
       <AppButton
         type="submit"
         data-testid="wine-form-submit"
-        :disabled="submitting || redirecting"
+        :disabled="submitting"
         class="self-start"
       >
         {{ isEdit ? 'Save changes' : 'Add wine' }}

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useSuccessMessage } from '../composables/useSuccessMessage'
 import CellarListView from '../views/CellarListView.vue'
 import MealPairingView from '../views/MealPairingView.vue'
 import WineDetailView from '../views/WineDetailView.vue'
@@ -14,5 +15,7 @@ const router = createRouter({
     { path: '/meal-pairings', name: 'meal-pairings', component: MealPairingView },
   ],
 })
+
+useSuccessMessage().attachAutoClear(router)
 
 export default router

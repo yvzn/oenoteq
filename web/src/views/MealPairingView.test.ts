@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
+import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import MealPairingView from './MealPairingView.vue'
 
 vi.mock('../api/client', async () => {
@@ -31,10 +33,15 @@ function mockApi(overrides: Record<string, unknown> = {}) {
 }
 
 function makeRouter(): Router {
-  return createRouter({
-    history: createMemoryHistory(),
-    routes: [{ path: '/meal-pairings', name: 'meal-pairings', component: MealPairingView }],
-  })
+  return withAutoClear(
+    createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/meal-pairings', name: 'meal-pairings', component: MealPairingView },
+        { path: '/', name: 'cellar', component: MealPairingView },
+      ],
+    }),
+  )
 }
 
 async function mountAt(initialPath: string) {
@@ -59,6 +66,8 @@ afterEach(() => {
   vi.mocked(apiClient.post).mockReset()
   vi.mocked(apiClient.delete).mockReset()
 })
+
+resetSuccessMessageAfterEach()
 
 describe('MealPairingView', () => {
   it('retries the failed load when the retry action is clicked', async () => {
@@ -121,7 +130,7 @@ describe('MealPairingView', () => {
       color: 'rouge',
       meal_id: 2,
     })
-    expect(wrapper.get('[data-testid="pairing-success"]').text()).toMatch(/added/i)
+    expect(useSuccessMessage().message.value).toMatch(/added/i)
   })
 
   it('removes a meal from the pairing', async () => {
@@ -139,7 +148,7 @@ describe('MealPairingView', () => {
       color: 'rouge',
       meal_id: 1,
     })
-    expect(wrapper.get('[data-testid="pairing-success"]').text()).toMatch(/removed/i)
+    expect(useSuccessMessage().message.value).toMatch(/removed/i)
   })
 
   it('clears a stale pairing success message when the color selection changes', async () => {
@@ -151,12 +160,28 @@ describe('MealPairingView', () => {
 
     await wrapper.get('[data-testid="remove-meal-button"]').trigger('click')
     await flushPromises()
-    expect(wrapper.find('[data-testid="pairing-success"]').exists()).toBe(true)
+    expect(useSuccessMessage().message.value).not.toBeNull()
 
     await wrapper.get('[data-testid="meal-pairing-color-input"]').setValue('blanc')
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="pairing-success"]').exists()).toBe(false)
+    expect(useSuccessMessage().message.value).toBeNull()
+  })
+
+  it('clears a stale pairing success message when navigating away', async () => {
+    mockApi()
+    vi.mocked(apiClient.delete).mockResolvedValue(undefined)
+
+    const { wrapper, router } = await mountAt('/meal-pairings')
+    await selectAppellationAndColor(wrapper)
+
+    await wrapper.get('[data-testid="remove-meal-button"]').trigger('click')
+    await flushPromises()
+    expect(useSuccessMessage().message.value).not.toBeNull()
+
+    await router.push('/')
+
+    expect(useSuccessMessage().message.value).toBeNull()
   })
 
   it('submits the add-meal form on Enter once a match is selected', async () => {
