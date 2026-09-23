@@ -2,6 +2,7 @@
 import type { Appellation, Color, Meal } from '../api/types'
 import type { SearchFilters } from '../domain/searchFilters'
 import AutocompleteField from './AutocompleteField.vue'
+import FormField from './FormField.vue'
 
 const props = defineProps<{
   filters: SearchFilters
@@ -19,12 +20,8 @@ function update(patch: Partial<SearchFilters>) {
 </script>
 
 <template>
-  <form
-    class="flex flex-wrap items-end gap-4 border-b border-stone-200 px-6 py-4"
-    @submit.prevent
-  >
-    <label class="flex w-40 flex-col text-xs text-stone-600">
-      Meal
+  <form class="flex flex-wrap items-end gap-4 px-6 py-4" @submit.prevent>
+    <FormField label="Meal" class="w-40">
       <AutocompleteField
         testid="meal-filter"
         :items="meals"
@@ -32,10 +29,9 @@ function update(patch: Partial<SearchFilters>) {
         placeholder="Any meal"
         @update:model-value="(v) => update({ mealId: v })"
       />
-    </label>
+    </FormField>
 
-    <label class="flex w-40 flex-col text-xs text-stone-600">
-      Appellation
+    <FormField label="Appellation" class="w-40">
       <AutocompleteField
         testid="appellation-filter"
         :items="appellations"
@@ -43,22 +39,21 @@ function update(patch: Partial<SearchFilters>) {
         placeholder="Any appellation"
         @update:model-value="(v) => update({ appellationId: v })"
       />
-    </label>
+    </FormField>
 
-    <label class="flex flex-col text-xs text-stone-600">
-      Color
+    <FormField label="Color">
       <select
         data-testid="color-filter"
-        class="rounded border border-stone-300 px-2 py-1 text-sm"
+        class="text-sm"
         :value="filters.color ?? ''"
         @change="update({ color: (($event.target as HTMLSelectElement).value || null) as Color | null })"
       >
         <option value="">Any color</option>
         <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
       </select>
-    </label>
+    </FormField>
 
-    <label class="flex items-center gap-2 pb-1.5 text-xs text-stone-600">
+    <label class="text-muted flex items-center gap-2 pb-1.5 text-xs">
       <input
         type="checkbox"
         data-testid="ready-now-filter"

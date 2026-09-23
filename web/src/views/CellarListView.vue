@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ColorSwatch from '../components/ColorSwatch.vue'
 import FilterBar from '../components/FilterBar.vue'
 import GardeStatusBadge from '../components/GardeStatusBadge.vue'
+import PageHeader from '../components/PageHeader.vue'
+import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useMeals } from '../composables/useMeals'
 import { useSearch } from '../composables/useSearch'
@@ -63,32 +66,37 @@ onMounted(() => {
       @update:filters="updateFilters"
     />
 
-    <div class="px-6 py-4">
-      <div class="mb-4 flex justify-end">
-        <RouterLink
-          :to="{ name: 'wine-new' }"
-          data-testid="add-wine-link"
-          class="rounded bg-stone-800 px-3 py-1 text-sm text-white"
-        >
-          Add wine
-        </RouterLink>
-      </div>
-      <p v-if="loading" role="status" class="text-stone-600">Loading your cellar…</p>
-      <p v-else-if="hasError" role="alert" class="text-red-700">
+    <div class="px-6 py-6">
+      <PageHeader title="Cellar">
+        <template #actions>
+          <RouterLink
+            :to="{ name: 'wine-new' }"
+            data-testid="add-wine-link"
+            class="bg-bordeaux hover:bg-bordeaux-hover rounded-md px-4 py-1.5 text-sm font-medium text-white shadow-sm transition-colors"
+          >
+            Add wine
+          </RouterLink>
+        </template>
+      </PageHeader>
+
+      <StatusLine v-if="loading" class="mt-6">Loading your cellar…</StatusLine>
+      <StatusLine v-else-if="hasError" tone="error" class="mt-6">
         Couldn't load your cellar: {{ error }}
-      </p>
-      <ul v-else data-testid="wine-list" class="divide-y divide-stone-200">
-        <li v-for="wine in results" :key="wine.id" data-testid="wine-item" class="py-3">
+      </StatusLine>
+      <ul v-else data-testid="wine-list" class="mt-6 flex flex-col gap-3">
+        <li v-for="wine in results" :key="wine.id" data-testid="wine-item">
           <RouterLink
             :to="{ name: 'wine-detail', params: { id: wine.id } }"
             data-testid="wine-link"
-            class="flex flex-wrap items-center gap-3"
+            class="border-line bg-parchment-raised hover:border-gold flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 shadow-sm transition-colors"
           >
-            <span class="font-medium text-stone-900">{{ wine.producer }}</span>
-            <span class="text-stone-600">{{ appellationName(wine.appellation_id) }}</span>
-            <span class="text-stone-600">{{ wine.millesime ?? 'NV' }}</span>
-            <span class="text-stone-600">{{ wine.color }}</span>
-            <span class="text-stone-600">Qty: {{ wine.quantity }}</span>
+            <span class="font-display text-ink text-base">{{ wine.producer }}</span>
+            <span class="text-muted flex items-center gap-1.5 text-sm">
+              <ColorSwatch :color="wine.color" />{{ wine.color }}
+            </span>
+            <span class="text-muted text-sm">{{ appellationName(wine.appellation_id) }}</span>
+            <span class="text-muted text-sm">{{ wine.millesime ?? 'NV' }}</span>
+            <span class="text-muted text-sm">Qty: {{ wine.quantity }}</span>
             <GardeStatusBadge :status="wine.garde_status" />
           </RouterLink>
         </li>

@@ -2,7 +2,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Color } from '../api/types'
+import AppButton from '../components/AppButton.vue'
 import AutocompleteField from '../components/AutocompleteField.vue'
+import FormField from '../components/FormField.vue'
+import PageHeader from '../components/PageHeader.vue'
+import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useWines } from '../composables/useWines'
 import {
@@ -124,24 +128,22 @@ async function submit() {
 </script>
 
 <template>
-  <section class="px-6 py-4">
-    <h2 class="font-serif text-xl text-stone-900">{{ isEdit ? 'Edit wine' : 'Add wine' }}</h2>
+  <section class="px-6 py-6">
+    <PageHeader :title="isEdit ? 'Edit wine' : 'Add wine'" />
 
-    <p v-if="loading" role="status" class="text-stone-600">Loading…</p>
-    <p v-else-if="hasLoadError" role="alert" class="text-red-700">Couldn't load: {{ loadError }}</p>
+    <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
+    <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">Couldn't load: {{ loadError }}</StatusLine>
     <form
       v-else
       data-testid="wine-form"
-      class="mt-4 flex max-w-md flex-col gap-3"
+      class="mt-6 flex max-w-md flex-col gap-4"
       @submit.prevent="submit"
     >
-      <label class="flex flex-col text-sm text-stone-700">
-        Millesime
+      <FormField label="Millesime" :error="errors.millesime">
         <input v-model="millesime" data-testid="wine-millesime-input" type="number" />
-      </label>
+      </FormField>
 
-      <label class="flex flex-col text-sm text-stone-700">
-        Appellation
+      <FormField label="Appellation" :error="errors.appellationId" error-testid="wine-appellation-error">
         <AutocompleteField
           testid="wine-appellation"
           :items="appellations"
@@ -149,93 +151,67 @@ async function submit() {
           placeholder="Pick an appellation"
           @update:model-value="(v) => (appellationId = v)"
         />
-        <p v-if="errors.appellationId" data-testid="wine-appellation-error" class="text-xs text-red-700">
-          {{ errors.appellationId }}
-        </p>
-        <button
+        <AppButton
           type="button"
+          variant="ghost"
           data-testid="new-appellation-toggle"
-          class="mt-1 self-start text-xs text-stone-600 underline"
+          class="mt-1 self-start"
           @click="toggleNewAppellation"
         >
           {{ showNewAppellation ? 'Cancel' : "Can't find it? Create new appellation" }}
-        </button>
-        <div v-if="showNewAppellation" class="mt-1 flex items-center gap-2">
+        </AppButton>
+        <div v-if="showNewAppellation" class="mt-2 flex items-center gap-2">
           <input
             v-model="newAppellationName"
             data-testid="new-appellation-name-input"
             type="text"
             placeholder="New appellation name"
-            class="rounded border border-stone-300 px-2 py-1 text-sm"
+            class="text-sm"
+            @keydown.enter.prevent="submitNewAppellation"
           />
-          <button
+          <AppButton
             type="button"
             data-testid="new-appellation-submit"
             :disabled="creatingAppellation"
-            class="rounded bg-stone-800 px-2 py-1 text-xs text-white disabled:opacity-50"
+            class="text-xs"
             @click="submitNewAppellation"
           >
             Create
-          </button>
+          </AppButton>
         </div>
-        <p v-if="appellationCreateError" data-testid="new-appellation-error" class="text-xs text-red-700">
+        <p v-if="appellationCreateError" data-testid="new-appellation-error" class="text-danger text-xs">
           {{ appellationCreateError }}
         </p>
-      </label>
+      </FormField>
 
-      <label class="flex flex-col text-sm text-stone-700">
-        Producer
+      <FormField label="Producer" :error="errors.producer" error-testid="wine-producer-error">
         <input v-model="producer" data-testid="wine-producer-input" type="text" />
-        <p v-if="errors.producer" data-testid="wine-producer-error" class="text-xs text-red-700">
-          {{ errors.producer }}
-        </p>
-      </label>
+      </FormField>
 
-      <label class="flex flex-col text-sm text-stone-700">
-        Color
+      <FormField label="Color" :error="errors.color" error-testid="wine-color-error">
         <select v-model="color" data-testid="wine-color-input">
           <option value="">Choose a color</option>
           <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
         </select>
-        <p v-if="errors.color" data-testid="wine-color-error" class="text-xs text-red-700">
-          {{ errors.color }}
-        </p>
-      </label>
+      </FormField>
 
-      <label class="flex flex-col text-sm text-stone-700">
-        Garde start
+      <FormField label="Garde start" :error="errors.gardeDebut" error-testid="wine-garde-debut-error">
         <input v-model="gardeDebut" data-testid="wine-garde-debut-input" type="number" />
-        <p v-if="errors.gardeDebut" data-testid="wine-garde-debut-error" class="text-xs text-red-700">
-          {{ errors.gardeDebut }}
-        </p>
-      </label>
+      </FormField>
 
-      <label class="flex flex-col text-sm text-stone-700">
-        Garde end
+      <FormField label="Garde end" :error="errors.gardeFin" error-testid="wine-garde-fin-error">
         <input v-model="gardeFin" data-testid="wine-garde-fin-input" type="number" />
-        <p v-if="errors.gardeFin" data-testid="wine-garde-fin-error" class="text-xs text-red-700">
-          {{ errors.gardeFin }}
-        </p>
-      </label>
+      </FormField>
 
-      <label class="flex flex-col text-sm text-stone-700">
-        Quantity
+      <FormField label="Quantity" :error="errors.quantity" error-testid="wine-quantity-error">
         <input v-model="quantity" data-testid="wine-quantity-input" type="number" />
-        <p v-if="errors.quantity" data-testid="wine-quantity-error" class="text-xs text-red-700">
-          {{ errors.quantity }}
-        </p>
-      </label>
+      </FormField>
 
-      <p v-if="submitError" role="alert" class="text-red-700">{{ submitError }}</p>
+      <StatusLine v-if="submitError" tone="error">{{ submitError }}</StatusLine>
 
-      <button
-        type="submit"
-        data-testid="wine-form-submit"
-        :disabled="submitting"
-        class="self-start rounded bg-stone-800 px-3 py-1 text-white disabled:opacity-50"
-      >
+      <AppButton type="submit" data-testid="wine-form-submit" :disabled="submitting" class="self-start">
         {{ isEdit ? 'Save changes' : 'Add wine' }}
-      </button>
+      </AppButton>
     </form>
   </section>
 </template>

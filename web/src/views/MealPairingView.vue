@@ -2,7 +2,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { Color } from '../api/types'
+import AppButton from '../components/AppButton.vue'
 import AutocompleteField from '../components/AutocompleteField.vue'
+import FormField from '../components/FormField.vue'
+import PageHeader from '../components/PageHeader.vue'
+import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useMealPairings } from '../composables/useMealPairings'
 import { useMeals } from '../composables/useMeals'
@@ -76,6 +80,11 @@ async function removeMeal(mealId: number) {
   await removePairing(appellationId.value as number, color.value as Color, mealId)
 }
 
+function submitOnEnter(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' || event.defaultPrevented) return
+  action()
+}
+
 function toggleNewMeal() {
   showNewMeal.value = !showNewMeal.value
   newMealName.value = ''
@@ -94,15 +103,14 @@ async function submitNewMeal() {
 </script>
 
 <template>
-  <section class="px-6 py-4">
-    <h2 class="font-serif text-xl text-stone-900">Meal pairings</h2>
+  <section class="px-6 py-6">
+    <PageHeader title="Meal pairings" />
 
-    <p v-if="loading" role="status" class="text-stone-600">Loading…</p>
-    <p v-else-if="hasLoadError" role="alert" class="text-red-700">Couldn't load: {{ loadError }}</p>
+    <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
+    <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">Couldn't load: {{ loadError }}</StatusLine>
     <template v-else>
-      <div class="mt-4 flex max-w-md flex-col gap-3">
-        <label class="flex flex-col text-sm text-stone-700">
-          Appellation
+      <div class="mt-6 flex max-w-md flex-col gap-4">
+        <FormField label="Appellation">
           <AutocompleteField
             testid="meal-pairing-appellation"
             :items="appellations"
@@ -110,46 +118,49 @@ async function submitNewMeal() {
             placeholder="Pick an appellation"
             @update:model-value="(v) => (appellationId = v)"
           />
-        </label>
+        </FormField>
 
-        <label class="flex flex-col text-sm text-stone-700">
-          Color
+        <FormField label="Color">
           <select v-model="color" data-testid="meal-pairing-color-input">
             <option value="">Choose a color</option>
             <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
           </select>
-        </label>
+        </FormField>
       </div>
 
       <template v-if="selectionReady">
-        <p v-if="pairingsLoading" role="status" class="mt-4 text-stone-600">Loading pairings…</p>
-        <p v-else-if="pairingsError" role="alert" class="mt-4 text-red-700">
+        <StatusLine v-if="pairingsLoading" class="mt-6">Loading pairings…</StatusLine>
+        <StatusLine v-else-if="pairingsError" tone="error" class="mt-6">
           Couldn't load pairings: {{ pairingsError }}
-        </p>
-        <section v-else class="mt-6">
-          <h3 class="font-serif text-lg text-stone-900">Currently paired</h3>
-          <p v-if="pairedMeals.length === 0" class="text-stone-600">No meals paired yet.</p>
-          <ul v-else data-testid="paired-meals">
+        </StatusLine>
+        <section v-else class="border-line mt-8 border-t pt-6">
+          <h3 class="font-display text-ink text-lg">Currently paired</h3>
+          <StatusLine v-if="pairedMeals.length === 0" class="mt-2">No meals paired yet.</StatusLine>
+          <ul v-else data-testid="paired-meals" class="mt-2 flex flex-col gap-1">
             <li
               v-for="meal in pairedMeals"
               :key="meal.id"
               data-testid="paired-meal"
-              class="flex items-center gap-2"
+              class="flex items-center gap-3 text-sm"
             >
-              <span>{{ meal.name }}</span>
-              <button
+              <span class="text-ink">{{ meal.name }}</span>
+              <AppButton
                 type="button"
+                variant="ghost"
                 data-testid="remove-meal-button"
                 :disabled="mutating"
-                class="text-xs text-stone-600 underline disabled:opacity-50"
                 @click="removeMeal(meal.id)"
               >
                 Remove
-              </button>
+              </AppButton>
             </li>
           </ul>
 
-          <div class="mt-4 flex flex-col gap-2 max-w-md">
+          <form
+            class="mt-4 flex max-w-md flex-col gap-2"
+            @submit.prevent="addMeal"
+            @keydown="(e) => submitOnEnter(e, addMeal)"
+          >
             <AutocompleteField
               testid="add-meal-autocomplete"
               :items="meals"
@@ -157,47 +168,53 @@ async function submitNewMeal() {
               placeholder="Add a meal"
               @update:model-value="(v) => (selectedMealId = v)"
             />
-            <button
+            <AppButton
               type="button"
               data-testid="add-meal-button"
               :disabled="mutating || selectedMealId === null"
-              class="self-start rounded bg-stone-800 px-3 py-1 text-sm text-white disabled:opacity-50"
+              class="self-start"
               @click="addMeal"
             >
               Add meal
-            </button>
+            </AppButton>
+          </form>
 
-            <button
+          <AppButton
+            type="button"
+            variant="ghost"
+            data-testid="new-meal-toggle"
+            class="mt-3"
+            @click="toggleNewMeal"
+          >
+            {{ showNewMeal ? 'Cancel' : "Can't find it? Create new meal" }}
+          </AppButton>
+          <form
+            v-if="showNewMeal"
+            class="mt-2 flex items-center gap-2"
+            @submit.prevent="submitNewMeal"
+            @keydown="(e) => submitOnEnter(e, submitNewMeal)"
+          >
+            <input
+              v-model="newMealName"
+              data-testid="new-meal-name-input"
+              type="text"
+              placeholder="New meal name"
+              class="text-sm"
+            />
+            <AppButton
               type="button"
-              data-testid="new-meal-toggle"
-              class="self-start text-xs text-stone-600 underline"
-              @click="toggleNewMeal"
+              data-testid="new-meal-submit"
+              :disabled="creatingMeal"
+              class="text-xs"
+              @click="submitNewMeal"
             >
-              {{ showNewMeal ? 'Cancel' : "Can't find it? Create new meal" }}
-            </button>
-            <div v-if="showNewMeal" class="flex items-center gap-2">
-              <input
-                v-model="newMealName"
-                data-testid="new-meal-name-input"
-                type="text"
-                placeholder="New meal name"
-                class="rounded border border-stone-300 px-2 py-1 text-sm"
-              />
-              <button
-                type="button"
-                data-testid="new-meal-submit"
-                :disabled="creatingMeal"
-                class="rounded bg-stone-800 px-2 py-1 text-xs text-white disabled:opacity-50"
-                @click="submitNewMeal"
-              >
-                Create
-              </button>
-            </div>
-            <p v-if="mealCreateError" data-testid="new-meal-error" class="text-xs text-red-700">
-              {{ mealCreateError }}
-            </p>
-            <p v-if="mutateError" role="alert" class="text-xs text-red-700">{{ mutateError }}</p>
-          </div>
+              Create
+            </AppButton>
+          </form>
+          <StatusLine v-if="mealCreateError" tone="error" data-testid="new-meal-error" class="mt-1 text-xs">
+            {{ mealCreateError }}
+          </StatusLine>
+          <StatusLine v-if="mutateError" tone="error" class="mt-1 text-xs">{{ mutateError }}</StatusLine>
         </section>
       </template>
     </template>

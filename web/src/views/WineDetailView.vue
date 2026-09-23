@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import AppButton from '../components/AppButton.vue'
+import ColorSwatch from '../components/ColorSwatch.vue'
+import FormField from '../components/FormField.vue'
 import GardeStatusBadge from '../components/GardeStatusBadge.vue'
+import PageHeader from '../components/PageHeader.vue'
+import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useWines } from '../composables/useWines'
 import { computeGardeStatus } from '../domain/gardeStatus'
@@ -74,93 +79,84 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="px-6 py-4">
-    <p v-if="loading" role="status" class="text-stone-600">Loading wine…</p>
-    <p v-else-if="hasError" role="alert" class="text-red-700">
-      Couldn't load this wine: {{ error }}
-    </p>
-    <div v-else-if="wine" data-testid="wine-detail">
-      <div class="flex items-center justify-between">
-        <h2 class="font-serif text-xl text-stone-900">{{ wine.producer }}</h2>
-        <div class="flex items-center gap-3">
+  <section class="px-6 py-6">
+    <StatusLine v-if="loading">Loading wine…</StatusLine>
+    <StatusLine v-else-if="hasError" tone="error">Couldn't load this wine: {{ error }}</StatusLine>
+    <div v-else-if="wine" data-testid="wine-detail" class="max-w-2xl">
+      <PageHeader :title="wine.producer">
+        <template #actions>
           <RouterLink
             :to="{
               name: 'meal-pairings',
               query: { appellation_id: wine.appellation_id, color: wine.color },
             }"
             data-testid="manage-pairings-link"
-            class="text-sm text-stone-600 underline"
+            class="text-muted hover:text-ink text-sm underline underline-offset-2"
           >
             Manage pairings
           </RouterLink>
           <RouterLink
             :to="{ name: 'wine-edit', params: { id: wine.id } }"
             data-testid="edit-wine-link"
-            class="text-sm text-stone-600 underline"
+            class="text-muted hover:text-ink text-sm underline underline-offset-2"
           >
             Edit
           </RouterLink>
-        </div>
-      </div>
-      <div class="mt-2 flex flex-wrap items-center gap-3 text-stone-700">
+        </template>
+      </PageHeader>
+      <div class="text-muted mt-2 flex flex-wrap items-center gap-3 text-sm">
+        <span class="flex items-center gap-1.5"><ColorSwatch :color="wine.color" />{{ wine.color }}</span>
         <span>{{ appellationName }}</span>
         <span>{{ wine.millesime ?? 'NV' }}</span>
-        <span>{{ wine.color }}</span>
         <span>Garde: {{ wine.garde_debut }}–{{ wine.garde_fin }}</span>
         <GardeStatusBadge v-if="gardeStatus" :status="gardeStatus" />
         <span>Qty: {{ wine.quantity }}</span>
       </div>
 
-      <section class="mt-6">
-        <h3 class="font-serif text-lg text-stone-900">Suggested meals</h3>
-        <p v-if="wine.suggested_meals.length === 0" class="text-stone-600">No suggestions yet.</p>
-        <ul v-else data-testid="suggested-meals">
+      <section class="border-line mt-8 border-t pt-6">
+        <h3 class="font-display text-ink text-lg">Suggested meals</h3>
+        <StatusLine v-if="wine.suggested_meals.length === 0" class="mt-2">No suggestions yet.</StatusLine>
+        <ul v-else data-testid="suggested-meals" class="mt-2 flex flex-col gap-1 text-sm">
           <li v-for="meal in wine.suggested_meals" :key="meal.id" data-testid="suggested-meal">
             {{ meal.name }}
           </li>
         </ul>
       </section>
 
-      <section class="mt-6">
-        <h3 class="font-serif text-lg text-stone-900">Consumption history</h3>
-        <p v-if="wine.consumption_history.length === 0" class="text-stone-600">
+      <section class="border-line mt-8 border-t pt-6">
+        <h3 class="font-display text-ink text-lg">Consumption history</h3>
+        <StatusLine v-if="wine.consumption_history.length === 0" class="mt-2">
           No consumptions recorded yet.
-        </p>
-        <ul v-else data-testid="consumption-history">
+        </StatusLine>
+        <ul v-else data-testid="consumption-history" class="mt-2 flex flex-col gap-2 text-sm">
           <li
             v-for="consumption in wine.consumption_history"
             :key="consumption.id"
             data-testid="consumption-entry"
+            class="border-line border-b pb-2"
           >
-            <span>{{ consumption.date }}</span>
-            <span v-if="consumption.rating !== null">Rating: {{ consumption.rating }}</span>
-            <span v-if="consumption.notes">{{ consumption.notes }}</span>
+            <span class="text-ink font-medium">{{ consumption.date }}</span>
+            <span v-if="consumption.rating !== null" class="text-muted ml-2">Rating: {{ consumption.rating }}</span>
+            <span v-if="consumption.notes" class="text-muted ml-2">{{ consumption.notes }}</span>
           </li>
         </ul>
       </section>
 
-      <section class="mt-6">
-        <h3 class="font-serif text-lg text-stone-900">Record a consumption</h3>
-        <p v-if="wine.quantity === 0" data-testid="consumption-blocked-message" class="text-stone-600">
+      <section class="border-line mt-8 border-t pt-6">
+        <h3 class="font-display text-ink text-lg">Record a consumption</h3>
+        <StatusLine v-if="wine.quantity === 0" data-testid="consumption-blocked-message" class="mt-2">
           No bottles left to record a consumption — quantity is already 0.
-        </p>
+        </StatusLine>
         <form
           v-else
           data-testid="consumption-form"
-          class="mt-2 flex flex-col gap-2"
+          class="mt-3 flex max-w-sm flex-col gap-3"
           @submit.prevent="submitConsumption"
         >
-          <label class="flex flex-col text-sm text-stone-700">
-            Date
-            <input
-              v-model="consumptionDate"
-              data-testid="consumption-date-input"
-              type="date"
-              required
-            />
-          </label>
-          <label class="flex flex-col text-sm text-stone-700">
-            Rating (1–5)
+          <FormField label="Date">
+            <input v-model="consumptionDate" data-testid="consumption-date-input" type="date" required />
+          </FormField>
+          <FormField label="Rating (1–5)">
             <input
               v-model="consumptionRating"
               data-testid="consumption-rating-input"
@@ -168,20 +164,14 @@ onMounted(() => {
               min="1"
               max="5"
             />
-          </label>
-          <label class="flex flex-col text-sm text-stone-700">
-            Notes
+          </FormField>
+          <FormField label="Notes">
             <textarea v-model="consumptionNotes" data-testid="consumption-notes-input"></textarea>
-          </label>
-          <p v-if="consumptionError" role="alert" class="text-red-700">{{ consumptionError }}</p>
-          <button
-            type="submit"
-            data-testid="consumption-submit"
-            :disabled="submittingConsumption"
-            class="self-start rounded bg-stone-800 px-3 py-1 text-white disabled:opacity-50"
-          >
+          </FormField>
+          <StatusLine v-if="consumptionError" tone="error">{{ consumptionError }}</StatusLine>
+          <AppButton type="submit" :disabled="submittingConsumption" class="self-start" data-testid="consumption-submit">
             Record
-          </button>
+          </AppButton>
         </form>
       </section>
     </div>
