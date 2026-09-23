@@ -1,25 +1,35 @@
 <script setup lang="ts">
-withDefaults(
+import { computed } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
+
+const props = withDefaults(
   defineProps<{
-    variant?: 'primary' | 'ghost' | 'danger'
+    variant?: 'primary' | 'ghost'
     type?: 'button' | 'submit'
     disabled?: boolean
+    to?: RouteLocationRaw
   }>(),
   { variant: 'primary', type: 'button', disabled: false },
 )
+
+const baseClass = 'rounded-md text-sm font-medium transition-colors'
+
+const variantClass = computed(() => ({
+  'bg-bordeaux hover:bg-bordeaux-hover px-4 py-1.5 text-white shadow-sm': props.variant === 'primary',
+  'text-muted hover:text-ink px-0 py-0 underline underline-offset-2': props.variant === 'ghost',
+}))
 </script>
 
 <template>
+  <RouterLink v-if="to" :to="to" :class="[baseClass, variantClass]">
+    <slot />
+  </RouterLink>
   <button
+    v-else
     :type="type"
     :disabled="disabled"
-    class="rounded-md text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-    :class="{
-      'bg-bordeaux hover:bg-bordeaux-hover px-4 py-1.5 text-white shadow-sm':
-        variant === 'primary',
-      'text-muted hover:text-ink px-0 py-0 underline underline-offset-2': variant === 'ghost',
-      'text-danger px-0 py-0 underline underline-offset-2': variant === 'danger',
-    }"
+    class="disabled:cursor-not-allowed disabled:opacity-50"
+    :class="[baseClass, variantClass]"
   >
     <slot />
   </button>

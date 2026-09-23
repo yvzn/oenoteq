@@ -80,11 +80,6 @@ async function removeMeal(mealId: number) {
   await removePairing(appellationId.value as number, color.value as Color, mealId)
 }
 
-function submitOnEnter(event: KeyboardEvent, action: () => void) {
-  if (event.key !== 'Enter' || event.defaultPrevented) return
-  action()
-}
-
 function toggleNewMeal() {
   showNewMeal.value = !showNewMeal.value
   newMealName.value = ''
@@ -156,11 +151,7 @@ async function submitNewMeal() {
             </li>
           </ul>
 
-          <form
-            class="mt-4 flex max-w-md flex-col gap-2"
-            @submit.prevent="addMeal"
-            @keydown="(e) => submitOnEnter(e, addMeal)"
-          >
+          <div class="mt-4 flex max-w-md flex-col gap-2">
             <AutocompleteField
               testid="add-meal-autocomplete"
               :items="meals"
@@ -177,7 +168,7 @@ async function submitNewMeal() {
             >
               Add meal
             </AppButton>
-          </form>
+          </div>
 
           <AppButton
             type="button"
@@ -188,12 +179,7 @@ async function submitNewMeal() {
           >
             {{ showNewMeal ? 'Cancel' : "Can't find it? Create new meal" }}
           </AppButton>
-          <form
-            v-if="showNewMeal"
-            class="mt-2 flex items-center gap-2"
-            @submit.prevent="submitNewMeal"
-            @keydown="(e) => submitOnEnter(e, submitNewMeal)"
-          >
+          <div v-if="showNewMeal" class="mt-2 flex items-center gap-2">
             <input
               v-model="newMealName"
               data-testid="new-meal-name-input"
@@ -210,7 +196,7 @@ async function submitNewMeal() {
             >
               Create
             </AppButton>
-          </form>
+          </div>
           <StatusLine v-if="mealCreateError" tone="error" data-testid="new-meal-error" class="mt-1 text-xs">
             {{ mealCreateError }}
           </StatusLine>

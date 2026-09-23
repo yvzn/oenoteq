@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AppButton from '../components/AppButton.vue'
 import ColorSwatch from '../components/ColorSwatch.vue'
 import FilterBar from '../components/FilterBar.vue'
 import GardeStatusBadge from '../components/GardeStatusBadge.vue'
@@ -69,13 +70,7 @@ onMounted(() => {
     <div class="px-6 py-6">
       <PageHeader title="Cellar">
         <template #actions>
-          <RouterLink
-            :to="{ name: 'wine-new' }"
-            data-testid="add-wine-link"
-            class="bg-bordeaux hover:bg-bordeaux-hover rounded-md px-4 py-1.5 text-sm font-medium text-white shadow-sm transition-colors"
-          >
-            Add wine
-          </RouterLink>
+          <AppButton :to="{ name: 'wine-new' }" data-testid="add-wine-link">Add wine</AppButton>
         </template>
       </PageHeader>
 

@@ -167,7 +167,6 @@ async function submit() {
             type="text"
             placeholder="New appellation name"
             class="text-sm"
-            @keydown.enter.prevent="submitNewAppellation"
           />
           <AppButton
             type="button"
