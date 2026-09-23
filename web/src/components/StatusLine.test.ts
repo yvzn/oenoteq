@@ -20,4 +20,15 @@ describe('StatusLine', () => {
 
     expect(wrapper.find('[data-testid="retry"]').exists()).toBe(false)
   })
+
+  it('renders success tone with a status role, not alert', () => {
+    const wrapper = mount(StatusLine, {
+      props: { tone: 'success' },
+      slots: { default: 'Saved.' },
+    })
+
+    expect(wrapper.find('[role="status"]').exists()).toBe(true)
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.classes()).toContain('text-success')
+  })
 })

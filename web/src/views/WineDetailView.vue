@@ -8,6 +8,7 @@ import GardeStatusBadge from '../components/GardeStatusBadge.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
+import { useTransientMessage } from '../composables/useTransientMessage'
 import { useWines } from '../composables/useWines'
 import { computeGardeStatus } from '../domain/gardeStatus'
 
@@ -35,6 +36,8 @@ const consumptionDate = ref('')
 const consumptionRating = ref('')
 const consumptionNotes = ref('')
 
+const consumptionSuccess = useTransientMessage()
+
 async function submitConsumption() {
   await recordConsumption(id.value, {
     date: consumptionDate.value,
@@ -45,6 +48,7 @@ async function submitConsumption() {
     consumptionDate.value = ''
     consumptionRating.value = ''
     consumptionNotes.value = ''
+    consumptionSuccess.show('Consumption recorded.')
   }
 }
 
@@ -65,6 +69,7 @@ watch(
   id,
   (next) => {
     consumptionError.value = null
+    consumptionSuccess.clear()
     consumptionDate.value = ''
     consumptionRating.value = ''
     consumptionNotes.value = ''
@@ -178,6 +183,9 @@ function retry() {
             <textarea v-model="consumptionNotes" data-testid="consumption-notes-input"></textarea>
           </FormField>
           <StatusLine v-if="consumptionError" tone="error">{{ consumptionError }}</StatusLine>
+          <StatusLine v-if="consumptionSuccess.message.value" tone="success" data-testid="consumption-success">
+            {{ consumptionSuccess.message.value }}
+          </StatusLine>
           <AppButton type="submit" :disabled="submittingConsumption" class="self-start" data-testid="consumption-submit">
             Record
           </AppButton>

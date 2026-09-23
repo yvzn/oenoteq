@@ -121,6 +121,7 @@ describe('MealPairingView', () => {
       color: 'rouge',
       meal_id: 2,
     })
+    expect(wrapper.get('[data-testid="pairing-success"]').text()).toMatch(/added/i)
   })
 
   it('removes a meal from the pairing', async () => {
@@ -138,6 +139,24 @@ describe('MealPairingView', () => {
       color: 'rouge',
       meal_id: 1,
     })
+    expect(wrapper.get('[data-testid="pairing-success"]').text()).toMatch(/removed/i)
+  })
+
+  it('clears a stale pairing success message when the color selection changes', async () => {
+    mockApi()
+    vi.mocked(apiClient.delete).mockResolvedValue(undefined)
+
+    const { wrapper } = await mountAt('/meal-pairings')
+    await selectAppellationAndColor(wrapper)
+
+    await wrapper.get('[data-testid="remove-meal-button"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="pairing-success"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="meal-pairing-color-input"]').setValue('blanc')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="pairing-success"]').exists()).toBe(false)
   })
 
   it('submits the add-meal form on Enter once a match is selected', async () => {

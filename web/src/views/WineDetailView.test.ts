@@ -213,6 +213,30 @@ describe('WineDetailView', () => {
     const detail = wrapper.get('[data-testid="wine-detail"]')
     expect(detail.text()).toContain('Qty: 2')
     expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(3)
+    expect(wrapper.get('[data-testid="consumption-success"]').text()).toMatch(/recorded/i)
+  })
+
+  it('clears a stale consumption success message when navigating to a different wine', async () => {
+    const wineTwo = { ...wineDetail, id: 2, producer: 'Domaine Autre' }
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/appellations') return Promise.resolve(appellations)
+      if (path === '/wines/1') return Promise.resolve(wineDetail)
+      if (path === '/wines/2') return Promise.resolve(wineTwo)
+      throw new Error(`unexpected path: ${path}`)
+    })
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 3, wine_id: 1, date: '2026-03-01', rating: null, notes: null })
+
+    const { wrapper, router } = await mountAt('/wines/1')
+
+    fillConsumptionForm(wrapper, { date: '2026-03-01' })
+    await wrapper.get('[data-testid="consumption-form"]').trigger('submit.prevent')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="consumption-success"]').exists()).toBe(true)
+
+    await router.push('/wines/2')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="consumption-success"]').exists()).toBe(false)
   })
 
   it('clears a stale consumption error when navigating to a different wine', async () => {

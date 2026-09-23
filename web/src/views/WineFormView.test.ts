@@ -73,6 +73,7 @@ afterEach(() => {
   vi.mocked(apiClient.get).mockReset()
   vi.mocked(apiClient.post).mockReset()
   vi.mocked(apiClient.put).mockReset()
+  vi.useRealTimers()
 })
 
 describe('WineFormView — add', () => {
@@ -135,8 +136,10 @@ describe('WineFormView — add', () => {
 
     const { wrapper, router } = await mountAt('/wines/new')
     await fillValidForm(wrapper)
+
+    vi.useFakeTimers()
     await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
-    await flushPromises()
+    await vi.advanceTimersByTimeAsync(0)
 
     expect(apiClient.post).toHaveBeenCalledWith('/wines', {
       millesime: null,
@@ -147,6 +150,10 @@ describe('WineFormView — add', () => {
       garde_fin: 2028,
       quantity: 6,
     })
+    expect(wrapper.get('[data-testid="wine-form-success"]').text()).toMatch(/added/i)
+    expect(router.currentRoute.value.fullPath).toBe('/wines/new')
+
+    await vi.advanceTimersByTimeAsync(1000)
     expect(router.currentRoute.value.fullPath).toBe('/wines/9')
   })
 
@@ -233,8 +240,10 @@ describe('WineFormView — edit', () => {
 
     const { wrapper, router } = await mountAt('/wines/5/edit')
     await wrapper.get('[data-testid="wine-producer-input"]').setValue('Domaine Les Garillères')
+
+    vi.useFakeTimers()
     await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
-    await flushPromises()
+    await vi.advanceTimersByTimeAsync(0)
 
     expect(apiClient.put).toHaveBeenCalledWith('/wines/5', {
       millesime: 2018,
@@ -245,6 +254,10 @@ describe('WineFormView — edit', () => {
       garde_fin: 2028,
       quantity: 3,
     })
+    expect(wrapper.get('[data-testid="wine-form-success"]').text()).toMatch(/updated/i)
+    expect(router.currentRoute.value.fullPath).toBe('/wines/5/edit')
+
+    await vi.advanceTimersByTimeAsync(1000)
     expect(router.currentRoute.value.fullPath).toBe('/wines/5')
   })
 
