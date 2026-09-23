@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Appellation, Color, Meal } from '../api/types'
-import type { SearchFilters } from '../domain/searchFilters'
+import { emptySearchFilters, type SearchFilters } from '../domain/searchFilters'
+import AppButton from './AppButton.vue'
 import AutocompleteField from './AutocompleteField.vue'
 import FormField from './FormField.vue'
 
@@ -14,8 +16,20 @@ const emit = defineEmits<{ 'update:filters': [value: SearchFilters] }>()
 
 const colors: Color[] = ['rouge', 'blanc', 'rose']
 
+const hasActiveFilters = computed(
+  () =>
+    props.filters.mealId !== null ||
+    props.filters.appellationId !== null ||
+    props.filters.color !== null ||
+    props.filters.readyNow,
+)
+
 function update(patch: Partial<SearchFilters>) {
   emit('update:filters', { ...props.filters, ...patch })
+}
+
+function clearFilters() {
+  emit('update:filters', emptySearchFilters)
 }
 </script>
 
@@ -62,5 +76,15 @@ function update(patch: Partial<SearchFilters>) {
       />
       Ready now
     </label>
+
+    <AppButton
+      v-if="hasActiveFilters"
+      variant="ghost"
+      type="button"
+      data-testid="clear-filters-button"
+      @click="clearFilters"
+    >
+      Clear filters
+    </AppButton>
   </form>
 </template>
