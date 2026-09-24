@@ -9,6 +9,10 @@ export function useMeals() {
   const error = ref<string | null>(null)
   const creating = ref(false)
   const createError = ref<string | null>(null)
+  const updating = ref(false)
+  const updateError = ref<string | null>(null)
+  const deleting = ref(false)
+  const deleteError = ref<string | null>(null)
 
   async function load() {
     loading.value = true
@@ -37,5 +41,49 @@ export function useMeals() {
     }
   }
 
-  return { meals, loading, error, load, create, creating, createError }
+  async function update(id: number, name: string): Promise<Meal | null> {
+    updating.value = true
+    updateError.value = null
+    try {
+      const meal = await apiClient.put<Meal>(`/meals/${id}`, { name })
+      meals.value = meals.value.map((m) => (m.id === id ? meal : m))
+      return meal
+    } catch (e) {
+      updateError.value = friendlyErrorMessage(e)
+      return null
+    } finally {
+      updating.value = false
+    }
+  }
+
+  async function remove(id: number): Promise<boolean> {
+    deleting.value = true
+    deleteError.value = null
+    try {
+      await apiClient.delete(`/meals/${id}`, undefined)
+      meals.value = meals.value.filter((m) => m.id !== id)
+      return true
+    } catch (e) {
+      deleteError.value = friendlyErrorMessage(e)
+      return false
+    } finally {
+      deleting.value = false
+    }
+  }
+
+  return {
+    meals,
+    loading,
+    error,
+    load,
+    create,
+    creating,
+    createError,
+    update,
+    updating,
+    updateError,
+    remove,
+    deleting,
+    deleteError,
+  }
 }

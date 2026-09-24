@@ -32,6 +32,7 @@ const (
 	codeProducerNotFound     = "producer_not_found"
 	codeWineNotFound         = "wine_not_found"
 	codeMealNotFound         = "meal_not_found"
+	codeMealInUse            = "meal_in_use"
 	codeDateRequired         = "date_required"
 	codeInvalidDate          = "invalid_date"
 	codeInvalidRating        = "invalid_rating"
@@ -58,6 +59,8 @@ func dbErrorCode(err error) string {
 		return codeWineNotFound
 	case errors.Is(err, db.ErrMealNotFound):
 		return codeMealNotFound
+	case errors.Is(err, db.ErrMealInUse):
+		return codeMealInUse
 	case errors.Is(err, db.ErrDateRequired):
 		return codeDateRequired
 	case errors.Is(err, db.ErrInvalidDate):
@@ -88,6 +91,8 @@ func (h *Handler) Register(mux *http.ServeMux, spa http.Handler) {
 	mux.HandleFunc("GET /producers", h.ListProducers)
 	mux.HandleFunc("POST /meals", h.CreateMeal)
 	mux.HandleFunc("GET /meals", h.ListMeals)
+	mux.HandleFunc("PUT /meals/{id}", h.UpdateMeal)
+	mux.HandleFunc("DELETE /meals/{id}", h.DeleteMeal)
 	mux.HandleFunc("POST /wines", h.CreateWine)
 	mux.HandleFunc("GET /wines", h.ListWines)
 	mux.HandleFunc("GET /wines/{id}", h.GetWine)
@@ -227,6 +232,60 @@ func (h *Handler) ListMeals(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(meals)
+}
+
+func mealErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, db.ErrUniqueConstraint):
+		return http.StatusConflict
+	case errors.Is(err, db.ErrMealInUse):
+		return http.StatusConflict
+	case errors.Is(err, db.ErrMealNotFound):
+		return http.StatusNotFound
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func (h *Handler) UpdateMeal(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidMealID)
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
+		return
+	}
+
+	meal, err := h.db.UpdateMeal(r.Context(), id, req.Name)
+	if err != nil {
+		writeError(w, mealErrorStatus(err), dbErrorCode(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(meal)
+}
+
+func (h *Handler) DeleteMeal(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidMealID)
+		return
+	}
+
+	if err := h.db.DeleteMeal(r.Context(), id); err != nil {
+		writeError(w, mealErrorStatus(err), dbErrorCode(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 type wineRequest struct {

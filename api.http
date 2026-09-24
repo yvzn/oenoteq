@@ -40,6 +40,17 @@ Content-Type: application/json
 ### List Meals
 GET {{baseUrl}}/meals
 
+### Rename Meal
+PUT {{baseUrl}}/meals/1
+Content-Type: application/json
+
+{
+  "name": "Boeuf bourguignon (revised)"
+}
+
+### Delete Meal (rejected with meal_in_use if still referenced by a Meal Pairing)
+DELETE {{baseUrl}}/meals/1
+
 
 
 ### Create Wine

@@ -229,6 +229,49 @@ func (d *DB) ListMeals(ctx context.Context) ([]Meal, error) {
 	return meals, nil
 }
 
+func (d *DB) UpdateMeal(ctx context.Context, id int, name string) (*Meal, error) {
+	res, err := d.ExecContext(ctx, "UPDATE meal SET name = ? WHERE id = ?", name, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return nil, fmt.Errorf("meal already exists: %s: %w", name, ErrUniqueConstraint)
+		}
+		return nil, fmt.Errorf("updating meal: %w", err)
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("getting rows affected: %w", err)
+	}
+	if affected == 0 {
+		return nil, fmt.Errorf("meal id %d: %w", id, ErrMealNotFound)
+	}
+
+	return &Meal{ID: id, Name: name}, nil
+}
+
+// DeleteMeal explicitly checks for referencing meal_pairing rows before
+// deleting, since FK enforcement is off repo-wide and there's no ON DELETE
+// behavior to lean on.
+func (d *DB) DeleteMeal(ctx context.Context, id int) error {
+	if err := d.mealExists(ctx, id); err != nil {
+		return err
+	}
+
+	var inUse int
+	if err := d.QueryRowContext(ctx, "SELECT COUNT(*) FROM meal_pairing WHERE meal_id = ?", id).Scan(&inUse); err != nil {
+		return fmt.Errorf("checking meal pairing references: %w", err)
+	}
+	if inUse > 0 {
+		return fmt.Errorf("meal id %d: %w", id, ErrMealInUse)
+	}
+
+	if _, err := d.ExecContext(ctx, "DELETE FROM meal WHERE id = ?", id); err != nil {
+		return fmt.Errorf("deleting meal: %w", err)
+	}
+
+	return nil
+}
+
 var (
 	ErrInvalidColor        = errors.New("invalid color")
 	ErrInvalidQuantity     = errors.New("quantity must be >= 0")
@@ -236,6 +279,7 @@ var (
 	ErrProducerNotFound    = errors.New("producer not found")
 	ErrWineNotFound        = errors.New("wine not found")
 	ErrMealNotFound        = errors.New("meal not found")
+	ErrMealInUse           = errors.New("meal is in use")
 	ErrDateRequired        = errors.New("date is required")
 	ErrInvalidDate         = errors.New("date must be in YYYY-MM-DD format")
 	ErrInvalidRating       = errors.New("rating must be between 1 and 5")
