@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [vue(), tailwindcss()],
   server: {
     proxy: Object.fromEntries(
-      ['/wines', '/appellations', '/meals', '/meal-pairings', '/search', '/health'].map((path) => [
+      ['/wines', '/appellations', '/producers', '/meals', '/meal-pairings', '/search', '/health'].map((path) => [
         path,
         'http://localhost:8080',
       ]),
