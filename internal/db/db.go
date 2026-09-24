@@ -234,6 +234,49 @@ func (d *DB) ListProducers(ctx context.Context) ([]Producer, error) {
 	return producers, nil
 }
 
+func (d *DB) UpdateProducer(ctx context.Context, id int, name string) (*Producer, error) {
+	res, err := d.ExecContext(ctx, "UPDATE producer SET name = ? WHERE id = ?", name, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return nil, fmt.Errorf("producer already exists: %s: %w", name, ErrUniqueConstraint)
+		}
+		return nil, fmt.Errorf("updating producer: %w", err)
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("getting rows affected: %w", err)
+	}
+	if affected == 0 {
+		return nil, fmt.Errorf("producer id %d: %w", id, ErrProducerNotFound)
+	}
+
+	return &Producer{ID: id, Name: name}, nil
+}
+
+// DeleteProducer explicitly checks for referencing wine rows before
+// deleting, since FK enforcement is off repo-wide and there's no ON DELETE
+// behavior to lean on.
+func (d *DB) DeleteProducer(ctx context.Context, id int) error {
+	if err := d.producerExists(ctx, id); err != nil {
+		return err
+	}
+
+	var inUse int
+	if err := d.QueryRowContext(ctx, "SELECT COUNT(*) FROM wine WHERE producer_id = ?", id).Scan(&inUse); err != nil {
+		return fmt.Errorf("checking wine references: %w", err)
+	}
+	if inUse > 0 {
+		return fmt.Errorf("producer id %d: %w", id, ErrProducerInUse)
+	}
+
+	if _, err := d.ExecContext(ctx, "DELETE FROM producer WHERE id = ?", id); err != nil {
+		return fmt.Errorf("deleting producer: %w", err)
+	}
+
+	return nil
+}
+
 type Meal struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
@@ -331,6 +374,7 @@ var (
 	ErrMealNotFound        = errors.New("meal not found")
 	ErrMealInUse           = errors.New("meal is in use")
 	ErrAppellationInUse    = errors.New("appellation is in use")
+	ErrProducerInUse       = errors.New("producer is in use")
 	ErrDateRequired        = errors.New("date is required")
 	ErrInvalidDate         = errors.New("date must be in YYYY-MM-DD format")
 	ErrInvalidRating       = errors.New("rating must be between 1 and 5")
@@ -369,6 +413,17 @@ func (d *DB) appellationExists(ctx context.Context, id int) error {
 	}
 	if exists == 0 {
 		return fmt.Errorf("appellation id %d: %w", id, ErrAppellationNotFound)
+	}
+	return nil
+}
+
+func (d *DB) producerExists(ctx context.Context, id int) error {
+	var exists int
+	if err := d.QueryRowContext(ctx, "SELECT COUNT(*) FROM producer WHERE id = ?", id).Scan(&exists); err != nil {
+		return fmt.Errorf("checking producer: %w", err)
+	}
+	if exists == 0 {
+		return fmt.Errorf("producer id %d: %w", id, ErrProducerNotFound)
 	}
 	return nil
 }

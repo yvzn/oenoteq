@@ -25,6 +25,7 @@ const (
 	codeInvalidWineID        = "invalid_wine_id"
 	codeInvalidMealID        = "invalid_meal_id"
 	codeInvalidAppellationID = "invalid_appellation_id"
+	codeInvalidProducerID    = "invalid_producer_id"
 	codeInvalidConsumptionID = "invalid_consumption_id"
 	codeAlreadyExists        = "already_exists"
 	codeInvalidColor         = "invalid_color"
@@ -35,6 +36,7 @@ const (
 	codeMealNotFound         = "meal_not_found"
 	codeMealInUse            = "meal_in_use"
 	codeAppellationInUse     = "appellation_in_use"
+	codeProducerInUse        = "producer_in_use"
 	codeDateRequired         = "date_required"
 	codeInvalidDate          = "invalid_date"
 	codeInvalidRating        = "invalid_rating"
@@ -66,6 +68,8 @@ func dbErrorCode(err error) string {
 		return codeMealInUse
 	case errors.Is(err, db.ErrAppellationInUse):
 		return codeAppellationInUse
+	case errors.Is(err, db.ErrProducerInUse):
+		return codeProducerInUse
 	case errors.Is(err, db.ErrDateRequired):
 		return codeDateRequired
 	case errors.Is(err, db.ErrInvalidDate):
@@ -98,6 +102,8 @@ func (h *Handler) Register(mux *http.ServeMux, spa http.Handler) {
 	mux.HandleFunc("DELETE /appellations/{id}", h.DeleteAppellation)
 	mux.HandleFunc("POST /producers", h.CreateProducer)
 	mux.HandleFunc("GET /producers", h.ListProducers)
+	mux.HandleFunc("PUT /producers/{id}", h.UpdateProducer)
+	mux.HandleFunc("DELETE /producers/{id}", h.DeleteProducer)
 	mux.HandleFunc("POST /meals", h.CreateMeal)
 	mux.HandleFunc("GET /meals", h.ListMeals)
 	mux.HandleFunc("PUT /meals/{id}", h.UpdateMeal)
@@ -256,6 +262,60 @@ func (h *Handler) ListProducers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(producers)
+}
+
+func producerErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, db.ErrUniqueConstraint):
+		return http.StatusConflict
+	case errors.Is(err, db.ErrProducerInUse):
+		return http.StatusConflict
+	case errors.Is(err, db.ErrProducerNotFound):
+		return http.StatusNotFound
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func (h *Handler) UpdateProducer(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidProducerID)
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
+		return
+	}
+
+	producer, err := h.db.UpdateProducer(r.Context(), id, req.Name)
+	if err != nil {
+		writeError(w, producerErrorStatus(err), dbErrorCode(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(producer)
+}
+
+func (h *Handler) DeleteProducer(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidProducerID)
+		return
+	}
+
+	if err := h.db.DeleteProducer(r.Context(), id); err != nil {
+		writeError(w, producerErrorStatus(err), dbErrorCode(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) CreateMeal(w http.ResponseWriter, r *http.Request) {

@@ -10,6 +10,12 @@ const links = [
     description: 'Rename or remove Appellations.',
   },
   {
+    to: { name: 'producers' },
+    testid: 'manage-link-producers',
+    label: 'Producers',
+    description: 'Rename or remove Producers.',
+  },
+  {
     to: { name: 'meal-pairings' },
     testid: 'manage-link-meal-pairings',
     label: 'Meal pairings',

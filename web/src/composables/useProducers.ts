@@ -9,6 +9,10 @@ export function useProducers() {
   const error = ref<string | null>(null)
   const creating = ref(false)
   const createError = ref<string | null>(null)
+  const updating = ref(false)
+  const updateError = ref<string | null>(null)
+  const deleting = ref(false)
+  const deleteError = ref<string | null>(null)
 
   async function load() {
     loading.value = true
@@ -37,5 +41,49 @@ export function useProducers() {
     }
   }
 
-  return { producers, loading, error, load, create, creating, createError }
+  async function update(id: number, name: string): Promise<Producer | null> {
+    updating.value = true
+    updateError.value = null
+    try {
+      const producer = await apiClient.put<Producer>(`/producers/${id}`, { name })
+      producers.value = producers.value.map((p) => (p.id === id ? producer : p))
+      return producer
+    } catch (e) {
+      updateError.value = friendlyErrorMessage(e)
+      return null
+    } finally {
+      updating.value = false
+    }
+  }
+
+  async function remove(id: number): Promise<boolean> {
+    deleting.value = true
+    deleteError.value = null
+    try {
+      await apiClient.delete(`/producers/${id}`, undefined)
+      producers.value = producers.value.filter((p) => p.id !== id)
+      return true
+    } catch (e) {
+      deleteError.value = friendlyErrorMessage(e)
+      return false
+    } finally {
+      deleting.value = false
+    }
+  }
+
+  return {
+    producers,
+    loading,
+    error,
+    load,
+    create,
+    creating,
+    createError,
+    update,
+    updating,
+    updateError,
+    remove,
+    deleting,
+    deleteError,
+  }
 }

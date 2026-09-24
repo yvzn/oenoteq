@@ -7,6 +7,8 @@ import ManageHubView from '../views/ManageHubView.vue'
 import MealFormView from '../views/MealFormView.vue'
 import MealListView from '../views/MealListView.vue'
 import MealPairingView from '../views/MealPairingView.vue'
+import ProducerFormView from '../views/ProducerFormView.vue'
+import ProducerListView from '../views/ProducerListView.vue'
 import WineDetailView from '../views/WineDetailView.vue'
 import WineFormView from '../views/WineFormView.vue'
 
@@ -25,6 +27,9 @@ const router = createRouter({
     { path: '/appellations', name: 'appellations', component: AppellationListView },
     { path: '/appellations/new', name: 'appellation-new', component: AppellationFormView },
     { path: '/appellations/:id/edit', name: 'appellation-edit', component: AppellationFormView },
+    { path: '/producers', name: 'producers', component: ProducerListView },
+    { path: '/producers/new', name: 'producer-new', component: ProducerFormView },
+    { path: '/producers/:id/edit', name: 'producer-edit', component: ProducerFormView },
   ],
 })
 

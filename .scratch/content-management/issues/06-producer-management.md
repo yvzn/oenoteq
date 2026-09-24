@@ -6,15 +6,15 @@
 
 **Blocked by:** 01 (ConfirmDialog), 05 (Manage hub + nav reorg) — plus the external blocker above
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `PUT /producers/{id}` renames a Producer; rejects on duplicate name (same as create) and on unknown id (404)
-- [ ] `DELETE /producers/{id}` deletes a Producer; rejects on unknown id (404)
-- [ ] Deleting a Producer referenced by a Wine is blocked with a distinct "in use" error
-- [ ] Frontend Producer list page: lists all Producers, links to create, per-row rename and delete
-- [ ] Create and rename share one form component (mirroring the Wine form's create/edit pattern), reusing existing shared form components (`FormField`, `AppButton`, `StatusLine`, `useSuccessMessage`)
-- [ ] Delete goes through the `ConfirmDialog` from ticket 01
-- [ ] A blocked ("in use") delete surfaces its error message inline to the user, not just in the network response
-- [ ] Manage hub page (ticket 05) gains a fourth link to Producers
-- [ ] Backend tests (via the existing `test.Harness` HTTP seam): successful rename, duplicate-name-rejected rename, successful delete, blocked-delete-when-referenced, rename/delete of unknown id
-- [ ] Frontend tests (mounted component, mocked `apiClient`, memory router): list rendering, rename flow, delete-with-confirm flow, blocked-delete error shown
+- [x] `PUT /producers/{id}` renames a Producer; rejects on duplicate name (same as create) and on unknown id (404)
+- [x] `DELETE /producers/{id}` deletes a Producer; rejects on unknown id (404)
+- [x] Deleting a Producer referenced by a Wine is blocked with a distinct "in use" error
+- [x] Frontend Producer list page: lists all Producers, links to create, per-row rename and delete
+- [x] Create and rename share one form component (mirroring the Wine form's create/edit pattern), reusing existing shared form components (`FormField`, `AppButton`, `StatusLine`, `useSuccessMessage`)
+- [x] Delete goes through the `ConfirmDialog` from ticket 01
+- [x] A blocked ("in use") delete surfaces its error message inline to the user, not just in the network response
+- [x] Manage hub page (ticket 05) gains a fourth link to Producers
+- [x] Backend tests (via the existing `test.Harness` HTTP seam): successful rename, duplicate-name-rejected rename, successful delete, blocked-delete-when-referenced, rename/delete of unknown id
+- [x] Frontend tests (mounted component, mocked `apiClient`, memory router): list rendering, rename flow, delete-with-confirm flow, blocked-delete error shown

@@ -7,6 +7,7 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   invalid_wine_id: "Couldn't find that wine. Go back to the cellar and try again.",
   invalid_meal_id: "Couldn't find that meal. Refresh the page and try again.",
   invalid_appellation_id: "Couldn't find that appellation. Refresh the page and try again.",
+  invalid_producer_id: "Couldn't find that producer. Refresh the page and try again.",
   invalid_consumption_id: "Couldn't find that consumption entry. Refresh the page and try again.",
   already_exists: 'That name is already in use. Choose a different one.',
   invalid_color: 'Color must be rouge, blanc, or rose.',
@@ -18,6 +19,8 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   meal_in_use: "This meal is used in a meal pairing. Remove the pairing first, then delete the meal.",
   appellation_in_use:
     'This appellation is used by a wine or a meal pairing. Remove those references first, then delete the appellation.',
+  producer_in_use:
+    'This producer is used by a wine. Remove that reference first, then delete the producer.',
   date_required: 'Enter a date for this consumption.',
   invalid_date: 'Enter the date as YYYY-MM-DD.',
   invalid_rating: 'Rating must be between 1 and 5.',

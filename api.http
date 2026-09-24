@@ -38,6 +38,17 @@ Content-Type: application/json
 ### List Producers
 GET {{baseUrl}}/producers
 
+### Rename Producer
+PUT {{baseUrl}}/producers/1
+Content-Type: application/json
+
+{
+  "name": "Domaine du Closel (revised)"
+}
+
+### Delete Producer (rejected with producer_in_use if still referenced by a Wine)
+DELETE {{baseUrl}}/producers/1
+
 
 
 ### Create Meal

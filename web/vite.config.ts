@@ -10,7 +10,7 @@ export default defineConfig({
     // Skip the proxy for HTML navigations (e.g. /wines/new) so they fall
     // through to the SPA's index.html instead of hitting the backend.
     proxy: Object.fromEntries(
-      ['/wines', '/appellations', '/producers', '/meals', '/meal-pairings', '/search', '/health'].map((path) => [
+      ['/wines', '/appellations', '/producers', '/meals', '/consumptions', '/meal-pairings', '/search', '/health'].map((path) => [
         path,
         {
           target: 'http://localhost:8080',

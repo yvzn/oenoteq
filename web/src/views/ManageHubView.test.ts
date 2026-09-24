@@ -10,6 +10,7 @@ function makeRouter(): Router {
       { path: '/manage', name: 'manage', component: ManageHubView },
       { path: '/meals', name: 'meals', component: { template: '<div />' } },
       { path: '/appellations', name: 'appellations', component: { template: '<div />' } },
+      { path: '/producers', name: 'producers', component: { template: '<div />' } },
       { path: '/meal-pairings', name: 'meal-pairings', component: { template: '<div />' } },
     ],
   })
@@ -25,7 +26,7 @@ async function mountAt(initialPath: string) {
 }
 
 describe('ManageHubView', () => {
-  it('renders links to Meals, Appellations, and Meal pairings', async () => {
+  it('renders links to Meals, Appellations, Producers, and Meal pairings', async () => {
     const { wrapper } = await mountAt('/manage')
 
     expect(wrapper.text()).toContain('Manage')
@@ -37,6 +38,10 @@ describe('ManageHubView', () => {
     const appellationsLink = wrapper.get('[data-testid="manage-link-appellations"]')
     expect(appellationsLink.text()).toContain('Appellations')
     expect(appellationsLink.attributes('href')).toBe('/appellations')
+
+    const producersLink = wrapper.get('[data-testid="manage-link-producers"]')
+    expect(producersLink.text()).toContain('Producers')
+    expect(producersLink.attributes('href')).toBe('/producers')
 
     const mealPairingsLink = wrapper.get('[data-testid="manage-link-meal-pairings"]')
     expect(mealPairingsLink.text()).toContain('Meal pairings')
