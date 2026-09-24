@@ -32,6 +32,10 @@ _Avoid_: Region, AOC (unless referring specifically to the French system)
 The wine's category: rouge, blanc, or rose. Combined with Appellation, determines the default Meal Pairing.
 _Avoid_: Type, category
 
+**Meal**:
+A named dish/food category (e.g. "Grilled steak", "Cheese plate") usable in a Meal Pairing. Exists as a standalone record independent of any pairing — a Meal with no pairings yet is still valid.
+_Avoid_: Dish (as a distinct concept), food
+
 **Meal Pairing**:
 A shared, reusable lookup keyed by (Appellation, Color) that suggests which meals fit a wine. Not customized per wine.
 _Avoid_: Food match, pairing (ambiguous alone)
