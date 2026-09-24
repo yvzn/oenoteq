@@ -97,7 +97,7 @@ function retry() {
     <div v-else-if="wine" data-testid="wine-detail" class="mx-auto max-w-2xl">
       <div class="flex flex-wrap items-start justify-between gap-6">
         <div class="flex items-center gap-3.5">
-          <ColorSwatch :color="wine.color" variant="rail" class="h-[34px]" />
+          <ColorSwatch :color="wine.color" variant="rail" />
           <h1 class="font-display text-ink text-[38px] leading-tight font-semibold tracking-tight">
             {{ wine.producer.name }}
           </h1>
