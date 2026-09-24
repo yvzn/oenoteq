@@ -3,6 +3,7 @@ import { useSuccessMessage } from '../composables/useSuccessMessage'
 import AppellationFormView from '../views/AppellationFormView.vue'
 import AppellationListView from '../views/AppellationListView.vue'
 import CellarListView from '../views/CellarListView.vue'
+import ManageHubView from '../views/ManageHubView.vue'
 import MealFormView from '../views/MealFormView.vue'
 import MealListView from '../views/MealListView.vue'
 import MealPairingView from '../views/MealPairingView.vue'
@@ -16,6 +17,7 @@ const router = createRouter({
     { path: '/wines/new', name: 'wine-new', component: WineFormView },
     { path: '/wines/:id', name: 'wine-detail', component: WineDetailView },
     { path: '/wines/:id/edit', name: 'wine-edit', component: WineFormView },
+    { path: '/manage', name: 'manage', component: ManageHubView },
     { path: '/meal-pairings', name: 'meal-pairings', component: MealPairingView },
     { path: '/meals', name: 'meals', component: MealListView },
     { path: '/meals/new', name: 'meal-new', component: MealFormView },

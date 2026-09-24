@@ -4,8 +4,19 @@ import { RouterLink, useRoute } from 'vue-router'
 
 const route = useRoute()
 
+const manageRouteNames = [
+  'manage',
+  'meals',
+  'meal-new',
+  'meal-edit',
+  'appellations',
+  'appellation-new',
+  'appellation-edit',
+  'meal-pairings',
+]
+
 const isCellar = computed(() => route.name === 'cellar' || route.name === 'wine-detail')
-const isMealPairings = computed(() => route.name === 'meal-pairings')
+const isManage = computed(() => manageRouteNames.includes(route.name as string))
 </script>
 
 <template>
@@ -21,11 +32,11 @@ const isMealPairings = computed(() => route.name === 'meal-pairings')
         Cellar
       </RouterLink>
       <RouterLink
-        to="/meal-pairings"
+        to="/manage"
         class="text-muted hover:text-ink border-b-2 pb-1"
-        :class="isMealPairings ? 'text-bordeaux border-bordeaux font-medium' : 'border-transparent'"
+        :class="isManage ? 'text-bordeaux border-bordeaux font-medium' : 'border-transparent'"
       >
-        Meal pairings
+        Manage
       </RouterLink>
     </nav>
   </header>
