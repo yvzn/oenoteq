@@ -4,10 +4,10 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A `ConfirmDialog` component exists, showing a message and Confirm/Cancel actions
-- [ ] Cancel closes the dialog and performs no action
-- [ ] Confirm closes the dialog and signals confirmation to the caller (e.g. emits an event / resolves a promise)
-- [ ] Component has its own test covering open, cancel, and confirm behavior in isolation
-- [ ] Visually/behaviorally consistent with existing shared components (matches the app's existing button/typography conventions, e.g. `AppButton`)
+- [x] A `ConfirmDialog` component exists, showing a message and Confirm/Cancel actions
+- [x] Cancel closes the dialog and performs no action
+- [x] Confirm closes the dialog and signals confirmation to the caller (e.g. emits an event / resolves a promise)
+- [x] Component has its own test covering open, cancel, and confirm behavior in isolation
+- [x] Visually/behaviorally consistent with existing shared components (matches the app's existing button/typography conventions, e.g. `AppButton`)
