@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import AppellationFormView from '../views/AppellationFormView.vue'
+import AppellationListView from '../views/AppellationListView.vue'
 import CellarListView from '../views/CellarListView.vue'
 import MealFormView from '../views/MealFormView.vue'
 import MealListView from '../views/MealListView.vue'
@@ -18,6 +20,9 @@ const router = createRouter({
     { path: '/meals', name: 'meals', component: MealListView },
     { path: '/meals/new', name: 'meal-new', component: MealFormView },
     { path: '/meals/:id/edit', name: 'meal-edit', component: MealFormView },
+    { path: '/appellations', name: 'appellations', component: AppellationListView },
+    { path: '/appellations/new', name: 'appellation-new', component: AppellationFormView },
+    { path: '/appellations/:id/edit', name: 'appellation-edit', component: AppellationFormView },
   ],
 })
 

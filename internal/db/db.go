@@ -139,6 +139,56 @@ func (d *DB) ListAppellations(ctx context.Context) ([]Appellation, error) {
 	return appellations, nil
 }
 
+func (d *DB) UpdateAppellation(ctx context.Context, id int, name string) (*Appellation, error) {
+	res, err := d.ExecContext(ctx, "UPDATE appellation SET name = ? WHERE id = ?", name, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return nil, fmt.Errorf("appellation already exists: %s: %w", name, ErrUniqueConstraint)
+		}
+		return nil, fmt.Errorf("updating appellation: %w", err)
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("getting rows affected: %w", err)
+	}
+	if affected == 0 {
+		return nil, fmt.Errorf("appellation id %d: %w", id, ErrAppellationNotFound)
+	}
+
+	return &Appellation{ID: id, Name: name}, nil
+}
+
+// DeleteAppellation explicitly checks for referencing wine and meal_pairing
+// rows before deleting, since FK enforcement is off repo-wide and there's no
+// ON DELETE behavior to lean on.
+func (d *DB) DeleteAppellation(ctx context.Context, id int) error {
+	if err := d.appellationExists(ctx, id); err != nil {
+		return err
+	}
+
+	var inUse int
+	if err := d.QueryRowContext(ctx, "SELECT COUNT(*) FROM wine WHERE appellation_id = ?", id).Scan(&inUse); err != nil {
+		return fmt.Errorf("checking wine references: %w", err)
+	}
+	if inUse > 0 {
+		return fmt.Errorf("appellation id %d: %w", id, ErrAppellationInUse)
+	}
+
+	if err := d.QueryRowContext(ctx, "SELECT COUNT(*) FROM meal_pairing WHERE appellation_id = ?", id).Scan(&inUse); err != nil {
+		return fmt.Errorf("checking meal pairing references: %w", err)
+	}
+	if inUse > 0 {
+		return fmt.Errorf("appellation id %d: %w", id, ErrAppellationInUse)
+	}
+
+	if _, err := d.ExecContext(ctx, "DELETE FROM appellation WHERE id = ?", id); err != nil {
+		return fmt.Errorf("deleting appellation: %w", err)
+	}
+
+	return nil
+}
+
 type Producer struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
@@ -280,6 +330,7 @@ var (
 	ErrWineNotFound        = errors.New("wine not found")
 	ErrMealNotFound        = errors.New("meal not found")
 	ErrMealInUse           = errors.New("meal is in use")
+	ErrAppellationInUse    = errors.New("appellation is in use")
 	ErrDateRequired        = errors.New("date is required")
 	ErrInvalidDate         = errors.New("date must be in YYYY-MM-DD format")
 	ErrInvalidRating       = errors.New("rating must be between 1 and 5")

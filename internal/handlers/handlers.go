@@ -33,6 +33,7 @@ const (
 	codeWineNotFound         = "wine_not_found"
 	codeMealNotFound         = "meal_not_found"
 	codeMealInUse            = "meal_in_use"
+	codeAppellationInUse     = "appellation_in_use"
 	codeDateRequired         = "date_required"
 	codeInvalidDate          = "invalid_date"
 	codeInvalidRating        = "invalid_rating"
@@ -61,6 +62,8 @@ func dbErrorCode(err error) string {
 		return codeMealNotFound
 	case errors.Is(err, db.ErrMealInUse):
 		return codeMealInUse
+	case errors.Is(err, db.ErrAppellationInUse):
+		return codeAppellationInUse
 	case errors.Is(err, db.ErrDateRequired):
 		return codeDateRequired
 	case errors.Is(err, db.ErrInvalidDate):
@@ -87,6 +90,8 @@ func (h *Handler) Register(mux *http.ServeMux, spa http.Handler) {
 	mux.HandleFunc("GET /health", h.Health)
 	mux.HandleFunc("POST /appellations", h.CreateAppellation)
 	mux.HandleFunc("GET /appellations", h.ListAppellations)
+	mux.HandleFunc("PUT /appellations/{id}", h.UpdateAppellation)
+	mux.HandleFunc("DELETE /appellations/{id}", h.DeleteAppellation)
 	mux.HandleFunc("POST /producers", h.CreateProducer)
 	mux.HandleFunc("GET /producers", h.ListProducers)
 	mux.HandleFunc("POST /meals", h.CreateMeal)
@@ -150,6 +155,60 @@ func (h *Handler) ListAppellations(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(appellations)
+}
+
+func appellationErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, db.ErrUniqueConstraint):
+		return http.StatusConflict
+	case errors.Is(err, db.ErrAppellationInUse):
+		return http.StatusConflict
+	case errors.Is(err, db.ErrAppellationNotFound):
+		return http.StatusNotFound
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+func (h *Handler) UpdateAppellation(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidAppellationID)
+		return
+	}
+
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
+		return
+	}
+
+	appellation, err := h.db.UpdateAppellation(r.Context(), id, req.Name)
+	if err != nil {
+		writeError(w, appellationErrorStatus(err), dbErrorCode(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(appellation)
+}
+
+func (h *Handler) DeleteAppellation(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidAppellationID)
+		return
+	}
+
+	if err := h.db.DeleteAppellation(r.Context(), id); err != nil {
+		writeError(w, appellationErrorStatus(err), dbErrorCode(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) CreateProducer(w http.ResponseWriter, r *http.Request) {

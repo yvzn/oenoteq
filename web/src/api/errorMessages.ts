@@ -15,6 +15,8 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   wine_not_found: "Couldn't find that wine. It may have been deleted — go back to the cellar and try again.",
   meal_not_found: "That meal doesn't exist anymore. Refresh the page and try again.",
   meal_in_use: "This meal is used in a meal pairing. Remove the pairing first, then delete the meal.",
+  appellation_in_use:
+    'This appellation is used by a wine or a meal pairing. Remove those references first, then delete the appellation.',
   date_required: 'Enter a date for this consumption.',
   invalid_date: 'Enter the date as YYYY-MM-DD.',
   invalid_rating: 'Rating must be between 1 and 5.',

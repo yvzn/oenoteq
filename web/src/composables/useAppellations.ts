@@ -9,6 +9,10 @@ export function useAppellations() {
   const error = ref<string | null>(null)
   const creating = ref(false)
   const createError = ref<string | null>(null)
+  const updating = ref(false)
+  const updateError = ref<string | null>(null)
+  const deleting = ref(false)
+  const deleteError = ref<string | null>(null)
 
   async function load() {
     loading.value = true
@@ -37,5 +41,49 @@ export function useAppellations() {
     }
   }
 
-  return { appellations, loading, error, load, create, creating, createError }
+  async function update(id: number, name: string): Promise<Appellation | null> {
+    updating.value = true
+    updateError.value = null
+    try {
+      const appellation = await apiClient.put<Appellation>(`/appellations/${id}`, { name })
+      appellations.value = appellations.value.map((a) => (a.id === id ? appellation : a))
+      return appellation
+    } catch (e) {
+      updateError.value = friendlyErrorMessage(e)
+      return null
+    } finally {
+      updating.value = false
+    }
+  }
+
+  async function remove(id: number): Promise<boolean> {
+    deleting.value = true
+    deleteError.value = null
+    try {
+      await apiClient.delete(`/appellations/${id}`, undefined)
+      appellations.value = appellations.value.filter((a) => a.id !== id)
+      return true
+    } catch (e) {
+      deleteError.value = friendlyErrorMessage(e)
+      return false
+    } finally {
+      deleting.value = false
+    }
+  }
+
+  return {
+    appellations,
+    loading,
+    error,
+    load,
+    create,
+    creating,
+    createError,
+    update,
+    updating,
+    updateError,
+    remove,
+    deleting,
+    deleteError,
+  }
 }

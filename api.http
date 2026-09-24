@@ -14,6 +14,17 @@ Content-Type: application/json
 ### List Appellations
 GET {{baseUrl}}/appellations
 
+### Rename Appellation
+PUT {{baseUrl}}/appellations/1
+Content-Type: application/json
+
+{
+  "name": "Saint Nicolas de Bourgueil (revised)"
+}
+
+### Delete Appellation (rejected with appellation_in_use if still referenced by a Wine or Meal Pairing)
+DELETE {{baseUrl}}/appellations/1
+
 
 
 ### Create Producer
