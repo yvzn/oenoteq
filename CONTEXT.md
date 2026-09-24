@@ -38,3 +38,7 @@ _Avoid_: Food match, pairing (ambiguous alone)
 **Garde Status**:
 A Wine's position in its Garde window, derived (not stored) by comparing the current year to `garde_debut`/`garde_fin`: `too_young` (before the window), `ready` (inside it), or `past_peak` (after it). Computed at read time, e.g. by Search.
 _Avoid_: Drinking status, maturity
+
+**Label Scan**:
+Prefilling the Add Wine form's Millesime, Appellation, Producer, and Color from a photo of the bottle's etiquette, via client-side OCR. Always reviewed and submitted manually — never auto-adds a Wine. Garde and Quantity are never scanned: they're the user's own judgment/stock count, not printed on a label.
+_Avoid_: OCR, photo import
