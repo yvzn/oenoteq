@@ -10,20 +10,26 @@ const label: Record<GardeStatus, string> = {
   past_peak: 'Past peak',
 }
 
-const classByStatus: Record<GardeStatus, string> = {
-  too_young: 'bg-status-young-soft text-status-young',
-  ready: 'bg-status-ready-soft text-status-ready',
-  past_peak: 'bg-status-past-soft text-status-past',
+const textClassByStatus: Record<GardeStatus, string> = {
+  too_young: 'text-status-young',
+  ready: 'text-status-ready',
+  past_peak: 'text-status-past',
 }
 
-const classes = computed(() => classByStatus[props.status])
+const dotClassByStatus: Record<GardeStatus, string> = {
+  too_young: 'bg-status-young',
+  ready: 'bg-status-ready',
+  past_peak: 'bg-status-past',
+}
+
+const textClass = computed(() => textClassByStatus[props.status])
+const dotClass = computed(() => dotClassByStatus[props.status])
 const text = computed(() => label[props.status])
 </script>
 
 <template>
-  <span
-    class="inline-block rounded-full px-3 py-[5px] text-[12.5px] font-semibold whitespace-nowrap"
-    :class="classes"
-    >{{ text }}</span
-  >
+  <span class="inline-flex items-center gap-[7px] text-[12.5px] font-semibold whitespace-nowrap" :class="textClass">
+    <span class="h-[7px] w-[7px] shrink-0 rounded-full" :class="dotClass" aria-hidden="true"></span>
+    {{ text }}
+  </span>
 </template>

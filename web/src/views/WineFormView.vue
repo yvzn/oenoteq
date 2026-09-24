@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { Color } from '../api/types'
 import AppButton from '../components/AppButton.vue'
 import AutocompleteField from '../components/AutocompleteField.vue'
+import ColorSwatch from '../components/ColorSwatch.vue'
 import FormField from '../components/FormField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
@@ -67,6 +68,11 @@ const fields = computed<WineFormFields>(() => ({
 }))
 
 const errors = ref<WineFormErrors>({})
+
+function stepQuantity(delta: number) {
+  const next = Math.max(0, (Number(quantity.value) || 0) + delta)
+  quantity.value = String(next)
+}
 
 const showNewAppellation = ref(false)
 const newAppellationName = ref('')
@@ -140,7 +146,8 @@ async function submit() {
 
 <template>
   <section class="px-6 py-6">
-    <PageHeader :title="isEdit ? 'Edit wine' : 'Add wine'" />
+   <div class="mx-auto max-w-2xl">
+    <PageHeader :title="isEdit ? 'Edit wine' : 'Add wine'" :color="color" />
 
     <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
     <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">
@@ -152,12 +159,24 @@ async function submit() {
     <form
       v-else
       data-testid="wine-form"
-      class="mt-6 flex max-w-md flex-col gap-4"
+      class="mt-6 flex flex-col gap-4"
       @submit.prevent="submit"
     >
-      <FormField label="Millesime" :error="errors.millesime">
-        <input v-model="millesime" data-testid="wine-millesime-input" type="number" />
-      </FormField>
+      <div class="grid grid-cols-2 gap-4">
+        <FormField label="Millesime" :error="errors.millesime">
+          <input v-model="millesime" data-testid="wine-millesime-input" type="number" class="w-full" />
+        </FormField>
+
+        <FormField label="Color" :error="errors.color" error-testid="wine-color-error">
+          <div class="flex items-center gap-2">
+            <ColorSwatch v-if="color" :color="color" class="shrink-0" />
+            <select v-model="color" data-testid="wine-color-input" class="w-full">
+              <option value="">Choose a color</option>
+              <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </div>
+        </FormField>
+      </div>
 
       <FormField label="Appellation" :error="errors.appellationId" error-testid="wine-appellation-error">
         <AutocompleteField
@@ -171,7 +190,7 @@ async function submit() {
           type="button"
           variant="ghost"
           data-testid="new-appellation-toggle"
-          class="mt-1 self-start"
+          class="mt-1.5 self-start text-xs"
           @click="toggleNewAppellation"
         >
           {{ showNewAppellation ? 'Cancel' : "Can't find it? Create new appellation" }}
@@ -182,7 +201,7 @@ async function submit() {
             data-testid="new-appellation-name-input"
             type="text"
             placeholder="New appellation name"
-            class="text-sm"
+            class="min-w-0 flex-1 text-sm"
             @keydown.enter.prevent="submitNewAppellation"
           />
           <AppButton
@@ -201,26 +220,42 @@ async function submit() {
       </FormField>
 
       <FormField label="Producer" :error="errors.producer" error-testid="wine-producer-error">
-        <input v-model="producer" data-testid="wine-producer-input" type="text" />
+        <input v-model="producer" data-testid="wine-producer-input" type="text" class="w-full" />
       </FormField>
 
-      <FormField label="Color" :error="errors.color" error-testid="wine-color-error">
-        <select v-model="color" data-testid="wine-color-input">
-          <option value="">Choose a color</option>
-          <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
-        </select>
-      </FormField>
+      <div class="grid grid-cols-2 gap-4">
+        <FormField label="Garde start" :error="errors.gardeDebut" error-testid="wine-garde-debut-error">
+          <input v-model="gardeDebut" data-testid="wine-garde-debut-input" type="number" class="w-full" />
+        </FormField>
 
-      <FormField label="Garde start" :error="errors.gardeDebut" error-testid="wine-garde-debut-error">
-        <input v-model="gardeDebut" data-testid="wine-garde-debut-input" type="number" />
-      </FormField>
-
-      <FormField label="Garde end" :error="errors.gardeFin" error-testid="wine-garde-fin-error">
-        <input v-model="gardeFin" data-testid="wine-garde-fin-input" type="number" />
-      </FormField>
+        <FormField label="Garde end" :error="errors.gardeFin" error-testid="wine-garde-fin-error">
+          <input v-model="gardeFin" data-testid="wine-garde-fin-input" type="number" class="w-full" />
+        </FormField>
+      </div>
 
       <FormField label="Quantity" :error="errors.quantity" error-testid="wine-quantity-error">
-        <input v-model="quantity" data-testid="wine-quantity-input" type="number" />
+        <div class="border-line bg-parchment-raised inline-flex w-auto self-start items-stretch overflow-hidden rounded-lg border">
+          <button
+            type="button"
+            class="text-ink-soft hover:bg-parchment w-10 text-lg font-medium transition-colors"
+            @click="stepQuantity(-1)"
+          >
+            −
+          </button>
+          <input
+            v-model="quantity"
+            data-testid="wine-quantity-input"
+            type="number"
+            class="border-line w-16 rounded-none border-x bg-transparent text-center"
+          />
+          <button
+            type="button"
+            class="text-ink-soft hover:bg-parchment w-10 text-lg font-medium transition-colors"
+            @click="stepQuantity(1)"
+          >
+            +
+          </button>
+        </div>
       </FormField>
 
       <StatusLine v-if="submitError" tone="error">{{ submitError }}</StatusLine>
@@ -234,5 +269,6 @@ async function submit() {
         {{ isEdit ? 'Save changes' : 'Add wine' }}
       </AppButton>
     </form>
+   </div>
   </section>
 </template>

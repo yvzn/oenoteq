@@ -36,6 +36,11 @@ const error = computed(() =>
 )
 const hasError = computed(() => error.value !== '')
 
+const listTitle = computed(() => {
+  if (loading.value || hasError.value) return 'Cellar'
+  return `${results.value.length} ${results.value.length === 1 ? 'wine' : 'wines'} in cellar`
+})
+
 const appellationNameById = computed(() => {
   const map = new Map<number, string>()
   for (const a of appellations.value) map.set(a.id, a.name)
@@ -74,8 +79,8 @@ onMounted(loadFilterOptions)
       @update:filters="updateFilters"
     />
 
-    <div class="max-w-4xl px-6 py-6">
-      <PageHeader title="Cellar">
+    <div class="mx-auto max-w-2xl px-6 py-6">
+      <PageHeader :title="listTitle">
         <template #actions>
           <AppButton :to="{ name: 'wine-new' }" data-testid="add-wine-link">Add wine</AppButton>
         </template>
@@ -92,19 +97,21 @@ onMounted(loadFilterOptions)
         No wines match these filters.
       </StatusLine>
       <template v-else>
-        <div class="mt-8 grid grid-cols-[5px_1fr_78px_60px_118px] gap-5 px-[22px]">
+        <div
+          class="border-line mt-8 hidden grid-cols-[5px_1fr_78px_60px_118px] gap-5 border-b px-[22px] pb-2.5 sm:grid"
+        >
           <div></div>
           <div class="text-label text-xs font-medium">Wine</div>
           <div class="text-label text-right text-xs font-medium">Vintage</div>
           <div class="text-label text-right text-xs font-medium">Qty</div>
           <div class="text-label text-right text-xs font-medium">Status</div>
         </div>
-        <ul data-testid="wine-list" class="mt-2 flex flex-col gap-2.5">
-          <li v-for="wine in results" :key="wine.id" data-testid="wine-item">
+        <ul data-testid="wine-list" class="mt-2 flex flex-col sm:mt-0">
+          <li v-for="wine in results" :key="wine.id" data-testid="wine-item" class="border-line border-b">
             <RouterLink
               :to="{ name: 'wine-detail', params: { id: wine.id } }"
               data-testid="wine-link"
-              class="border-line bg-surface hover:border-gold grid grid-cols-[5px_1fr_78px_60px_118px] items-center gap-5 rounded-[10px] border px-[22px] py-4 shadow-sm transition-colors"
+              class="hover:bg-parchment-raised grid grid-cols-[5px_1fr] items-center gap-4 px-[22px] py-4 transition-colors sm:grid-cols-[5px_1fr_78px_60px_118px] sm:gap-5"
             >
               <ColorSwatch :color="wine.color" variant="rail" />
               <div class="min-w-0">
@@ -114,12 +121,17 @@ onMounted(loadFilterOptions)
                 <div class="text-muted mt-0.5 text-[13.5px] capitalize">
                   {{ wine.color }} · {{ appellationName(wine.appellation_id) }}
                 </div>
+                <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 sm:hidden">
+                  <span class="text-ink-soft text-[14px] tabular-nums">{{ wine.millesime ?? 'NV' }}</span>
+                  <span class="text-ink-soft text-[14px] tabular-nums">×{{ wine.quantity }}</span>
+                  <GardeStatusBadge :status="wine.garde_status" />
+                </div>
               </div>
-              <div class="text-ink-soft text-right text-[15px] tabular-nums">
+              <div class="text-ink-soft hidden text-right text-[15px] tabular-nums sm:block">
                 {{ wine.millesime ?? 'NV' }}
               </div>
-              <div class="text-ink-soft text-right text-[15px] tabular-nums">×{{ wine.quantity }}</div>
-              <div class="text-right"><GardeStatusBadge :status="wine.garde_status" /></div>
+              <div class="text-ink-soft hidden text-right text-[15px] tabular-nums sm:block">×{{ wine.quantity }}</div>
+              <div class="hidden text-right sm:block"><GardeStatusBadge :status="wine.garde_status" /></div>
             </RouterLink>
           </li>
         </ul>

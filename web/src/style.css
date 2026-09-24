@@ -1,7 +1,8 @@
-@import "tailwindcss";
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&display=swap");
+@import "tailwindcss";
 
 @theme {
+  --color-desk: #dcd3bd;
   --color-parchment: #f5f0e5;
   --color-parchment-raised: #fbf9f4;
   --color-surface: #ffffff;
@@ -17,12 +18,12 @@
   --color-danger: #b3261e;
   --color-danger-soft: #fbeceb;
   --color-success: #3f6b3f;
-  --color-status-ready: #45573a;
-  --color-status-ready-soft: #e7ece0;
-  --color-status-young: #8b6a2b;
-  --color-status-young-soft: #f3e9d6;
-  --color-status-past: #8b3230;
-  --color-status-past-soft: #f5e1df;
+  --color-status-ready: #2f7a3d;
+  --color-status-ready-soft: #dcf0dc;
+  --color-status-young: #a3690f;
+  --color-status-young-soft: #fae3ad;
+  --color-status-past: #a83d2e;
+  --color-status-past-soft: #f6ddd5;
 
   --font-display: "Fraunces", ui-serif, Georgia, serif;
   --font-body:
@@ -32,7 +33,9 @@
 
 @layer base {
   body {
-    background-color: var(--color-parchment);
+    min-height: 100vh;
+    background-color: var(--color-desk);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.14  0 0 0 0 0.09  0 0 0 0 0.07  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
     color: var(--color-ink);
     font-family: var(--font-body);
   }
@@ -41,11 +44,43 @@
   select,
   textarea {
     border-width: 1px;
-    border-color: rgba(36, 24, 18, 0.14);
+    border-color: rgba(36, 24, 18, 0.16);
     border-radius: 0.5rem;
     background-color: var(--color-parchment-raised);
     color: var(--color-ink);
-    padding: 0.375rem 0.625rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%234a3b2e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+    background-size: 16px;
+    padding-right: 1.75rem;
+  }
+
+  input[type='checkbox'] {
+    accent-color: var(--color-bordeaux);
+    width: 15px;
+    height: 15px;
+  }
+
+  input[type='date'] {
+    position: relative;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%234a3b2e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4.5' width='14' height='12' rx='1.5'/%3E%3Cpath d='M3 8h14M6.5 2.5v3M13.5 2.5v3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.65rem center;
+    background-size: 16px;
+    padding-right: 2.25rem;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: 0;
+    width: 2.25rem;
+    height: 100%;
+    opacity: 0;
   }
 
   input:focus-visible,

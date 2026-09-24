@@ -10,7 +10,7 @@ const { message, clear } = useSuccessMessage()
     v-if="message"
     data-testid="success-toast"
     role="status"
-    class="border-line bg-parchment-raised fixed top-4 right-4 z-20 flex items-center gap-3 rounded-md border px-4 py-2 text-sm shadow-lg"
+    class="border-line bg-parchment-raised fixed top-4 right-4 z-20 flex items-center gap-3 rounded-lg border px-4 py-2 text-sm shadow-lg"
   >
     <span class="text-success">{{ message }}</span>
     <AppButton

@@ -4,9 +4,11 @@ import SuccessToast from './components/SuccessToast.vue'
 </script>
 
 <template>
-  <AppHeader />
-  <SuccessToast />
-  <main>
-    <router-view />
-  </main>
+  <div class="border-line/70 mx-auto min-h-screen max-w-[920px] border-x bg-parchment">
+    <AppHeader />
+    <SuccessToast />
+    <main>
+      <router-view />
+    </main>
+  </div>
 </template>

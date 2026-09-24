@@ -4,7 +4,7 @@ import type { RouteLocationRaw } from 'vue-router'
 
 const props = withDefaults(
   defineProps<{
-    variant?: 'primary' | 'ghost'
+    variant?: 'primary' | 'secondary' | 'ghost'
     type?: 'button' | 'submit'
     disabled?: boolean
     to?: RouteLocationRaw
@@ -16,7 +16,8 @@ const baseClass = 'rounded-lg text-sm font-semibold transition-colors'
 
 const variantClass = computed(() => ({
   'bg-bordeaux hover:bg-bordeaux-hover px-5 py-3 text-white shadow-sm': props.variant === 'primary',
-  'text-muted hover:text-ink px-0 py-0 font-medium underline underline-offset-2': props.variant === 'ghost',
+  'border-bordeaux text-bordeaux hover:bg-bordeaux border px-3 py-1.5 hover:text-white': props.variant === 'secondary',
+  'text-muted hover:text-ink px-0 py-0 font-medium hover:underline underline-offset-2': props.variant === 'ghost',
 }))
 </script>
 

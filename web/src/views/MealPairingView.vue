@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import type { Color } from '../api/types'
 import AppButton from '../components/AppButton.vue'
 import AutocompleteField from '../components/AutocompleteField.vue'
+import ColorSwatch from '../components/ColorSwatch.vue'
 import FormField from '../components/FormField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
@@ -122,7 +123,8 @@ async function submitNewMeal() {
 
 <template>
   <section class="px-6 py-6">
-    <PageHeader title="Meal pairings" />
+   <div class="mx-auto max-w-2xl">
+    <PageHeader title="Meal pairings" :color="color" />
 
     <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
     <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">
@@ -132,7 +134,7 @@ async function submitNewMeal() {
       </template>
     </StatusLine>
     <template v-else>
-      <div class="mt-6 flex max-w-md flex-col gap-4">
+      <div class="mt-6 grid grid-cols-2 gap-4">
         <FormField label="Appellation">
           <AutocompleteField
             testid="meal-pairing-appellation"
@@ -144,12 +146,23 @@ async function submitNewMeal() {
         </FormField>
 
         <FormField label="Color">
-          <select v-model="color" data-testid="meal-pairing-color-input">
-            <option value="">Choose a color</option>
-            <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
-          </select>
+          <div class="flex items-center gap-2">
+            <ColorSwatch v-if="color" :color="color" class="shrink-0" />
+            <select v-model="color" data-testid="meal-pairing-color-input" class="w-full">
+              <option value="">Choose a color</option>
+              <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </div>
         </FormField>
       </div>
+
+      <section
+        v-if="!selectionReady"
+        class="border-line mt-10 flex flex-col items-center gap-1.5 rounded-lg border border-dashed px-6 py-10 text-center"
+      >
+        <p class="text-ink-soft text-[15px] font-medium">No selection yet</p>
+        <p class="text-muted text-[14px]">Pick an appellation and a color above to see and edit meal pairings.</p>
+      </section>
 
       <template v-if="selectionReady">
         <StatusLine v-if="pairingsLoading" class="mt-6">Loading pairings…</StatusLine>
@@ -157,7 +170,7 @@ async function submitNewMeal() {
           Couldn't load pairings: {{ pairingsError }}
         </StatusLine>
         <section v-else class="border-line mt-8 border-t pt-6">
-          <h3 class="font-display text-ink text-lg">Currently paired</h3>
+          <h3 class="font-display text-ink text-[16px] font-semibold">Currently paired</h3>
           <StatusLine v-if="pairedMeals.length === 0" class="mt-2">No meals paired yet.</StatusLine>
           <ul v-else data-testid="paired-meals" class="mt-2 flex flex-col gap-1">
             <li
@@ -180,7 +193,7 @@ async function submitNewMeal() {
           </ul>
 
           <form
-            class="mt-4 flex max-w-md flex-col gap-2"
+            class="mt-4 flex flex-col gap-2"
             @submit.prevent="addMeal"
             @keydown="(e) => submitOnEnter(e, addMeal)"
           >
@@ -222,7 +235,7 @@ async function submitNewMeal() {
               data-testid="new-meal-name-input"
               type="text"
               placeholder="New meal name"
-              class="text-sm"
+              class="min-w-0 flex-1 text-sm"
             />
             <AppButton
               type="button"
@@ -241,5 +254,6 @@ async function submitNewMeal() {
         </section>
       </template>
     </template>
+   </div>
   </section>
 </template>

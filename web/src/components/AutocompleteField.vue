@@ -122,7 +122,7 @@ function onBlur() {
       :id="`${testid}-options`"
       role="listbox"
       :data-testid="`${testid}-options`"
-      class="border-line absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-white text-sm shadow-lg"
+      class="border-line absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white text-sm shadow-lg"
     >
       <li
         v-for="(item, index) in matches"
