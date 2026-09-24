@@ -34,7 +34,7 @@ function onDialogClick(event: MouseEvent) {
     ref="dialog"
     role="alertdialog"
     data-testid="confirm-dialog"
-    class="border-line bg-parchment-raised w-full max-w-sm rounded-lg border p-5 shadow-lg backdrop:bg-ink/40"
+    class="border-line bg-parchment-raised m-auto w-full max-w-sm rounded-lg border p-5 shadow-lg backdrop:bg-ink/40"
     @cancel.prevent="emit('cancel')"
     @click="onDialogClick"
   >
