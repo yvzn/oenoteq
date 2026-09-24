@@ -4,12 +4,12 @@
 
 **Blocked by:** 01 (ConfirmDialog)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `PUT /consumptions/{id}` updates date/rating/notes; `wine_id` is not editable; validation matches `CreateConsumption` (date required and parseable, rating optional 1-5); rejects on unknown id (404)
-- [ ] `DELETE /consumptions/{id}` deletes the entry and increments the referenced Wine's quantity by 1; rejects on unknown id (404)
-- [ ] Consumption history rows on the Wine detail page gain Edit and Delete actions per row
-- [ ] Edit expands the row into an inline form (date/rating/notes) rather than navigating to a separate page, mirroring the existing "record a consumption" inline form on the same page
-- [ ] Delete goes through the `ConfirmDialog` from ticket 01
-- [ ] Backend tests (via the existing `test.Harness` HTTP seam): successful edit of each field, edit validation reuses create's rules, successful delete, delete restores Wine quantity, edit/delete of unknown id (404)
-- [ ] Frontend tests (mounted component, mocked `apiClient`, memory router): inline edit flow on `WineDetailView`, delete-with-confirm flow, quantity/UI updates after delete
+- [x] `PUT /consumptions/{id}` updates date/rating/notes; `wine_id` is not editable; validation matches `CreateConsumption` (date required and parseable, rating optional 1-5); rejects on unknown id (404)
+- [x] `DELETE /consumptions/{id}` deletes the entry and increments the referenced Wine's quantity by 1; rejects on unknown id (404)
+- [x] Consumption history rows on the Wine detail page gain Edit and Delete actions per row
+- [x] Edit expands the row into an inline form (date/rating/notes) rather than navigating to a separate page, mirroring the existing "record a consumption" inline form on the same page
+- [x] Delete goes through the `ConfirmDialog` from ticket 01
+- [x] Backend tests (via the existing `test.Harness` HTTP seam): successful edit of each field, edit validation reuses create's rules, successful delete, delete restores Wine quantity, edit/delete of unknown id (404)
+- [x] Frontend tests (mounted component, mocked `apiClient`, memory router): inline edit flow on `WineDetailView`, delete-with-confirm flow, quantity/UI updates after delete
