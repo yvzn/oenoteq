@@ -25,6 +25,7 @@ const (
 	codeInvalidWineID        = "invalid_wine_id"
 	codeInvalidMealID        = "invalid_meal_id"
 	codeInvalidAppellationID = "invalid_appellation_id"
+	codeInvalidConsumptionID = "invalid_consumption_id"
 	codeAlreadyExists        = "already_exists"
 	codeInvalidColor         = "invalid_color"
 	codeInvalidQuantity      = "invalid_quantity"
@@ -38,6 +39,7 @@ const (
 	codeInvalidDate          = "invalid_date"
 	codeInvalidRating        = "invalid_rating"
 	codeQuantityZero         = "quantity_zero"
+	codeConsumptionNotFound  = "consumption_not_found"
 	codeInternal             = "internal_error"
 )
 
@@ -72,6 +74,8 @@ func dbErrorCode(err error) string {
 		return codeInvalidRating
 	case errors.Is(err, db.ErrQuantityZero):
 		return codeQuantityZero
+	case errors.Is(err, db.ErrConsumptionNotFound):
+		return codeConsumptionNotFound
 	default:
 		return codeInternal
 	}
@@ -103,6 +107,8 @@ func (h *Handler) Register(mux *http.ServeMux, spa http.Handler) {
 	mux.HandleFunc("GET /wines/{id}", h.GetWine)
 	mux.HandleFunc("PUT /wines/{id}", h.UpdateWine)
 	mux.HandleFunc("POST /wines/{id}/consumptions", h.CreateConsumption)
+	mux.HandleFunc("PUT /consumptions/{id}", h.UpdateConsumption)
+	mux.HandleFunc("DELETE /consumptions/{id}", h.DeleteConsumption)
 	mux.HandleFunc("POST /meal-pairings", h.CreateMealPairing)
 	mux.HandleFunc("GET /meal-pairings", h.ListMealPairings)
 	mux.HandleFunc("DELETE /meal-pairings", h.DeleteMealPairing)
@@ -446,6 +452,8 @@ func consumptionErrorStatus(err error) int {
 		return http.StatusNotFound
 	case errors.Is(err, db.ErrQuantityZero):
 		return http.StatusConflict
+	case errors.Is(err, db.ErrConsumptionNotFound):
+		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError
 	}
@@ -478,6 +486,45 @@ func (h *Handler) CreateConsumption(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(consumption)
+}
+
+func (h *Handler) UpdateConsumption(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidConsumptionID)
+		return
+	}
+
+	var req consumptionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
+		return
+	}
+
+	consumption, err := h.db.UpdateConsumption(r.Context(), id, req.Date, req.Rating, req.Notes)
+	if err != nil {
+		writeError(w, consumptionErrorStatus(err), dbErrorCode(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(consumption)
+}
+
+func (h *Handler) DeleteConsumption(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidConsumptionID)
+		return
+	}
+
+	if err := h.db.DeleteConsumption(r.Context(), id); err != nil {
+		writeError(w, consumptionErrorStatus(err), dbErrorCode(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func mealPairingErrorStatus(err error) int {

@@ -15,6 +15,10 @@ export function useWines() {
   const error = ref<string | null>(null)
   const submittingConsumption = ref(false)
   const consumptionError = ref<string | null>(null)
+  const updatingConsumption = ref(false)
+  const updateConsumptionError = ref<string | null>(null)
+  const deletingConsumption = ref(false)
+  const deleteConsumptionError = ref<string | null>(null)
   const submitting = ref(false)
   const submitError = ref<string | null>(null)
 
@@ -40,6 +44,40 @@ export function useWines() {
       consumptionError.value = friendlyErrorMessage(e)
     } finally {
       submittingConsumption.value = false
+    }
+  }
+
+  async function updateConsumption(
+    wineId: number,
+    consumptionId: number,
+    input: ConsumptionInput,
+  ): Promise<boolean> {
+    updatingConsumption.value = true
+    updateConsumptionError.value = null
+    try {
+      await apiClient.put<Consumption>(`/consumptions/${consumptionId}`, input)
+      await load(wineId)
+      return true
+    } catch (e) {
+      updateConsumptionError.value = friendlyErrorMessage(e)
+      return false
+    } finally {
+      updatingConsumption.value = false
+    }
+  }
+
+  async function deleteConsumption(wineId: number, consumptionId: number): Promise<boolean> {
+    deletingConsumption.value = true
+    deleteConsumptionError.value = null
+    try {
+      await apiClient.delete(`/consumptions/${consumptionId}`, undefined)
+      await load(wineId)
+      return true
+    } catch (e) {
+      deleteConsumptionError.value = friendlyErrorMessage(e)
+      return false
+    } finally {
+      deletingConsumption.value = false
     }
   }
 
@@ -77,6 +115,12 @@ export function useWines() {
     recordConsumption,
     submittingConsumption,
     consumptionError,
+    updateConsumption,
+    updatingConsumption,
+    updateConsumptionError,
+    deleteConsumption,
+    deletingConsumption,
+    deleteConsumptionError,
     create,
     update,
     submitting,

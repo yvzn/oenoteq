@@ -241,6 +241,215 @@ func TestConsumptionHistoryListedOnWineDetail(t *testing.T) {
 	}
 }
 
+func TestConsumptionEditDate(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Vouvray")
+	wine := createTestWine(t, harness, appellationID, 2)
+
+	resp := harness.Do("POST", "/wines/"+strconv.Itoa(wine.ID)+"/consumptions", map[string]interface{}{
+		"date": "2026-01-15",
+	})
+	var created db.Consumption
+	harness.JSONResponse(resp, &created)
+
+	resp = harness.Do("PUT", "/consumptions/"+strconv.Itoa(created.ID), map[string]interface{}{
+		"date": "2026-01-20",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var updated db.Consumption
+	harness.JSONResponse(resp, &updated)
+	if updated.ID != created.ID {
+		t.Errorf("Expected same id %d, got %d", created.ID, updated.ID)
+	}
+	if updated.WineID != wine.ID {
+		t.Errorf("Expected wine_id %d, got %d", wine.ID, updated.WineID)
+	}
+	if updated.Date != "2026-01-20" {
+		t.Errorf("Expected date '2026-01-20', got %q", updated.Date)
+	}
+}
+
+func TestConsumptionEditRating(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Vouvray Rating")
+	wine := createTestWine(t, harness, appellationID, 2)
+
+	resp := harness.Do("POST", "/wines/"+strconv.Itoa(wine.ID)+"/consumptions", map[string]interface{}{
+		"date":   "2026-01-15",
+		"rating": 3,
+	})
+	var created db.Consumption
+	harness.JSONResponse(resp, &created)
+
+	resp = harness.Do("PUT", "/consumptions/"+strconv.Itoa(created.ID), map[string]interface{}{
+		"date":   "2026-01-15",
+		"rating": 5,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var updated db.Consumption
+	harness.JSONResponse(resp, &updated)
+	if updated.Rating == nil || *updated.Rating != 5 {
+		t.Errorf("Expected rating 5, got %v", updated.Rating)
+	}
+}
+
+func TestConsumptionEditNotes(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Vouvray Notes")
+	wine := createTestWine(t, harness, appellationID, 2)
+
+	resp := harness.Do("POST", "/wines/"+strconv.Itoa(wine.ID)+"/consumptions", map[string]interface{}{
+		"date":  "2026-01-15",
+		"notes": "original notes",
+	})
+	var created db.Consumption
+	harness.JSONResponse(resp, &created)
+
+	resp = harness.Do("PUT", "/consumptions/"+strconv.Itoa(created.ID), map[string]interface{}{
+		"date":  "2026-01-15",
+		"notes": "corrected notes",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var updated db.Consumption
+	harness.JSONResponse(resp, &updated)
+	if updated.Notes == nil || *updated.Notes != "corrected notes" {
+		t.Errorf("Expected notes 'corrected notes', got %v", updated.Notes)
+	}
+}
+
+func TestConsumptionEditReusesCreateValidation(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Vouvray Validation")
+	wine := createTestWine(t, harness, appellationID, 2)
+
+	resp := harness.Do("POST", "/wines/"+strconv.Itoa(wine.ID)+"/consumptions", map[string]interface{}{
+		"date": "2026-01-15",
+	})
+	var created db.Consumption
+	harness.JSONResponse(resp, &created)
+
+	resp = harness.Do("PUT", "/consumptions/"+strconv.Itoa(created.ID), map[string]interface{}{
+		"notes": "no date given",
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "date_required" {
+		t.Errorf("Expected error code 'date_required', got %q", code)
+	}
+
+	resp = harness.Do("PUT", "/consumptions/"+strconv.Itoa(created.ID), map[string]interface{}{
+		"date":   "2026-01-15",
+		"rating": 6,
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "invalid_rating" {
+		t.Errorf("Expected error code 'invalid_rating', got %q", code)
+	}
+
+	resp = harness.Do("PUT", "/consumptions/"+strconv.Itoa(created.ID), map[string]interface{}{
+		"date": "not-a-date",
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "invalid_date" {
+		t.Errorf("Expected error code 'invalid_date', got %q", code)
+	}
+}
+
+func TestConsumptionEditNotFound(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+
+	resp := harness.Do("PUT", "/consumptions/9999", map[string]interface{}{
+		"date": "2026-01-15",
+	})
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("Expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "consumption_not_found" {
+		t.Errorf("Expected error code 'consumption_not_found', got %q", code)
+	}
+}
+
+func TestConsumptionDelete(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Chinon Delete")
+	wine := createTestWine(t, harness, appellationID, 3)
+
+	resp := harness.Do("POST", "/wines/"+strconv.Itoa(wine.ID)+"/consumptions", map[string]interface{}{
+		"date": "2026-01-15",
+	})
+	var created db.Consumption
+	harness.JSONResponse(resp, &created)
+
+	resp = harness.Do("DELETE", "/consumptions/"+strconv.Itoa(created.ID), nil)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("Expected status %d, got %d", http.StatusNoContent, resp.StatusCode)
+	}
+
+	resp = harness.Do("GET", "/wines/"+strconv.Itoa(wine.ID), nil)
+	var detail db.WineDetail
+	harness.JSONResponse(resp, &detail)
+	if len(detail.ConsumptionHistory) != 0 {
+		t.Errorf("Expected consumption removed from history, got %d entries", len(detail.ConsumptionHistory))
+	}
+}
+
+func TestConsumptionDeleteRestoresWineQuantity(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Chinon Restore")
+	wine := createTestWine(t, harness, appellationID, 3)
+
+	resp := harness.Do("POST", "/wines/"+strconv.Itoa(wine.ID)+"/consumptions", map[string]interface{}{
+		"date": "2026-01-15",
+	})
+	var created db.Consumption
+	harness.JSONResponse(resp, &created)
+
+	resp = harness.Do("GET", "/wines/"+strconv.Itoa(wine.ID), nil)
+	var afterCreate db.WineDetail
+	harness.JSONResponse(resp, &afterCreate)
+	if afterCreate.Quantity != 2 {
+		t.Fatalf("Expected quantity decremented to 2, got %d", afterCreate.Quantity)
+	}
+
+	resp = harness.Do("DELETE", "/consumptions/"+strconv.Itoa(created.ID), nil)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("Expected status %d, got %d", http.StatusNoContent, resp.StatusCode)
+	}
+
+	resp = harness.Do("GET", "/wines/"+strconv.Itoa(wine.ID), nil)
+	var afterDelete db.WineDetail
+	harness.JSONResponse(resp, &afterDelete)
+	if afterDelete.Quantity != 3 {
+		t.Errorf("Expected quantity restored to 3, got %d", afterDelete.Quantity)
+	}
+}
+
+func TestConsumptionDeleteNotFound(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+
+	resp := harness.Do("DELETE", "/consumptions/9999", nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("Expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "consumption_not_found" {
+		t.Errorf("Expected error code 'consumption_not_found', got %q", code)
+	}
+}
+
 func TestConsumptionHistoryEmptyWhenNoneRecorded(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Saumur-Champigny")

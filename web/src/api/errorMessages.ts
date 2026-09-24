@@ -7,6 +7,7 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   invalid_wine_id: "Couldn't find that wine. Go back to the cellar and try again.",
   invalid_meal_id: "Couldn't find that meal. Refresh the page and try again.",
   invalid_appellation_id: "Couldn't find that appellation. Refresh the page and try again.",
+  invalid_consumption_id: "Couldn't find that consumption entry. Refresh the page and try again.",
   already_exists: 'That name is already in use. Choose a different one.',
   invalid_color: 'Color must be rouge, blanc, or rose.',
   invalid_quantity: "Quantity can't be negative. Enter 0 or more.",
@@ -21,6 +22,7 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   invalid_date: 'Enter the date as YYYY-MM-DD.',
   invalid_rating: 'Rating must be between 1 and 5.',
   quantity_zero: "There's nothing left to log for this wine — update the quantity first.",
+  consumption_not_found: "That consumption entry doesn't exist anymore. Refresh the page and try again.",
   internal_error: 'Something went wrong on our end. Please try again.',
 }
 

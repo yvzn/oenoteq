@@ -8,7 +8,7 @@ import WineDetailView from './WineDetailView.vue'
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
-  return { ...actual, apiClient: { get: vi.fn(), post: vi.fn() } }
+  return { ...actual, apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }
 })
 
 function fillConsumptionForm(
@@ -78,6 +78,8 @@ async function mountAt(initialPath: string, { flush = true }: { flush?: boolean 
 
 afterEach(() => {
   vi.mocked(apiClient.get).mockReset()
+  vi.mocked(apiClient.put).mockReset()
+  vi.mocked(apiClient.delete).mockReset()
 })
 
 resetSuccessMessageAfterEach()
@@ -267,6 +269,128 @@ describe('WineDetailView', () => {
     await flushPromises()
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
+  it('edits a consumption entry inline and refreshes the history on success', async () => {
+    let edited = false
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/appellations') return Promise.resolve(appellations)
+      if (path === '/wines/1') {
+        return Promise.resolve(
+          edited
+            ? {
+                ...wineDetail,
+                consumption_history: [
+                  { id: 1, wine_id: 1, date: '2026-01-05', rating: 5, notes: 'Even better than remembered' },
+                  wineDetail.consumption_history[1],
+                ],
+              }
+            : wineDetail,
+        )
+      }
+      throw new Error(`unexpected path: ${path}`)
+    })
+    vi.mocked(apiClient.put).mockImplementation(() => {
+      edited = true
+      return Promise.resolve({ id: 1, wine_id: 1, date: '2026-01-05', rating: 5, notes: 'Even better than remembered' })
+    })
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    const entries = wrapper.findAll('[data-testid="consumption-entry"]')
+    await entries[0]!.get('[data-testid="consumption-edit-button"]').trigger('click')
+
+    const form = wrapper.get('[data-testid="consumption-edit-form"]')
+    expect((form.get('[data-testid="consumption-edit-date-input"]').element as HTMLInputElement).value).toBe(
+      '2026-01-01',
+    )
+    expect((form.get('[data-testid="consumption-edit-rating-input"]').element as HTMLInputElement).value).toBe('4')
+    expect((form.get('[data-testid="consumption-edit-notes-input"]').element as HTMLTextAreaElement).value).toBe(
+      'Great with duck',
+    )
+
+    await form.get('[data-testid="consumption-edit-date-input"]').setValue('2026-01-05')
+    await form.get('[data-testid="consumption-edit-rating-input"]').setValue('5')
+    await form.get('[data-testid="consumption-edit-notes-input"]').setValue('Even better than remembered')
+    await form.trigger('submit.prevent')
+    await flushPromises()
+
+    expect(apiClient.put).toHaveBeenCalledWith('/consumptions/1', {
+      date: '2026-01-05',
+      rating: 5,
+      notes: 'Even better than remembered',
+    })
+    expect(wrapper.find('[data-testid="consumption-edit-form"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('2026-01-05')
+    expect(wrapper.text()).toContain('Even better than remembered')
+    expect(useSuccessMessage().message.value).toMatch(/updated/i)
+  })
+
+  it('cancels an inline edit without calling the API', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    const entries = wrapper.findAll('[data-testid="consumption-entry"]')
+    await entries[0]!.get('[data-testid="consumption-edit-button"]').trigger('click')
+    expect(wrapper.find('[data-testid="consumption-edit-form"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="consumption-edit-cancel"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="consumption-edit-form"]').exists()).toBe(false)
+    expect(apiClient.put).not.toHaveBeenCalled()
+  })
+
+  it('opens the confirm dialog on delete and does nothing on cancel', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    const entries = wrapper.findAll('[data-testid="consumption-entry"]')
+    await entries[1]!.get('[data-testid="consumption-delete-button"]').trigger('click')
+
+    const dialog = wrapper.get('[data-testid="confirm-dialog"]').element as HTMLDialogElement
+    expect(dialog.open).toBe(true)
+    expect(wrapper.text()).toContain('Delete consumption from 2026-02-01?')
+
+    await wrapper.get('[data-testid="confirm-dialog-cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(dialog.open).toBe(false)
+    expect(apiClient.delete).not.toHaveBeenCalled()
+    expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(2)
+  })
+
+  it('deletes a consumption entry on confirm and refreshes quantity and history', async () => {
+    let deleted = false
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/appellations') return Promise.resolve(appellations)
+      if (path === '/wines/1') {
+        return Promise.resolve(
+          deleted
+            ? { ...wineDetail, quantity: 4, consumption_history: [wineDetail.consumption_history[0]] }
+            : wineDetail,
+        )
+      }
+      throw new Error(`unexpected path: ${path}`)
+    })
+    vi.mocked(apiClient.delete).mockImplementation(() => {
+      deleted = true
+      return Promise.resolve(undefined)
+    })
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    const entries = wrapper.findAll('[data-testid="consumption-entry"]')
+    await entries[1]!.get('[data-testid="consumption-delete-button"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(apiClient.delete).toHaveBeenCalledWith('/consumptions/2', undefined)
+    expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(1)
+    const detail = wrapper.get('[data-testid="wine-detail"]')
+    expect(detail.text()).toContain('×4')
+    expect(useSuccessMessage().message.value).toMatch(/deleted/i)
   })
 
   it('blocks the consumption form when quantity is already zero', async () => {

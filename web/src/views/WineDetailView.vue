@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import type { Consumption } from '../api/types'
 import AppButton from '../components/AppButton.vue'
 import ColorSwatch from '../components/ColorSwatch.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import FormField from '../components/FormField.vue'
 import GardeStatusBadge from '../components/GardeStatusBadge.vue'
 import StatusLine from '../components/StatusLine.vue'
@@ -21,6 +23,12 @@ const {
   recordConsumption,
   submittingConsumption,
   consumptionError,
+  updateConsumption,
+  updatingConsumption,
+  updateConsumptionError,
+  deleteConsumption,
+  deletingConsumption,
+  deleteConsumptionError,
 } = useWines()
 const {
   appellations,
@@ -51,6 +59,57 @@ async function submitConsumption() {
   }
 }
 
+const editingConsumptionId = ref<number | null>(null)
+const editDate = ref('')
+const editRating = ref('')
+const editNotes = ref('')
+
+function startEdit(consumption: Consumption) {
+  editingConsumptionId.value = consumption.id
+  editDate.value = consumption.date
+  editRating.value = consumption.rating === null ? '' : String(consumption.rating)
+  editNotes.value = consumption.notes ?? ''
+  updateConsumptionError.value = null
+}
+
+function cancelEdit() {
+  editingConsumptionId.value = null
+}
+
+async function submitEdit(consumptionId: number) {
+  const ok = await updateConsumption(id.value, consumptionId, {
+    date: editDate.value,
+    rating: editRating.value === '' ? null : Number(editRating.value),
+    notes: editNotes.value === '' ? null : editNotes.value,
+  })
+  if (ok) {
+    editingConsumptionId.value = null
+    consumptionSuccess.show('Consumption updated.')
+  }
+}
+
+const pendingDeleteConsumption = ref<Consumption | null>(null)
+const deleteConfirmOpen = computed(() => pendingDeleteConsumption.value !== null)
+const deleteConfirmMessage = computed(() =>
+  pendingDeleteConsumption.value ? `Delete consumption from ${pendingDeleteConsumption.value.date}?` : '',
+)
+
+function askDeleteConsumption(consumption: Consumption) {
+  pendingDeleteConsumption.value = consumption
+}
+
+function cancelDeleteConsumption() {
+  pendingDeleteConsumption.value = null
+}
+
+async function confirmDeleteConsumption() {
+  if (!pendingDeleteConsumption.value) return
+  const consumptionId = pendingDeleteConsumption.value.id
+  pendingDeleteConsumption.value = null
+  const ok = await deleteConsumption(id.value, consumptionId)
+  if (ok) consumptionSuccess.show('Consumption deleted.')
+}
+
 const loading = computed(() => wineLoading.value || appellationsLoading.value)
 const error = computed(() =>
   [wineError.value, appellationsError.value].filter((e): e is string => e !== null).join('; '),
@@ -71,6 +130,10 @@ watch(
     consumptionDate.value = ''
     consumptionRating.value = ''
     consumptionNotes.value = ''
+    editingConsumptionId.value = null
+    updateConsumptionError.value = null
+    pendingDeleteConsumption.value = null
+    deleteConsumptionError.value = null
     loadWine(next)
   },
   { immediate: true },
@@ -157,14 +220,70 @@ function retry() {
               v-for="(consumption, index) in wine.consumption_history"
               :key="consumption.id"
               data-testid="consumption-entry"
-              class="flex flex-col gap-0.5 py-[11px]"
+              class="flex flex-col gap-2 py-[11px]"
               :class="index < wine.consumption_history.length - 1 ? 'border-line border-b' : ''"
             >
-              <span class="text-ink text-[15px] font-semibold tabular-nums">{{ consumption.date }}</span>
-              <span v-if="consumption.rating !== null" class="text-muted text-[14.5px]">Rating: {{ consumption.rating }}</span>
-              <span v-if="consumption.notes" class="text-muted text-[14.5px]">{{ consumption.notes }}</span>
+              <form
+                v-if="editingConsumptionId === consumption.id"
+                data-testid="consumption-edit-form"
+                class="flex flex-col gap-3"
+                @submit.prevent="submitEdit(consumption.id)"
+              >
+                <FormField label="Date">
+                  <input v-model="editDate" data-testid="consumption-edit-date-input" type="date" required class="w-full" />
+                </FormField>
+                <FormField label="Rating (1–5)">
+                  <input
+                    v-model="editRating"
+                    data-testid="consumption-edit-rating-input"
+                    type="number"
+                    min="1"
+                    max="5"
+                    class="w-20"
+                  />
+                </FormField>
+                <FormField label="Notes">
+                  <textarea v-model="editNotes" data-testid="consumption-edit-notes-input" class="w-full"></textarea>
+                </FormField>
+                <StatusLine v-if="updateConsumptionError" tone="error">{{ updateConsumptionError }}</StatusLine>
+                <div class="flex gap-2">
+                  <AppButton type="submit" :disabled="updatingConsumption" data-testid="consumption-edit-save">
+                    Save
+                  </AppButton>
+                  <AppButton type="button" variant="ghost" data-testid="consumption-edit-cancel" @click="cancelEdit">
+                    Cancel
+                  </AppButton>
+                </div>
+              </form>
+              <div v-else class="flex items-start justify-between gap-3">
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-ink text-[15px] font-semibold tabular-nums">{{ consumption.date }}</span>
+                  <span v-if="consumption.rating !== null" class="text-muted text-[14.5px]">Rating: {{ consumption.rating }}</span>
+                  <span v-if="consumption.notes" class="text-muted text-[14.5px]">{{ consumption.notes }}</span>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <AppButton
+                    type="button"
+                    variant="ghost"
+                    data-testid="consumption-edit-button"
+                    @click="startEdit(consumption)"
+                  >
+                    Edit
+                  </AppButton>
+                  <AppButton
+                    type="button"
+                    variant="ghost"
+                    data-testid="consumption-delete-button"
+                    :disabled="deletingConsumption"
+                    @click="askDeleteConsumption(consumption)"
+                  >
+                    Delete
+                  </AppButton>
+                </div>
+              </div>
             </li>
           </ul>
+          <StatusLine v-if="deleteConsumptionError" tone="error" class="mt-3">{{ deleteConsumptionError }}</StatusLine>
         </section>
       </div>
 
@@ -202,5 +321,13 @@ function retry() {
         </form>
       </section>
     </div>
+
+    <ConfirmDialog
+      :open="deleteConfirmOpen"
+      :message="deleteConfirmMessage"
+      confirm-label="Delete"
+      @confirm="confirmDeleteConsumption"
+      @cancel="cancelDeleteConsumption"
+    />
   </section>
 </template>

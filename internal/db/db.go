@@ -335,6 +335,7 @@ var (
 	ErrInvalidDate         = errors.New("date must be in YYYY-MM-DD format")
 	ErrInvalidRating       = errors.New("rating must be between 1 and 5")
 	ErrQuantityZero        = errors.New("wine quantity is already 0")
+	ErrConsumptionNotFound = errors.New("consumption not found")
 )
 
 var validColors = map[string]bool{"rouge": true, "blanc": true, "rose": true}
@@ -767,6 +768,73 @@ func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResu
 	}
 
 	return results, nil
+}
+
+func (d *DB) consumptionWineID(ctx context.Context, id int) (int, error) {
+	var wineID int
+	err := d.QueryRowContext(ctx, "SELECT wine_id FROM consumption WHERE id = ?", id).Scan(&wineID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("consumption id %d: %w", id, ErrConsumptionNotFound)
+		}
+		return 0, fmt.Errorf("getting consumption: %w", err)
+	}
+	return wineID, nil
+}
+
+// UpdateConsumption re-validates date/rating exactly as CreateConsumption
+// does. wine_id is immutable — there is no re-linking to a different Wine.
+func (d *DB) UpdateConsumption(ctx context.Context, id int, date string, rating *int, notes *string) (*Consumption, error) {
+	c := Consumption{ID: id, Date: date, Rating: rating, Notes: notes}
+	if err := validateConsumption(c); err != nil {
+		return nil, err
+	}
+
+	wineID, err := d.consumptionWineID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := d.ExecContext(ctx, `
+		UPDATE consumption SET date = ?, rating = ?, notes = ? WHERE id = ?
+	`, date, rating, notes, id); err != nil {
+		return nil, fmt.Errorf("updating consumption: %w", err)
+	}
+
+	c.WineID = wineID
+	return &c, nil
+}
+
+// DeleteConsumption removes the entry and restores the referenced Wine's
+// quantity by one, the inverse of the decrement that happens on creation.
+func (d *DB) DeleteConsumption(ctx context.Context, id int) error {
+	tx, err := d.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var wineID int
+	if err := tx.QueryRowContext(ctx, "SELECT wine_id FROM consumption WHERE id = ?", id).Scan(&wineID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("consumption id %d: %w", id, ErrConsumptionNotFound)
+		}
+		return fmt.Errorf("checking consumption: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, "DELETE FROM consumption WHERE id = ?", id); err != nil {
+		return fmt.Errorf("deleting consumption: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, "UPDATE wine SET quantity = quantity + 1 WHERE id = ?", wineID); err != nil {
+		return fmt.Errorf("incrementing wine quantity: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (d *DB) ListConsumptions(ctx context.Context, wineID int) ([]Consumption, error) {

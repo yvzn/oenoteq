@@ -110,6 +110,19 @@ Content-Type: application/json
   "notes": "Great with duck"
 }
 
+### Edit a Consumption (date/rating/notes only, wine_id is not editable)
+PUT {{baseUrl}}/consumptions/1
+Content-Type: application/json
+
+{
+  "date": "2026-01-16",
+  "rating": 5,
+  "notes": "Great with duck, revised"
+}
+
+### Delete a Consumption (restores the referenced Wine's quantity by one)
+DELETE {{baseUrl}}/consumptions/1
+
 
 
 ### Associate Meal with (Appellation, Color)
