@@ -22,15 +22,38 @@ func createTestAppellation(t *testing.T, harness *test.Harness, name string) int
 	return appellation.ID
 }
 
+var testProducerCounter int
+
+// uniqueTestProducerName returns a producer name that's unique across the
+// test run, since producer names are unique like appellation names.
+func uniqueTestProducerName(prefix string) string {
+	testProducerCounter++
+	return prefix + " " + strconv.Itoa(testProducerCounter)
+}
+
+func createTestProducer(t *testing.T, harness *test.Harness, name string) int {
+	t.Helper()
+
+	resp := harness.Do("POST", "/producers", map[string]string{"name": name})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d creating producer, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	var producer db.Producer
+	harness.JSONResponse(resp, &producer)
+	return producer.ID
+}
+
 func TestWineCreateWithMillesime(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Bourgueil")
+	producerID := createTestProducer(t, harness, "Domaine du Closel")
 
 	millesime := 2018
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"millesime":      millesime,
 		"appellation_id": appellationID,
-		"producer":       "Domaine du Closel",
+		"producer_id":    producerID,
 		"color":          "rouge",
 		"garde_debut":    2020,
 		"garde_fin":      2028,
@@ -53,8 +76,11 @@ func TestWineCreateWithMillesime(t *testing.T) {
 	if wine.AppellationID != appellationID {
 		t.Errorf("Expected appellation_id %d, got %d", appellationID, wine.AppellationID)
 	}
-	if wine.Producer != "Domaine du Closel" {
-		t.Errorf("Expected producer 'Domaine du Closel', got %q", wine.Producer)
+	if wine.ProducerID != producerID {
+		t.Errorf("Expected producer_id %d, got %d", producerID, wine.ProducerID)
+	}
+	if wine.Producer.Name != "Domaine du Closel" {
+		t.Errorf("Expected producer name 'Domaine du Closel', got %q", wine.Producer.Name)
 	}
 	if wine.Color != "rouge" {
 		t.Errorf("Expected color 'rouge', got %q", wine.Color)
@@ -70,10 +96,11 @@ func TestWineCreateWithMillesime(t *testing.T) {
 func TestWineCreateWithoutMillesime(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Champagne")
+	producerID := createTestProducer(t, harness, "Maison X")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Maison X",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2022,
 		"garde_fin":      2030,
@@ -97,7 +124,7 @@ func TestWineCreateRejectsUnknownAppellation(t *testing.T) {
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": 9999,
-		"producer":       "Maison X",
+		"producer_id":    0,
 		"color":          "rouge",
 		"garde_debut":    2022,
 		"garde_fin":      2030,
@@ -118,7 +145,7 @@ func TestWineCreateRejectsInvalidColor(t *testing.T) {
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Maison X",
+		"producer_id":    0,
 		"color":          "orange",
 		"garde_debut":    2022,
 		"garde_fin":      2030,
@@ -139,7 +166,7 @@ func TestWineCreateRejectsNegativeQuantity(t *testing.T) {
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Maison X",
+		"producer_id":    0,
 		"color":          "rouge",
 		"garde_debut":    2022,
 		"garde_fin":      2030,
@@ -158,10 +185,12 @@ func TestWineEditFields(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Vouvray")
 	otherAppellationID := createTestAppellation(t, harness, "Saumur")
+	producerID := createTestProducer(t, harness, "Domaine A")
+	otherProducerID := createTestProducer(t, harness, "Domaine B")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine A",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
@@ -174,7 +203,7 @@ func TestWineEditFields(t *testing.T) {
 	resp = harness.Do("PUT", "/wines/"+strconv.Itoa(created.ID), map[string]interface{}{
 		"millesime":      millesime,
 		"appellation_id": otherAppellationID,
-		"producer":       "Domaine B",
+		"producer_id":    otherProducerID,
 		"color":          "rose",
 		"garde_debut":    2023,
 		"garde_fin":      2031,
@@ -197,8 +226,11 @@ func TestWineEditFields(t *testing.T) {
 	if updated.AppellationID != otherAppellationID {
 		t.Errorf("Expected appellation_id %d, got %d", otherAppellationID, updated.AppellationID)
 	}
-	if updated.Producer != "Domaine B" {
-		t.Errorf("Expected producer 'Domaine B', got %q", updated.Producer)
+	if updated.ProducerID != otherProducerID {
+		t.Errorf("Expected producer_id %d, got %d", otherProducerID, updated.ProducerID)
+	}
+	if updated.Producer.Name != "Domaine B" {
+		t.Errorf("Expected producer name 'Domaine B', got %q", updated.Producer.Name)
 	}
 	if updated.Color != "rose" {
 		t.Errorf("Expected color 'rose', got %q", updated.Color)
@@ -213,18 +245,19 @@ func TestWineEditFields(t *testing.T) {
 	resp = harness.Do("GET", "/wines/"+strconv.Itoa(created.ID), nil)
 	var fetched db.Wine
 	harness.JSONResponse(resp, &fetched)
-	if fetched.Producer != "Domaine B" {
-		t.Errorf("Expected persisted producer 'Domaine B', got %q", fetched.Producer)
+	if fetched.Producer.Name != "Domaine B" {
+		t.Errorf("Expected persisted producer name 'Domaine B', got %q", fetched.Producer.Name)
 	}
 }
 
 func TestWineEditRejectsUnknownAppellation(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Menetou-Salon")
+	producerID := createTestProducer(t, harness, "Domaine A")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine A",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
@@ -235,7 +268,7 @@ func TestWineEditRejectsUnknownAppellation(t *testing.T) {
 
 	resp = harness.Do("PUT", "/wines/"+strconv.Itoa(created.ID), map[string]interface{}{
 		"appellation_id": 9999,
-		"producer":       "Domaine A",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
@@ -253,10 +286,11 @@ func TestWineEditRejectsUnknownAppellation(t *testing.T) {
 func TestWineEditRejectsInvalidColor(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Reuilly")
+	producerID := createTestProducer(t, harness, "Domaine A")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine A",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
@@ -267,7 +301,7 @@ func TestWineEditRejectsInvalidColor(t *testing.T) {
 
 	resp = harness.Do("PUT", "/wines/"+strconv.Itoa(created.ID), map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine A",
+		"producer_id":    producerID,
 		"color":          "orange",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
@@ -285,10 +319,11 @@ func TestWineEditRejectsInvalidColor(t *testing.T) {
 func TestWineEditRejectsNegativeQuantity(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Quincy")
+	producerID := createTestProducer(t, harness, "Domaine A")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine A",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
@@ -299,7 +334,7 @@ func TestWineEditRejectsNegativeQuantity(t *testing.T) {
 
 	resp = harness.Do("PUT", "/wines/"+strconv.Itoa(created.ID), map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine A",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
@@ -317,10 +352,11 @@ func TestWineEditRejectsNegativeQuantity(t *testing.T) {
 func TestWineEditNotFound(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Cheverny")
+	producerID := createTestProducer(t, harness, "Domaine A")
 
 	resp := harness.Do("PUT", "/wines/9999", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine A",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
@@ -338,10 +374,12 @@ func TestWineEditNotFound(t *testing.T) {
 func TestWineListIncludesZeroQuantity(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Anjou")
+	producerID := createTestProducer(t, harness, "Domaine A")
+	otherProducerID := createTestProducer(t, harness, "Domaine B")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine A",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
@@ -353,7 +391,7 @@ func TestWineListIncludesZeroQuantity(t *testing.T) {
 
 	resp = harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine B",
+		"producer_id":    otherProducerID,
 		"color":          "rouge",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
@@ -377,7 +415,7 @@ func TestWineListIncludesZeroQuantity(t *testing.T) {
 
 	foundZero := false
 	for _, w := range wines {
-		if w.Producer == "Domaine A" && w.Quantity == 0 {
+		if w.Producer.Name == "Domaine A" && w.Quantity == 0 {
 			foundZero = true
 		}
 	}
@@ -389,10 +427,11 @@ func TestWineListIncludesZeroQuantity(t *testing.T) {
 func TestWineGetDetail(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Pouilly-Fume")
+	producerID := createTestProducer(t, harness, "Domaine C")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine C",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2022,
 		"garde_fin":      2027,
@@ -412,8 +451,8 @@ func TestWineGetDetail(t *testing.T) {
 	if fetched.ID != created.ID {
 		t.Errorf("Expected id %d, got %d", created.ID, fetched.ID)
 	}
-	if fetched.Producer != "Domaine C" {
-		t.Errorf("Expected producer 'Domaine C', got %q", fetched.Producer)
+	if fetched.Producer.Name != "Domaine C" {
+		t.Errorf("Expected producer name 'Domaine C', got %q", fetched.Producer.Name)
 	}
 	if fetched.AppellationID != appellationID {
 		t.Errorf("Expected appellation_id %d, got %d", appellationID, fetched.AppellationID)
@@ -435,6 +474,7 @@ func TestWineGetDetailNotFound(t *testing.T) {
 func TestWineDetailIncludesSuggestedMeals(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Chablis")
+	producerID := createTestProducer(t, harness, "Domaine C")
 	mealA := createTestMeal(t, harness, "Oysters")
 	mealB := createTestMeal(t, harness, "Grilled Fish")
 
@@ -451,7 +491,7 @@ func TestWineDetailIncludesSuggestedMeals(t *testing.T) {
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine C",
+		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2022,
 		"garde_fin":      2027,
@@ -479,10 +519,11 @@ func TestWineDetailIncludesSuggestedMeals(t *testing.T) {
 func TestWineDetailEmptySuggestedMealsWhenNoPairing(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Morgon")
+	producerID := createTestProducer(t, harness, "Domaine D")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine D",
+		"producer_id":    producerID,
 		"color":          "rouge",
 		"garde_debut":    2020,
 		"garde_fin":      2026,
@@ -510,11 +551,12 @@ func TestWineDetailEmptySuggestedMealsWhenNoPairing(t *testing.T) {
 func TestWineDetailReflectsMealPairingEdits(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Fleurie")
+	producerID := createTestProducer(t, harness, "Domaine E")
 	mealA := createTestMeal(t, harness, "Charcuterie")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Domaine E",
+		"producer_id":    producerID,
 		"color":          "rouge",
 		"garde_debut":    2021,
 		"garde_fin":      2025,

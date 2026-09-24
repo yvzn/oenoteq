@@ -29,6 +29,7 @@ const (
 	codeInvalidColor         = "invalid_color"
 	codeInvalidQuantity      = "invalid_quantity"
 	codeAppellationNotFound  = "appellation_not_found"
+	codeProducerNotFound     = "producer_not_found"
 	codeWineNotFound         = "wine_not_found"
 	codeMealNotFound         = "meal_not_found"
 	codeDateRequired         = "date_required"
@@ -51,6 +52,8 @@ func dbErrorCode(err error) string {
 		return codeInvalidQuantity
 	case errors.Is(err, db.ErrAppellationNotFound):
 		return codeAppellationNotFound
+	case errors.Is(err, db.ErrProducerNotFound):
+		return codeProducerNotFound
 	case errors.Is(err, db.ErrWineNotFound):
 		return codeWineNotFound
 	case errors.Is(err, db.ErrMealNotFound):
@@ -81,6 +84,8 @@ func (h *Handler) Register(mux *http.ServeMux, spa http.Handler) {
 	mux.HandleFunc("GET /health", h.Health)
 	mux.HandleFunc("POST /appellations", h.CreateAppellation)
 	mux.HandleFunc("GET /appellations", h.ListAppellations)
+	mux.HandleFunc("POST /producers", h.CreateProducer)
+	mux.HandleFunc("GET /producers", h.ListProducers)
 	mux.HandleFunc("POST /meals", h.CreateMeal)
 	mux.HandleFunc("GET /meals", h.ListMeals)
 	mux.HandleFunc("POST /wines", h.CreateWine)
@@ -142,6 +147,47 @@ func (h *Handler) ListAppellations(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(appellations)
 }
 
+func (h *Handler) CreateProducer(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Name string `json:"name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
+		return
+	}
+
+	producer, err := h.db.CreateProducer(r.Context(), req.Name)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, db.ErrUniqueConstraint) {
+			status = http.StatusConflict
+		}
+		writeError(w, status, dbErrorCode(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(producer)
+}
+
+func (h *Handler) ListProducers(w http.ResponseWriter, r *http.Request) {
+	producers, err := h.db.ListProducers(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, dbErrorCode(err))
+		return
+	}
+
+	if producers == nil {
+		producers = []db.Producer{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(producers)
+}
+
 func (h *Handler) CreateMeal(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name string `json:"name"`
@@ -186,7 +232,7 @@ func (h *Handler) ListMeals(w http.ResponseWriter, r *http.Request) {
 type wineRequest struct {
 	Millesime     *int   `json:"millesime"`
 	AppellationID int    `json:"appellation_id"`
-	Producer      string `json:"producer"`
+	ProducerID    int    `json:"producer_id"`
 	Color         string `json:"color"`
 	GardeDebut    int    `json:"garde_debut"`
 	GardeFin      int    `json:"garde_fin"`
@@ -197,7 +243,7 @@ func (req wineRequest) toWine() db.Wine {
 	return db.Wine{
 		Millesime:     req.Millesime,
 		AppellationID: req.AppellationID,
-		Producer:      req.Producer,
+		ProducerID:    req.ProducerID,
 		Color:         req.Color,
 		GardeDebut:    req.GardeDebut,
 		GardeFin:      req.GardeFin,
@@ -207,7 +253,7 @@ func (req wineRequest) toWine() db.Wine {
 
 func wineErrorStatus(err error) int {
 	switch {
-	case errors.Is(err, db.ErrInvalidColor), errors.Is(err, db.ErrInvalidQuantity), errors.Is(err, db.ErrAppellationNotFound):
+	case errors.Is(err, db.ErrInvalidColor), errors.Is(err, db.ErrInvalidQuantity), errors.Is(err, db.ErrAppellationNotFound), errors.Is(err, db.ErrProducerNotFound):
 		return http.StatusBadRequest
 	case errors.Is(err, db.ErrWineNotFound):
 		return http.StatusNotFound

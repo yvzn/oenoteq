@@ -139,6 +139,51 @@ func (d *DB) ListAppellations(ctx context.Context) ([]Appellation, error) {
 	return appellations, nil
 }
 
+type Producer struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+func (d *DB) CreateProducer(ctx context.Context, name string) (*Producer, error) {
+	_, err := d.ExecContext(ctx, "INSERT INTO producer (name) VALUES (?)", name)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return nil, fmt.Errorf("producer already exists: %s: %w", name, ErrUniqueConstraint)
+		}
+		return nil, fmt.Errorf("creating producer: %w", err)
+	}
+
+	var id int
+	if err := d.QueryRowContext(ctx, "SELECT last_insert_rowid()").Scan(&id); err != nil {
+		return nil, fmt.Errorf("getting last insert id: %w", err)
+	}
+
+	return &Producer{ID: id, Name: name}, nil
+}
+
+func (d *DB) ListProducers(ctx context.Context) ([]Producer, error) {
+	rows, err := d.QueryContext(ctx, "SELECT id, name FROM producer ORDER BY name")
+	if err != nil {
+		return nil, fmt.Errorf("querying producers: %w", err)
+	}
+	defer rows.Close()
+
+	var producers []Producer
+	for rows.Next() {
+		var p Producer
+		if err := rows.Scan(&p.ID, &p.Name); err != nil {
+			return nil, fmt.Errorf("scanning producer: %w", err)
+		}
+		producers = append(producers, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating producers: %w", err)
+	}
+
+	return producers, nil
+}
+
 type Meal struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
@@ -188,6 +233,7 @@ var (
 	ErrInvalidColor        = errors.New("invalid color")
 	ErrInvalidQuantity     = errors.New("quantity must be >= 0")
 	ErrAppellationNotFound = errors.New("appellation not found")
+	ErrProducerNotFound    = errors.New("producer not found")
 	ErrWineNotFound        = errors.New("wine not found")
 	ErrMealNotFound        = errors.New("meal not found")
 	ErrDateRequired        = errors.New("date is required")
@@ -199,14 +245,15 @@ var (
 var validColors = map[string]bool{"rouge": true, "blanc": true, "rose": true}
 
 type Wine struct {
-	ID            int    `json:"id"`
-	Millesime     *int   `json:"millesime"`
-	AppellationID int    `json:"appellation_id"`
-	Producer      string `json:"producer"`
-	Color         string `json:"color"`
-	GardeDebut    int    `json:"garde_debut"`
-	GardeFin      int    `json:"garde_fin"`
-	Quantity      int    `json:"quantity"`
+	ID            int      `json:"id"`
+	Millesime     *int     `json:"millesime"`
+	AppellationID int      `json:"appellation_id"`
+	ProducerID    int      `json:"producer_id"`
+	Producer      Producer `json:"producer"`
+	Color         string   `json:"color"`
+	GardeDebut    int      `json:"garde_debut"`
+	GardeFin      int      `json:"garde_fin"`
+	Quantity      int      `json:"quantity"`
 }
 
 func validateWine(w Wine) error {
@@ -230,6 +277,18 @@ func (d *DB) appellationExists(ctx context.Context, id int) error {
 	return nil
 }
 
+func (d *DB) producerByID(ctx context.Context, id int) (Producer, error) {
+	var p Producer
+	err := d.QueryRowContext(ctx, "SELECT id, name FROM producer WHERE id = ?", id).Scan(&p.ID, &p.Name)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Producer{}, fmt.Errorf("producer id %d: %w", id, ErrProducerNotFound)
+		}
+		return Producer{}, fmt.Errorf("getting producer: %w", err)
+	}
+	return p, nil
+}
+
 func (d *DB) CreateWine(ctx context.Context, w Wine) (*Wine, error) {
 	if err := validateWine(w); err != nil {
 		return nil, err
@@ -237,11 +296,15 @@ func (d *DB) CreateWine(ctx context.Context, w Wine) (*Wine, error) {
 	if err := d.appellationExists(ctx, w.AppellationID); err != nil {
 		return nil, err
 	}
+	producer, err := d.producerByID(ctx, w.ProducerID)
+	if err != nil {
+		return nil, err
+	}
 
 	res, err := d.ExecContext(ctx, `
-		INSERT INTO wine (millesime, appellation_id, producer, color, garde_debut, garde_fin, quantity)
+		INSERT INTO wine (millesime, appellation_id, producer_id, color, garde_debut, garde_fin, quantity)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, w.Millesime, w.AppellationID, w.Producer, w.Color, w.GardeDebut, w.GardeFin, w.Quantity)
+	`, w.Millesime, w.AppellationID, w.ProducerID, w.Color, w.GardeDebut, w.GardeFin, w.Quantity)
 	if err != nil {
 		return nil, fmt.Errorf("creating wine: %w", err)
 	}
@@ -252,29 +315,33 @@ func (d *DB) CreateWine(ctx context.Context, w Wine) (*Wine, error) {
 	}
 
 	w.ID = int(id)
+	w.Producer = producer
 	return &w, nil
 }
 
 func (d *DB) GetWine(ctx context.Context, id int) (*Wine, error) {
 	var w Wine
 	err := d.QueryRowContext(ctx, `
-		SELECT id, millesime, appellation_id, producer, color, garde_debut, garde_fin, quantity
-		FROM wine WHERE id = ?
-	`, id).Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.Producer, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity)
+		SELECT wine.id, wine.millesime, wine.appellation_id, wine.producer_id, producer.name, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity
+		FROM wine JOIN producer ON producer.id = wine.producer_id
+		WHERE wine.id = ?
+	`, id).Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.ProducerID, &w.Producer.Name, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("wine id %d: %w", id, ErrWineNotFound)
 		}
 		return nil, fmt.Errorf("getting wine: %w", err)
 	}
+	w.Producer.ID = w.ProducerID
 
 	return &w, nil
 }
 
 func (d *DB) ListWines(ctx context.Context) ([]Wine, error) {
 	rows, err := d.QueryContext(ctx, `
-		SELECT id, millesime, appellation_id, producer, color, garde_debut, garde_fin, quantity
-		FROM wine ORDER BY id
+		SELECT wine.id, wine.millesime, wine.appellation_id, wine.producer_id, producer.name, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity
+		FROM wine JOIN producer ON producer.id = wine.producer_id
+		ORDER BY wine.id
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("querying wines: %w", err)
@@ -284,9 +351,10 @@ func (d *DB) ListWines(ctx context.Context) ([]Wine, error) {
 	var wines []Wine
 	for rows.Next() {
 		var w Wine
-		if err := rows.Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.Producer, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity); err != nil {
+		if err := rows.Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.ProducerID, &w.Producer.Name, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity); err != nil {
 			return nil, fmt.Errorf("scanning wine: %w", err)
 		}
+		w.Producer.ID = w.ProducerID
 		wines = append(wines, w)
 	}
 
@@ -426,12 +494,16 @@ func (d *DB) UpdateWine(ctx context.Context, id int, w Wine) (*Wine, error) {
 	if err := d.appellationExists(ctx, w.AppellationID); err != nil {
 		return nil, err
 	}
+	producer, err := d.producerByID(ctx, w.ProducerID)
+	if err != nil {
+		return nil, err
+	}
 
 	res, err := d.ExecContext(ctx, `
 		UPDATE wine
-		SET millesime = ?, appellation_id = ?, producer = ?, color = ?, garde_debut = ?, garde_fin = ?, quantity = ?
+		SET millesime = ?, appellation_id = ?, producer_id = ?, color = ?, garde_debut = ?, garde_fin = ?, quantity = ?
 		WHERE id = ?
-	`, w.Millesime, w.AppellationID, w.Producer, w.Color, w.GardeDebut, w.GardeFin, w.Quantity, id)
+	`, w.Millesime, w.AppellationID, w.ProducerID, w.Color, w.GardeDebut, w.GardeFin, w.Quantity, id)
 	if err != nil {
 		return nil, fmt.Errorf("updating wine: %w", err)
 	}
@@ -445,6 +517,7 @@ func (d *DB) UpdateWine(ctx context.Context, id int, w Wine) (*Wine, error) {
 	}
 
 	w.ID = id
+	w.Producer = producer
 	return &w, nil
 }
 
@@ -540,8 +613,9 @@ func gardeStatus(w Wine, year int) string {
 
 func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResult, error) {
 	query := `
-		SELECT wine.id, wine.millesime, wine.appellation_id, wine.producer, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity
+		SELECT wine.id, wine.millesime, wine.appellation_id, wine.producer_id, producer.name, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity
 		FROM wine
+		JOIN producer ON producer.id = wine.producer_id
 		WHERE wine.quantity > 0
 	`
 	var args []interface{}
@@ -580,9 +654,10 @@ func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResu
 	var results []WineSearchResult
 	for rows.Next() {
 		var w Wine
-		if err := rows.Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.Producer, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity); err != nil {
+		if err := rows.Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.ProducerID, &w.Producer.Name, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity); err != nil {
 			return nil, fmt.Errorf("scanning wine: %w", err)
 		}
+		w.Producer.ID = w.ProducerID
 
 		status := gardeStatus(w, year)
 		if f.ReadyNow && status != "ready" {

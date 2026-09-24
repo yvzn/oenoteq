@@ -9,6 +9,7 @@ import FormField from '../components/FormField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
+import { useProducers } from '../composables/useProducers'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { useWines } from '../composables/useWines'
 import {
@@ -47,11 +48,21 @@ const {
   createError: appellationCreateError,
 } = useAppellations()
 
+const {
+  producers,
+  loading: producersLoading,
+  error: producersError,
+  load: loadProducers,
+  create: createProducer,
+  creating: creatingProducer,
+  createError: producerCreateError,
+} = useProducers()
+
 const colors: Color[] = ['rouge', 'blanc', 'rose']
 
 const millesime = ref(emptyWineFormFields.millesime)
 const appellationId = ref<number | null>(emptyWineFormFields.appellationId)
-const producer = ref(emptyWineFormFields.producer)
+const producerId = ref<number | null>(emptyWineFormFields.producerId)
 const color = ref<Color | ''>(emptyWineFormFields.color)
 const gardeDebut = ref(emptyWineFormFields.gardeDebut)
 const gardeFin = ref(emptyWineFormFields.gardeFin)
@@ -60,7 +71,7 @@ const quantity = ref(emptyWineFormFields.quantity)
 const fields = computed<WineFormFields>(() => ({
   millesime: millesime.value,
   appellationId: appellationId.value,
-  producer: producer.value,
+  producerId: producerId.value,
   color: color.value,
   gardeDebut: gardeDebut.value,
   gardeFin: gardeFin.value,
@@ -77,9 +88,14 @@ function stepQuantity(delta: number) {
 const showNewAppellation = ref(false)
 const newAppellationName = ref('')
 
-const loading = computed(() => appellationsLoading.value || (isEdit.value && wineLoading.value))
+const showNewProducer = ref(false)
+const newProducerName = ref('')
+
+const loading = computed(
+  () => appellationsLoading.value || producersLoading.value || (isEdit.value && wineLoading.value),
+)
 const loadError = computed(() =>
-  [appellationsError.value, isEdit.value ? wineError.value : null]
+  [appellationsError.value, producersError.value, isEdit.value ? wineError.value : null]
     .filter((e): e is string => e !== null)
     .join('; '),
 )
@@ -92,7 +108,7 @@ watch(
     const prefilled = wineToFormFields(next)
     millesime.value = prefilled.millesime
     appellationId.value = prefilled.appellationId
-    producer.value = prefilled.producer
+    producerId.value = prefilled.producerId
     color.value = prefilled.color
     gardeDebut.value = prefilled.gardeDebut
     gardeFin.value = prefilled.gardeFin
@@ -103,6 +119,7 @@ watch(
 
 function retry() {
   loadAppellations()
+  loadProducers()
   if (editId.value !== null) loadWine(editId.value)
 }
 
@@ -121,6 +138,22 @@ async function submitNewAppellation() {
     appellationId.value = created.id
     showNewAppellation.value = false
     newAppellationName.value = ''
+  }
+}
+
+function toggleNewProducer() {
+  showNewProducer.value = !showNewProducer.value
+  newProducerName.value = ''
+}
+
+async function submitNewProducer() {
+  const name = newProducerName.value.trim()
+  if (name === '') return
+  const created = await createProducer(name)
+  if (created) {
+    producerId.value = created.id
+    showNewProducer.value = false
+    newProducerName.value = ''
   }
 }
 
@@ -219,8 +252,45 @@ async function submit() {
         </p>
       </FormField>
 
-      <FormField label="Producer" :error="errors.producer" error-testid="wine-producer-error">
-        <input v-model="producer" data-testid="wine-producer-input" type="text" class="w-full" />
+      <FormField label="Producer" :error="errors.producerId" error-testid="wine-producer-error">
+        <AutocompleteField
+          testid="wine-producer"
+          :items="producers"
+          :model-value="producerId"
+          placeholder="Pick a producer"
+          @update:model-value="(v) => (producerId = v)"
+        />
+        <AppButton
+          type="button"
+          variant="ghost"
+          data-testid="new-producer-toggle"
+          class="mt-1.5 self-start text-xs"
+          @click="toggleNewProducer"
+        >
+          {{ showNewProducer ? 'Cancel' : "Can't find it? Create new producer" }}
+        </AppButton>
+        <div v-if="showNewProducer" class="mt-2 flex items-center gap-2">
+          <input
+            v-model="newProducerName"
+            data-testid="new-producer-name-input"
+            type="text"
+            placeholder="New producer name"
+            class="min-w-0 flex-1 text-sm"
+            @keydown.enter.prevent="submitNewProducer"
+          />
+          <AppButton
+            type="button"
+            data-testid="new-producer-submit"
+            :disabled="creatingProducer"
+            class="text-xs"
+            @click="submitNewProducer"
+          >
+            Create
+          </AppButton>
+        </div>
+        <p v-if="producerCreateError" data-testid="new-producer-error" class="text-danger text-xs">
+          {{ producerCreateError }}
+        </p>
       </FormField>
 
       <div class="grid grid-cols-2 gap-4">

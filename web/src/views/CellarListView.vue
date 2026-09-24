@@ -116,7 +116,7 @@ onMounted(loadFilterOptions)
               <ColorSwatch :color="wine.color" variant="rail" />
               <div class="min-w-0">
                 <div class="font-display text-ink text-[19px] leading-[1.25] font-semibold">
-                  {{ wine.producer }}
+                  {{ wine.producer.name }}
                 </div>
                 <div class="text-muted mt-0.5 text-[13.5px] capitalize">
                   {{ wine.color }} · {{ appellationName(wine.appellation_id) }}

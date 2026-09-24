@@ -1,11 +1,17 @@
 export type Color = 'rouge' | 'blanc' | 'rose'
 export type GardeStatus = 'too_young' | 'ready' | 'past_peak'
 
+export interface Producer {
+  id: number
+  name: string
+}
+
 export interface Wine {
   id: number
   millesime: number | null
   appellation_id: number
-  producer: string
+  producer_id: number
+  producer: Producer
   color: Color
   garde_debut: number
   garde_fin: number
@@ -16,7 +22,15 @@ export interface WineSearchResult extends Wine {
   garde_status: GardeStatus
 }
 
-export type WineInput = Omit<Wine, 'id'>
+export interface WineInput {
+  millesime: number | null
+  appellation_id: number
+  producer_id: number
+  color: Color
+  garde_debut: number
+  garde_fin: number
+  quantity: number
+}
 
 export interface Appellation {
   id: number

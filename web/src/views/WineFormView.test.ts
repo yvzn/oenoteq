@@ -17,11 +17,17 @@ const appellations = [
   { id: 2, name: 'Sancerre' },
 ]
 
+const producers = [
+  { id: 1, name: 'Les Garillères' },
+  { id: 2, name: 'Domaine X' },
+]
+
 const existingWine = {
   id: 5,
   millesime: 2018,
   appellation_id: 1,
-  producer: 'Les Garillères',
+  producer_id: 1,
+  producer: { id: 1, name: 'Les Garillères' },
   color: 'rouge',
   garde_debut: 2020,
   garde_fin: 2028,
@@ -33,6 +39,7 @@ const existingWine = {
 function mockGet(overrides: Record<string, unknown> = {}) {
   vi.mocked(apiClient.get).mockImplementation((path: string) => {
     if (path === '/appellations') return Promise.resolve(overrides.appellations ?? appellations)
+    if (path === '/producers') return Promise.resolve(overrides.producers ?? producers)
     if (path === '/wines/5') return Promise.resolve(overrides.wine ?? existingWine)
     throw new Error(`unexpected path: ${path}`)
   })
@@ -67,6 +74,7 @@ async function fillValidForm(wrapper: ReturnType<typeof mount>) {
     .findAll('[data-testid="wine-appellation-option"]')[0]!
     .trigger('mousedown')
   await wrapper.get('[data-testid="wine-producer-input"]').setValue('Les Garillères')
+  await wrapper.findAll('[data-testid="wine-producer-option"]')[0]!.trigger('mousedown')
   await wrapper.get('[data-testid="wine-color-input"]').setValue('rouge')
   await wrapper.get('[data-testid="wine-garde-debut-input"]').setValue('2020')
   await wrapper.get('[data-testid="wine-garde-fin-input"]').setValue('2028')
@@ -149,7 +157,7 @@ describe('WineFormView — add', () => {
     expect(apiClient.post).toHaveBeenCalledWith('/wines', {
       millesime: null,
       appellation_id: 1,
-      producer: 'Les Garillères',
+      producer_id: 1,
       color: 'rouge',
       garde_debut: 2020,
       garde_fin: 2028,
@@ -196,12 +204,51 @@ describe('WineFormView — add', () => {
     expect(apiClient.post).toHaveBeenCalledWith('/appellations', { name: 'Bourgueil' })
     expect(apiClient.post).not.toHaveBeenCalledWith('/wines', expect.anything())
   })
+
+  it('creates a new producer inline and selects it', async () => {
+    mockGet()
+    vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
+      if (path === '/producers') return Promise.resolve({ id: 3, ...(body as object) })
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="new-producer-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="new-producer-name-input"]').setValue('Domaine Nouveau')
+    await wrapper.get('[data-testid="new-producer-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledWith('/producers', { name: 'Domaine Nouveau' })
+    expect(
+      (wrapper.get('[data-testid="wine-producer-input"]').element as HTMLInputElement).value,
+    ).toBe('Domaine Nouveau')
+    expect(wrapper.find('[data-testid="new-producer-name-input"]').exists()).toBe(false)
+  })
+
+  it('creates a new producer on Enter in its name input, without submitting the wine form', async () => {
+    mockGet()
+    vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
+      if (path === '/producers') return Promise.resolve({ id: 3, ...(body as object) })
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="new-producer-toggle"]').trigger('click')
+    const nameInput = wrapper.get('[data-testid="new-producer-name-input"]')
+    await nameInput.setValue('Domaine Nouveau')
+    await nameInput.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledWith('/producers', { name: 'Domaine Nouveau' })
+    expect(apiClient.post).not.toHaveBeenCalledWith('/wines', expect.anything())
+  })
 })
 
 describe('WineFormView — edit', () => {
   it('retries the failed load when the retry action is clicked', async () => {
     vi.mocked(apiClient.get).mockImplementation((path: string) => {
       if (path === '/wines/5') return Promise.reject(new Error('server exploded'))
+      if (path === '/producers') return Promise.resolve(producers)
       return Promise.resolve(appellations)
     })
 
@@ -241,7 +288,8 @@ describe('WineFormView — edit', () => {
     })
 
     const { wrapper, router } = await mountAt('/wines/5/edit')
-    await wrapper.get('[data-testid="wine-producer-input"]').setValue('Domaine Les Garillères')
+    await wrapper.get('[data-testid="wine-producer-input"]').setValue('Domaine X')
+    await wrapper.findAll('[data-testid="wine-producer-option"]')[0]!.trigger('mousedown')
 
     await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
     await flushPromises()
@@ -249,7 +297,7 @@ describe('WineFormView — edit', () => {
     expect(apiClient.put).toHaveBeenCalledWith('/wines/5', {
       millesime: 2018,
       appellation_id: 1,
-      producer: 'Domaine Les Garillères',
+      producer_id: 2,
       color: 'rouge',
       garde_debut: 2020,
       garde_fin: 2028,

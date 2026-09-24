@@ -10,7 +10,7 @@ import {
 const validFields: WineFormFields = {
   millesime: '2018',
   appellationId: 1,
-  producer: 'Les Garillères',
+  producerId: 2,
   color: 'rouge',
   gardeDebut: '2020',
   gardeFin: '2028',
@@ -33,8 +33,8 @@ describe('validateWineForm', () => {
   })
 
   it('requires a producer', () => {
-    expect(validateWineForm({ ...validFields, producer: '  ' })).toMatchObject({
-      producer: expect.any(String),
+    expect(validateWineForm({ ...validFields, producerId: null })).toMatchObject({
+      producerId: expect.any(String),
     })
   })
 
@@ -85,7 +85,7 @@ describe('toWineInput', () => {
     expect(toWineInput(validFields)).toEqual({
       millesime: 2018,
       appellation_id: 1,
-      producer: 'Les Garillères',
+      producer_id: 2,
       color: 'rouge',
       garde_debut: 2020,
       garde_fin: 2028,
@@ -96,12 +96,6 @@ describe('toWineInput', () => {
   it('converts an empty millesime to null', () => {
     expect(toWineInput({ ...validFields, millesime: '' }).millesime).toBeNull()
   })
-
-  it('trims producer whitespace', () => {
-    expect(toWineInput({ ...validFields, producer: '  Les Garillères  ' }).producer).toBe(
-      'Les Garillères',
-    )
-  })
 })
 
 describe('wineToFormFields', () => {
@@ -110,7 +104,7 @@ describe('wineToFormFields', () => {
       wineToFormFields({
         millesime: 2018,
         appellation_id: 1,
-        producer: 'Les Garillères',
+        producer_id: 2,
         color: 'rouge',
         garde_debut: 2020,
         garde_fin: 2028,
@@ -124,7 +118,7 @@ describe('wineToFormFields', () => {
       wineToFormFields({
         millesime: null,
         appellation_id: 1,
-        producer: 'Les Garillères',
+        producer_id: 2,
         color: 'rouge',
         garde_debut: 2020,
         garde_fin: 2028,
@@ -135,11 +129,11 @@ describe('wineToFormFields', () => {
 })
 
 describe('emptyWineFormFields', () => {
-  it('has no appellation selected and every field blank', () => {
+  it('has no appellation or producer selected and every field blank', () => {
     expect(emptyWineFormFields).toEqual({
       millesime: '',
       appellationId: null,
-      producer: '',
+      producerId: null,
       color: '',
       gardeDebut: '',
       gardeFin: '',

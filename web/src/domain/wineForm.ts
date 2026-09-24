@@ -3,7 +3,7 @@ import type { Color, WineInput } from '../api/types'
 export interface WineFormFields {
   millesime: string
   appellationId: number | null
-  producer: string
+  producerId: number | null
   color: Color | ''
   gardeDebut: string
   gardeFin: string
@@ -13,7 +13,7 @@ export interface WineFormFields {
 export const emptyWineFormFields: WineFormFields = {
   millesime: '',
   appellationId: null,
-  producer: '',
+  producerId: null,
   color: '',
   gardeDebut: '',
   gardeFin: '',
@@ -26,7 +26,7 @@ export function validateWineForm(fields: WineFormFields): WineFormErrors {
   const errors: WineFormErrors = {}
 
   if (fields.appellationId === null) errors.appellationId = 'Appellation is required'
-  if (fields.producer.trim() === '') errors.producer = 'Producer is required'
+  if (fields.producerId === null) errors.producerId = 'Producer is required'
   if (fields.color === '') errors.color = 'Color is required'
 
   const gardeDebut = parseNumber(fields.gardeDebut)
@@ -48,7 +48,7 @@ export function toWineInput(fields: WineFormFields): WineInput {
   return {
     millesime: parseNumber(fields.millesime),
     appellation_id: fields.appellationId as number,
-    producer: fields.producer.trim(),
+    producer_id: fields.producerId as number,
     color: fields.color as Color,
     garde_debut: parseNumber(fields.gardeDebut) as number,
     garde_fin: parseNumber(fields.gardeFin) as number,
@@ -60,7 +60,7 @@ export function wineToFormFields(wine: WineInput): WineFormFields {
   return {
     millesime: wine.millesime === null ? '' : String(wine.millesime),
     appellationId: wine.appellation_id,
-    producer: wine.producer,
+    producerId: wine.producer_id,
     color: wine.color,
     gardeDebut: String(wine.garde_debut),
     gardeFin: String(wine.garde_fin),

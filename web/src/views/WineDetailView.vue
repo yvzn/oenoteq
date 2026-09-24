@@ -99,7 +99,7 @@ function retry() {
         <div class="flex items-center gap-3.5">
           <ColorSwatch :color="wine.color" variant="rail" class="h-[34px]" />
           <h1 class="font-display text-ink text-[38px] leading-tight font-semibold tracking-tight">
-            {{ wine.producer }}
+            {{ wine.producer.name }}
           </h1>
         </div>
         <div class="flex items-center gap-4 pt-2">

@@ -16,6 +16,19 @@ GET {{baseUrl}}/appellations
 
 
 
+### Create Producer
+POST {{baseUrl}}/producers
+Content-Type: application/json
+
+{
+  "name": "Domaine du Closel"
+}
+
+### List Producers
+GET {{baseUrl}}/producers
+
+
+
 ### Create Meal
 POST {{baseUrl}}/meals
 Content-Type: application/json
@@ -36,7 +49,7 @@ Content-Type: application/json
 {
   "millesime": 2018,
   "appellation_id": 1,
-  "producer": "Les Garillères",
+  "producer_id": 1,
   "color": "rouge",
   "garde_debut": 2020,
   "garde_fin": 2028,
@@ -56,7 +69,7 @@ Content-Type: application/json
 {
   "millesime": 2018,
   "appellation_id": 1,
-  "producer": "Domaine Les Garillères",
+  "producer_id": 1,
   "color": "rouge",
   "garde_debut": 2020,
   "garde_fin": 2028,

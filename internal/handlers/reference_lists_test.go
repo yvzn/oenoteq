@@ -109,6 +109,82 @@ func TestAppellationDuplicateRejection(t *testing.T) {
 	}
 }
 
+func TestProducerCreateAndList(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+
+	resp := harness.Do("POST", "/producers", map[string]string{
+		"name": "Domaine du Closel",
+	})
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Errorf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	var createdProducer db.Producer
+	harness.JSONResponse(resp, &createdProducer)
+
+	if createdProducer.Name != "Domaine du Closel" {
+		t.Errorf("Expected name 'Domaine du Closel', got %q", createdProducer.Name)
+	}
+
+	if createdProducer.ID == 0 {
+		t.Errorf("Expected non-zero ID")
+	}
+
+	resp = harness.Do("POST", "/producers", map[string]string{
+		"name": "Chateau Margaux",
+	})
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Errorf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	resp = harness.Do("GET", "/producers", nil)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var producers []db.Producer
+	harness.JSONResponse(resp, &producers)
+
+	if len(producers) != 2 {
+		t.Errorf("Expected 2 producers, got %d", len(producers))
+	}
+
+	if producers[0].Name != "Chateau Margaux" {
+		t.Errorf("Expected first producer to be 'Chateau Margaux' (ordered), got %q", producers[0].Name)
+	}
+
+	if producers[1].Name != "Domaine du Closel" {
+		t.Errorf("Expected second producer to be 'Domaine du Closel' (ordered), got %q", producers[1].Name)
+	}
+}
+
+func TestProducerDuplicateRejection(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+
+	resp := harness.Do("POST", "/producers", map[string]string{
+		"name": "Domaine du Closel",
+	})
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Errorf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	resp = harness.Do("POST", "/producers", map[string]string{
+		"name": "Domaine du Closel",
+	})
+
+	if resp.StatusCode != http.StatusConflict {
+		t.Errorf("Expected status %d, got %d", http.StatusConflict, resp.StatusCode)
+	}
+
+	if code := harness.ErrorCode(resp); code != "already_exists" {
+		t.Errorf("Expected error code 'already_exists', got %q", code)
+	}
+}
+
 func TestMealCreateAndList(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 

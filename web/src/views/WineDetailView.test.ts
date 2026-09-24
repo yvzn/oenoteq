@@ -26,7 +26,8 @@ const wineDetail = {
   id: 1,
   millesime: 2018,
   appellation_id: 1,
-  producer: 'Les Garillères',
+  producer_id: 1,
+  producer: { id: 1, name: 'Les Garillères' },
   color: 'rouge',
   garde_debut: currentYear - 5,
   garde_fin: currentYear + 5,
@@ -223,7 +224,7 @@ describe('WineDetailView', () => {
   })
 
   it('clears a stale consumption success message when navigating to a different wine', async () => {
-    const wineTwo = { ...wineDetail, id: 2, producer: 'Domaine Autre' }
+    const wineTwo = { ...wineDetail, id: 2, producer: { id: 2, name: 'Domaine Autre' } }
     vi.mocked(apiClient.get).mockImplementation((path: string) => {
       if (path === '/appellations') return Promise.resolve(appellations)
       if (path === '/wines/1') return Promise.resolve(wineDetail)
@@ -246,7 +247,7 @@ describe('WineDetailView', () => {
   })
 
   it('clears a stale consumption error when navigating to a different wine', async () => {
-    const wineTwo = { ...wineDetail, id: 2, producer: 'Domaine Autre' }
+    const wineTwo = { ...wineDetail, id: 2, producer: { id: 2, name: 'Domaine Autre' } }
     vi.mocked(apiClient.get).mockImplementation((path: string) => {
       if (path === '/appellations') return Promise.resolve(appellations)
       if (path === '/wines/1') return Promise.resolve(wineDetail)

@@ -13,9 +13,11 @@ import (
 func createSearchTestWine(t *testing.T, harness *test.Harness, appellationID int, color string, gardeDebut, gardeFin, quantity int) db.Wine {
 	t.Helper()
 
+	producerID := createTestProducer(t, harness, uniqueTestProducerName("Test Producer"))
+
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
 		"appellation_id": appellationID,
-		"producer":       "Test Producer",
+		"producer_id":    producerID,
 		"color":          color,
 		"garde_debut":    gardeDebut,
 		"garde_fin":      gardeFin,
