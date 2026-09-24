@@ -307,7 +307,7 @@ async function submit() {
         <div class="border-line bg-parchment-raised inline-flex w-auto self-start items-stretch overflow-hidden rounded-lg border">
           <button
             type="button"
-            class="text-ink-soft hover:bg-parchment w-10 text-lg font-medium transition-colors"
+            class="text-ink-soft hover:bg-parchment focus-visible:ring-bordeaux w-10 rounded-l-lg text-lg font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
             @click="stepQuantity(-1)"
           >
             −
@@ -320,7 +320,7 @@ async function submit() {
           />
           <button
             type="button"
-            class="text-ink-soft hover:bg-parchment w-10 text-lg font-medium transition-colors"
+            class="text-ink-soft hover:bg-parchment focus-visible:ring-bordeaux w-10 rounded-r-lg text-lg font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
             @click="stepQuantity(1)"
           >
             +
