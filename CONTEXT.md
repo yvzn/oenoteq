@@ -9,7 +9,8 @@ The tracked entity: millesime + appellation + producer + color + garde + quantit
 _Avoid_: Bottle (as an entity)
 
 **Producer**:
-Free-text name of who made the wine (e.g. "Château Margaux", "Domaine Leflaive"). Type (château/domaine/maison/...) is treated as part of the name, not a separate field.
+A named entity for who made the wine (e.g. "Château Margaux", "Domaine Leflaive"), referenced by Wine rather than typed in free-hand per wine — same convention as Appellation. Type (château/domaine/maison/...) is treated as part of the name, not a separate field.
+_Avoid_: Producer label, producer name (as if it were free text)
 
 **Consumption**:
 A record of drinking one unit of a Wine: date (required), rating 1-5 (optional), notes (optional). Decrements the Wine's quantity.
