@@ -71,7 +71,7 @@ function clearFilters() {
       </div>
     </FormField>
 
-    <label class="text-muted flex cursor-pointer items-center gap-2 pb-1.5 text-xs">
+    <label class="text-muted flex h-[38px] cursor-pointer items-center gap-2 text-xs">
       <input
         type="checkbox"
         data-testid="ready-now-filter"
@@ -90,7 +90,7 @@ function clearFilters() {
       Ready now
     </label>
 
-    <div v-if="hasActiveFilters" class="flex items-center pb-1.5">
+    <div v-if="hasActiveFilters" class="flex h-[38px] items-center">
       <AppButton variant="ghost" type="button" data-testid="clear-filters-button" @click="clearFilters">
         Clear filters
       </AppButton>

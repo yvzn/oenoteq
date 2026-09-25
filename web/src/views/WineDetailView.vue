@@ -166,16 +166,6 @@ function retry() {
           </h1>
         </div>
         <div class="flex items-center gap-4 pt-2">
-          <AppButton
-            :to="{
-              name: 'meal-pairings',
-              query: { appellation_id: wine.appellation_id, color: wine.color },
-            }"
-            variant="ghost"
-            data-testid="manage-pairings-link"
-          >
-            Manage pairings
-          </AppButton>
           <AppButton :to="{ name: 'wine-edit', params: { id: wine.id } }" variant="secondary" data-testid="edit-wine-link">
             Edit
           </AppButton>
@@ -195,9 +185,21 @@ function retry() {
         <GardeStatusBadge v-if="gardeStatus" :status="gardeStatus" class="ml-1" />
       </div>
 
-      <div class="border-line grid grid-cols-2 gap-8 border-t pt-[26px] pb-[26px]">
+      <div class="border-line border-t pt-[26px] pb-[26px]">
         <section>
-          <h2 class="font-display text-ink mb-4 text-[16px] font-semibold">Suggested meals</h2>
+          <div class="mb-4 flex items-center justify-between gap-3">
+            <h2 class="font-display text-ink text-[16px] font-semibold">Suggested meals</h2>
+            <AppButton
+              :to="{
+                name: 'meal-pairings',
+                query: { appellation_id: wine.appellation_id, color: wine.color },
+              }"
+              variant="ghost"
+              data-testid="manage-pairings-link"
+            >
+              Manage
+            </AppButton>
+          </div>
           <StatusLine v-if="wine.suggested_meals.length === 0">No suggestions yet.</StatusLine>
           <ul v-else data-testid="suggested-meals" class="flex flex-col gap-2.5 text-[15px]">
             <li
@@ -212,7 +214,7 @@ function retry() {
           </ul>
         </section>
 
-        <section>
+        <section class="border-line mt-[26px] border-t pt-[26px]">
           <h2 class="font-display text-ink mb-4 text-[16px] font-semibold">Consumption history</h2>
           <StatusLine v-if="wine.consumption_history.length === 0">No consumptions recorded yet.</StatusLine>
           <ul v-else data-testid="consumption-history" class="flex flex-col">

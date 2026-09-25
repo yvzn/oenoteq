@@ -12,7 +12,7 @@ const props = withDefaults(
   { variant: 'primary', type: 'button', disabled: false },
 )
 
-const baseClass = 'rounded-lg text-sm font-semibold transition-colors'
+const baseClass = 'rounded-lg text-sm font-semibold transition-colors cursor-pointer'
 
 const variantClass = computed(() => ({
   'bg-bordeaux hover:bg-bordeaux-hover px-5 py-3 text-white shadow-sm': props.variant === 'primary',
