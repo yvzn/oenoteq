@@ -1,17 +1,22 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { emptySearchFilters, type SearchFilters } from '../domain/searchFilters'
+import { defaultWineSort, type WineSort } from '../domain/wineSort'
 import FilterBar from './FilterBar.vue'
 
 const appellations = [{ id: 1, name: 'Chinon' }]
 const meals = [{ id: 1, name: 'Boeuf bourguignon' }]
 
-function mountFilterBar(filters: SearchFilters) {
-  return mount(FilterBar, { props: { filters, appellations, meals } })
+function mountFilterBar(filters: SearchFilters, sort: WineSort = defaultWineSort) {
+  return mount(FilterBar, { props: { filters, sort, appellations, meals } })
 }
 
 async function openPanel(wrapper: ReturnType<typeof mountFilterBar>) {
   await wrapper.get('[data-testid="filter-toggle-button"]').trigger('click')
+}
+
+async function openSortPanel(wrapper: ReturnType<typeof mountFilterBar>) {
+  await wrapper.get('[data-testid="sort-toggle-button"]').trigger('click')
 }
 
 describe('FilterBar', () => {
@@ -146,6 +151,76 @@ describe('FilterBar', () => {
 
       expect(dialog.open).toBe(false)
       expect(wrapper.emitted('update:filters')![0]).toEqual([emptySearchFilters])
+    })
+  })
+
+  describe('mobile sort panel', () => {
+    it('is closed until the sort toggle button is clicked', async () => {
+      const wrapper = mountFilterBar(emptySearchFilters)
+      const dialog = wrapper.get('[data-testid="sort-panel"]').element as HTMLDialogElement
+
+      expect(dialog.open).toBe(false)
+
+      await openSortPanel(wrapper)
+
+      expect(dialog.open).toBe(true)
+    })
+
+    it('marks the current sort option as checked', async () => {
+      const wrapper = mountFilterBar(emptySearchFilters, { sortBy: 'producer', sortDir: 'desc' })
+
+      await openSortPanel(wrapper)
+
+      expect(
+        wrapper.get<HTMLInputElement>('[data-testid="sort-option-producer-desc"]').element.checked,
+      ).toBe(true)
+      expect(
+        wrapper.get<HTMLInputElement>('[data-testid="sort-option-producer-asc"]').element.checked,
+      ).toBe(false)
+    })
+
+    it('emits the chosen sort and closes immediately on selection', async () => {
+      const wrapper = mountFilterBar(emptySearchFilters)
+      const dialog = wrapper.get('[data-testid="sort-panel"]').element as HTMLDialogElement
+
+      await openSortPanel(wrapper)
+      await wrapper.get('[data-testid="sort-option-millesime-desc"]').setValue(true)
+
+      expect(wrapper.emitted('update:sort')![0]).toEqual([{ sortBy: 'millesime', sortDir: 'desc' }])
+      expect(dialog.open).toBe(false)
+    })
+
+    it('emits nothing when closed via the close button', async () => {
+      const wrapper = mountFilterBar(emptySearchFilters)
+      const dialog = wrapper.get('[data-testid="sort-panel"]').element as HTMLDialogElement
+
+      await openSortPanel(wrapper)
+      await wrapper.get('[data-testid="sort-panel-close"]').trigger('click')
+
+      expect(dialog.open).toBe(false)
+      expect(wrapper.emitted('update:sort')).toBeUndefined()
+    })
+
+    it('emits nothing on native cancel (e.g. Escape)', async () => {
+      const wrapper = mountFilterBar(emptySearchFilters)
+      const dialog = wrapper.get('[data-testid="sort-panel"]').element as HTMLDialogElement
+
+      await openSortPanel(wrapper)
+      await wrapper.get('[data-testid="sort-panel"]').trigger('cancel')
+
+      expect(dialog.open).toBe(false)
+      expect(wrapper.emitted('update:sort')).toBeUndefined()
+    })
+
+    it('emits nothing when clicking the backdrop', async () => {
+      const wrapper = mountFilterBar(emptySearchFilters)
+      const dialog = wrapper.get('[data-testid="sort-panel"]').element as HTMLDialogElement
+
+      await openSortPanel(wrapper)
+      await wrapper.get('[data-testid="sort-panel"]').trigger('click')
+
+      expect(dialog.open).toBe(false)
+      expect(wrapper.emitted('update:sort')).toBeUndefined()
     })
   })
 })

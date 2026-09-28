@@ -11,6 +11,7 @@ import { useAppellations } from '../composables/useAppellations'
 import { useMeals } from '../composables/useMeals'
 import { useSearch } from '../composables/useSearch'
 import { filtersToQueryParams, queryParamsToFilters, type SearchFilters } from '../domain/searchFilters'
+import { nextSort, queryParamsToSort, sortToQueryParams, type SortBy, type WineSort } from '../domain/wineSort'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,6 +26,7 @@ const { meals, loading: mealsLoading, error: mealsError, load: loadMeals } = use
 const { results, loading: searchLoading, error: searchError, search } = useSearch()
 
 const filters = computed<SearchFilters>(() => queryParamsToFilters(route.query))
+const sort = computed<WineSort>(() => queryParamsToSort(route.query))
 
 const loading = computed(
   () => appellationsLoading.value || mealsLoading.value || searchLoading.value,
@@ -52,7 +54,20 @@ function appellationName(appellationId: number): string {
 }
 
 function updateFilters(next: SearchFilters) {
-  router.push({ query: filtersToQueryParams(next) })
+  router.push({ query: { ...filtersToQueryParams(next), ...sortToQueryParams(sort.value) } })
+}
+
+function updateSort(next: WineSort) {
+  router.push({ query: { ...filtersToQueryParams(filters.value), ...sortToQueryParams(next) } })
+}
+
+function sortByColumn(column: SortBy) {
+  updateSort(nextSort(sort.value, column))
+}
+
+function sortIndicator(column: SortBy) {
+  if (sort.value.sortBy !== column) return ''
+  return sort.value.sortDir === 'asc' ? '▲' : '▼'
 }
 
 function loadFilterOptions() {
@@ -62,10 +77,12 @@ function loadFilterOptions() {
 
 function retry() {
   loadFilterOptions()
-  search(filters.value)
+  search(filters.value, sort.value)
 }
 
-watch(filters, (next) => search(next), { immediate: true })
+watch([filters, sort], ([nextFilters, nextSortValue]) => search(nextFilters, nextSortValue), {
+  immediate: true,
+})
 
 onMounted(loadFilterOptions)
 </script>
@@ -74,9 +91,11 @@ onMounted(loadFilterOptions)
   <section>
     <FilterBar
       :filters="filters"
+      :sort="sort"
       :appellations="appellations"
       :meals="meals"
       @update:filters="updateFilters"
+      @update:sort="updateSort"
     />
 
     <div class="mx-auto max-w-2xl px-6 py-6">
@@ -101,10 +120,41 @@ onMounted(loadFilterOptions)
           class="border-line mt-8 hidden grid-cols-[5px_1fr_78px_60px_118px] gap-5 border-b px-[22px] pb-2.5 sm:grid"
         >
           <div></div>
-          <div class="text-label text-xs font-medium">Wine</div>
-          <div class="text-label text-right text-xs font-medium">Vintage</div>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              data-testid="sort-header-producer"
+              class="text-label flex items-center gap-1 text-xs font-medium"
+              @click="sortByColumn('producer')"
+            >
+              Producer <span aria-hidden="true">{{ sortIndicator('producer') }}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="sort-header-appellation"
+              class="text-label flex items-center gap-1 text-xs font-medium"
+              @click="sortByColumn('appellation')"
+            >
+              Appellation <span aria-hidden="true">{{ sortIndicator('appellation') }}</span>
+            </button>
+          </div>
+          <button
+            type="button"
+            data-testid="sort-header-millesime"
+            class="text-label flex items-center justify-end gap-1 text-right text-xs font-medium"
+            @click="sortByColumn('millesime')"
+          >
+            Millesime <span aria-hidden="true">{{ sortIndicator('millesime') }}</span>
+          </button>
           <div class="text-label text-right text-xs font-medium">Qty</div>
-          <div class="text-label text-right text-xs font-medium">Status</div>
+          <button
+            type="button"
+            data-testid="sort-header-status"
+            class="text-label flex items-center justify-end gap-1 text-right text-xs font-medium"
+            @click="sortByColumn('status')"
+          >
+            Status <span aria-hidden="true">{{ sortIndicator('status') }}</span>
+          </button>
         </div>
         <ul data-testid="wine-list" class="mt-2 flex flex-col sm:mt-0">
           <li v-for="wine in results" :key="wine.id" data-testid="wine-item" class="border-line border-b">

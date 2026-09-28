@@ -2,16 +2,21 @@
 import { computed, ref, watch } from 'vue'
 import type { Appellation, Meal } from '../api/types'
 import { emptySearchFilters, type SearchFilters } from '../domain/searchFilters'
+import { sortOptions, type WineSort } from '../domain/wineSort'
 import AppButton from './AppButton.vue'
 import FilterFields from './FilterFields.vue'
 
 const props = defineProps<{
   filters: SearchFilters
+  sort: WineSort
   appellations: Appellation[]
   meals: Meal[]
 }>()
 
-const emit = defineEmits<{ 'update:filters': [value: SearchFilters] }>()
+const emit = defineEmits<{
+  'update:filters': [value: SearchFilters]
+  'update:sort': [value: WineSort]
+}>()
 
 const activeFilterCount = computed(
   () =>
@@ -66,6 +71,36 @@ function clearPanel() {
 function onPanelBackdropClick(event: MouseEvent) {
   if (event.target === panel.value) cancelPanel()
 }
+
+// Mobile sort panel: a single radio choice applies immediately, no draft/apply needed.
+const sortPanel = ref<HTMLDialogElement | null>(null)
+const sortPanelOpen = ref(false)
+
+watch(sortPanelOpen, (isOpen) => {
+  if (isOpen) sortPanel.value?.showModal()
+  else sortPanel.value?.close()
+})
+
+function openSortPanel() {
+  sortPanelOpen.value = true
+}
+
+function closeSortPanel() {
+  sortPanelOpen.value = false
+}
+
+function chooseSort(value: WineSort) {
+  emit('update:sort', value)
+  sortPanelOpen.value = false
+}
+
+function onSortPanelBackdropClick(event: MouseEvent) {
+  if (event.target === sortPanel.value) closeSortPanel()
+}
+
+function sortOptionTestId(value: WineSort) {
+  return `sort-option-${value.sortBy}-${value.sortDir}`
+}
 </script>
 
 <template>
@@ -92,6 +127,9 @@ function onPanelBackdropClick(event: MouseEvent) {
     <div class="border-line bg-parchment-raised flex items-center gap-3 border-b px-6 py-4 sm:hidden">
       <AppButton variant="secondary" type="button" data-testid="filter-toggle-button" @click="openPanel">
         Filters<template v-if="activeFilterCount > 0"> ({{ activeFilterCount }})</template>
+      </AppButton>
+      <AppButton variant="secondary" type="button" data-testid="sort-toggle-button" @click="openSortPanel">
+        Sort
       </AppButton>
       <AppButton
         v-if="hasActiveFilters"
@@ -141,6 +179,44 @@ function onPanelBackdropClick(event: MouseEvent) {
         <AppButton variant="primary" type="button" data-testid="filter-panel-apply" @click="applyPanel">
           Apply
         </AppButton>
+      </div>
+    </dialog>
+
+    <dialog
+      ref="sortPanel"
+      data-testid="sort-panel"
+      class="border-line bg-parchment-raised fixed inset-y-0 right-0 m-0 h-full w-full max-w-xs rounded-none border-l p-5 shadow-lg backdrop:bg-ink/40"
+      @cancel.prevent="closeSortPanel"
+      @click="onSortPanelBackdropClick"
+    >
+      <div class="flex items-center justify-between">
+        <h2 class="font-display text-ink text-base">Sort</h2>
+        <button
+          type="button"
+          data-testid="sort-panel-close"
+          aria-label="Close sort"
+          class="text-muted hover:text-ink cursor-pointer text-xl leading-none"
+          @click="closeSortPanel"
+        >
+          &times;
+        </button>
+      </div>
+
+      <div class="mt-4 flex flex-col gap-3">
+        <label
+          v-for="option in sortOptions"
+          :key="sortOptionTestId(option.value)"
+          class="flex cursor-pointer items-center gap-2 text-sm"
+        >
+          <input
+            type="radio"
+            name="wine-sort"
+            :data-testid="sortOptionTestId(option.value)"
+            :checked="sort.sortBy === option.value.sortBy && sort.sortDir === option.value.sortDir"
+            @change="chooseSort(option.value)"
+          />
+          {{ option.label }}
+        </label>
       </div>
     </dialog>
   </div>

@@ -330,6 +330,179 @@ func TestSearchRejectsInvalidColor(t *testing.T) {
 	}
 }
 
+func resultIDs(results []db.WineSearchResult) []int {
+	ids := make([]int, len(results))
+	for i, r := range results {
+		ids[i] = r.ID
+	}
+	return ids
+}
+
+func TestSearchDefaultsToAppellationAscending(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	year := time.Now().Year()
+	appellationB := createTestAppellation(t, harness, "Sancerre")
+	appellationA := createTestAppellation(t, harness, "Chablis")
+
+	wineB := createSearchTestWine(t, harness, appellationB, "blanc", year-2, year+2, 3)
+	wineA := createSearchTestWine(t, harness, appellationA, "blanc", year-2, year+2, 3)
+
+	results := doSearch(t, harness, "")
+
+	if got, want := resultIDs(results), []int{wineA.ID, wineB.ID}; !slicesEqual(got, want) {
+		t.Errorf("Expected order %v (Chablis before Sancerre), got %v", want, got)
+	}
+}
+
+func TestSearchSortByProducerDescending(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	year := time.Now().Year()
+	appellation := createTestAppellation(t, harness, "Chinon")
+
+	producerZID := createTestProducer(t, harness, "Zin Domaine")
+	producerAID := createTestProducer(t, harness, "Alpha Domaine")
+
+	wineZ := createWineForProducer(t, harness, producerZID, appellation, year)
+	wineA := createWineForProducer(t, harness, producerAID, appellation, year)
+
+	results := doSearch(t, harness, "?sort_by=producer&sort_dir=desc")
+
+	if got, want := resultIDs(results), []int{wineZ.ID, wineA.ID}; !slicesEqual(got, want) {
+		t.Errorf("Expected order %v (Zin before Alpha, descending), got %v", want, got)
+	}
+}
+
+func TestSearchSortByMillesimePutsNullsLastBothDirections(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellation := createTestAppellation(t, harness, "Chinon")
+
+	nv := createSearchTestWineWithOptionalGarde(t, harness, appellation, "rouge", nil, nil, 3)
+	vintage := createWineWithMillesime(t, harness, appellation, 2018)
+
+	ascending := doSearch(t, harness, "?sort_by=millesime&sort_dir=asc")
+	if got, want := resultIDs(ascending), []int{vintage.ID, nv.ID}; !slicesEqual(got, want) {
+		t.Errorf("Expected NV last ascending, got order %v want %v", got, want)
+	}
+
+	descending := doSearch(t, harness, "?sort_by=millesime&sort_dir=desc")
+	if got, want := resultIDs(descending), []int{vintage.ID, nv.ID}; !slicesEqual(got, want) {
+		t.Errorf("Expected NV last descending too, got order %v want %v", got, want)
+	}
+}
+
+func TestSearchSortByStatusFollowsGlossaryOrder(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	year := time.Now().Year()
+	appellation := createTestAppellation(t, harness, "Bandol")
+
+	tooYoung := createSearchTestWine(t, harness, appellation, "rouge", year+5, year+10, 3)
+	ready := createSearchTestWine(t, harness, appellation, "rouge", year-2, year+2, 3)
+	pastPeak := createSearchTestWine(t, harness, appellation, "rouge", year-10, year-1, 3)
+	unassessed := createSearchTestWineWithOptionalGarde(t, harness, appellation, "rouge", nil, nil, 3)
+
+	results := doSearch(t, harness, "?sort_by=status&sort_dir=asc")
+
+	want := []int{tooYoung.ID, ready.ID, pastPeak.ID, unassessed.ID}
+	if got := resultIDs(results); !slicesEqual(got, want) {
+		t.Errorf("Expected too_young,ready,past_peak,unassessed order, got %v want %v", got, want)
+	}
+}
+
+func TestSearchSortTieBreaksByProducerThenID(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	year := time.Now().Year()
+	appellation := createTestAppellation(t, harness, "Chinon")
+
+	producerBID := createTestProducer(t, harness, "Beta Domaine")
+	producerAID := createTestProducer(t, harness, "Alpha Domaine")
+
+	wineB := createWineForProducer(t, harness, producerBID, appellation, year)
+	wineA := createWineForProducer(t, harness, producerAID, appellation, year)
+
+	results := doSearch(t, harness, "?sort_by=appellation&sort_dir=asc")
+
+	if got, want := resultIDs(results), []int{wineA.ID, wineB.ID}; !slicesEqual(got, want) {
+		t.Errorf("Expected producer-name tie-break Alpha before Beta, got %v want %v", got, want)
+	}
+}
+
+func TestSearchRejectsInvalidSortBy(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+
+	resp := harness.Do("GET", "/search?sort_by=quantity", nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "invalid_sort" {
+		t.Errorf("Expected error code 'invalid_sort', got %q", code)
+	}
+}
+
+func TestSearchRejectsInvalidSortDir(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+
+	resp := harness.Do("GET", "/search?sort_dir=sideways", nil)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "invalid_sort" {
+		t.Errorf("Expected error code 'invalid_sort', got %q", code)
+	}
+}
+
+func createWineWithMillesime(t *testing.T, harness *test.Harness, appellationID, millesime int) db.Wine {
+	t.Helper()
+
+	producerID := createTestProducer(t, harness, uniqueTestProducerName("Test Producer"))
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"millesime":      millesime,
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "rouge",
+		"quantity":       3,
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d creating wine, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	var wine db.Wine
+	harness.JSONResponse(resp, &wine)
+	return wine
+}
+
+func createWineForProducer(t *testing.T, harness *test.Harness, producerID, appellationID, year int) db.Wine {
+	t.Helper()
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "rouge",
+		"garde_debut":    year - 2,
+		"garde_fin":      year + 2,
+		"quantity":       3,
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d creating wine, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	var wine db.Wine
+	harness.JSONResponse(resp, &wine)
+	return wine
+}
+
+func slicesEqual(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func itoa(n int) string {
 	return strconv.Itoa(n)
 }

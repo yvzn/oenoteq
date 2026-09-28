@@ -29,6 +29,7 @@ const (
 	codeInvalidConsumptionID = "invalid_consumption_id"
 	codeAlreadyExists        = "already_exists"
 	codeInvalidColor         = "invalid_color"
+	codeInvalidSort          = "invalid_sort"
 	codeInvalidQuantity      = "invalid_quantity"
 	codeAppellationNotFound  = "appellation_not_found"
 	codeProducerNotFound     = "producer_not_found"
@@ -54,6 +55,8 @@ func dbErrorCode(err error) string {
 		return codeAlreadyExists
 	case errors.Is(err, db.ErrInvalidColor):
 		return codeInvalidColor
+	case errors.Is(err, db.ErrInvalidSort):
+		return codeInvalidSort
 	case errors.Is(err, db.ErrInvalidQuantity):
 		return codeInvalidQuantity
 	case errors.Is(err, db.ErrAppellationNotFound):
@@ -659,7 +662,7 @@ func (h *Handler) ListMealPairings(w http.ResponseWriter, r *http.Request) {
 
 func searchErrorStatus(err error) int {
 	switch {
-	case errors.Is(err, db.ErrInvalidColor):
+	case errors.Is(err, db.ErrInvalidColor), errors.Is(err, db.ErrInvalidSort):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -693,6 +696,15 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filters.ReadyNow = q.Get("ready_now") == "true"
+
+	filters.SortBy = q.Get("sort_by")
+	if filters.SortBy == "" {
+		filters.SortBy = "appellation"
+	}
+	filters.SortDir = q.Get("sort_dir")
+	if filters.SortDir == "" {
+		filters.SortDir = "asc"
+	}
 
 	results, err := h.db.SearchWines(r.Context(), filters)
 	if err != nil {

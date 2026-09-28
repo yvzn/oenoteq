@@ -206,6 +206,70 @@ describe('CellarListView', () => {
     expect(router.currentRoute.value.query).toEqual({})
     expect(apiClient.get).toHaveBeenLastCalledWith('/search')
   })
+
+  it('labels the millesime column "Millesime", not "Vintage"', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/')
+
+    expect(wrapper.text()).toContain('Millesime')
+    expect(wrapper.text()).not.toContain('Vintage')
+  })
+
+  it('shows an ascending indicator on the appellation header by default', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/')
+
+    expect(wrapper.get('[data-testid="sort-header-appellation"]').text()).toContain('▲')
+    expect(wrapper.find('[data-testid="sort-header-producer"]').text()).not.toMatch(/[▲▼]/)
+  })
+
+  it('pre-applies sort from the URL query params on load', async () => {
+    mockApi()
+
+    await mountAt('/?sort_by=producer&sort_dir=desc')
+
+    expect(apiClient.get).toHaveBeenCalledWith('/search?sort_by=producer&sort_dir=desc')
+  })
+
+  it('sorts by clicking a column header and reflects it in the URL', async () => {
+    mockApi()
+
+    const { wrapper, router } = await mountAt('/')
+
+    await wrapper.get('[data-testid="sort-header-producer"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer' })
+    expect(apiClient.get).toHaveBeenLastCalledWith('/search?sort_by=producer')
+    expect(wrapper.get('[data-testid="sort-header-producer"]').text()).toContain('▲')
+  })
+
+  it('toggles direction when clicking the already-active column header', async () => {
+    mockApi()
+
+    const { wrapper, router } = await mountAt('/?sort_by=producer')
+
+    await wrapper.get('[data-testid="sort-header-producer"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer', sort_dir: 'desc' })
+    expect(wrapper.get('[data-testid="sort-header-producer"]').text()).toContain('▼')
+  })
+
+  it('changes sort from the mobile sort panel and reflects it in the URL', async () => {
+    mockApi()
+
+    const { wrapper, router } = await mountAt('/')
+
+    await wrapper.get('[data-testid="sort-toggle-button"]').trigger('click')
+    await wrapper.get('[data-testid="sort-option-status-asc"]').setValue(true)
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'status' })
+    expect(apiClient.get).toHaveBeenLastCalledWith('/search?sort_by=status')
+  })
 })
 
 async function flushPromises() {

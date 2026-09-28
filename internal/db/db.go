@@ -6,6 +6,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -380,9 +381,18 @@ var (
 	ErrInvalidRating       = errors.New("rating must be between 1 and 5")
 	ErrQuantityZero        = errors.New("wine quantity is already 0")
 	ErrConsumptionNotFound = errors.New("consumption not found")
+	ErrInvalidSort         = errors.New("invalid sort")
 )
 
 var validColors = map[string]bool{"rouge": true, "blanc": true, "rose": true}
+
+var validSortBy = map[string]bool{"producer": true, "appellation": true, "millesime": true, "status": true}
+
+var validSortDir = map[string]bool{"asc": true, "desc": true}
+
+// gardeStatusSortRank orders Garde Status ascending per CONTEXT.md's
+// definition sequence; descending reverses it.
+var gardeStatusSortRank = map[string]int{"too_young": 0, "ready": 1, "past_peak": 2, "unassessed": 3}
 
 type Wine struct {
 	ID            int      `json:"id"`
@@ -749,6 +759,55 @@ type SearchFilters struct {
 	AppellationID *int
 	Color         *string
 	ReadyNow      bool
+	SortBy        string
+	SortDir       string
+}
+
+func validateSort(sortBy, sortDir string) error {
+	if !validSortBy[sortBy] {
+		return fmt.Errorf("%q: %w", sortBy, ErrInvalidSort)
+	}
+	if !validSortDir[sortDir] {
+		return fmt.Errorf("%q: %w", sortDir, ErrInvalidSort)
+	}
+	return nil
+}
+
+// sortWinesSQL builds the ORDER BY clause for a validated (sortBy, sortDir)
+// pair. Producer name (then wine id) always breaks ties, per the agreed
+// tie-break rule. Garde Status has no SQL column (computed at read time), so
+// "status" only needs a stable base order here; the real ordering happens in
+// Go after the query runs.
+func sortWinesSQL(sortBy, sortDir string) string {
+	switch sortBy {
+	case "appellation":
+		return "appellation.name " + sortDir + ", producer.name ASC, wine.id ASC"
+	case "millesime":
+		return "(wine.millesime IS NULL) ASC, wine.millesime " + sortDir + ", producer.name ASC, wine.id ASC"
+	case "status":
+		return "wine.id ASC"
+	default: // "producer"
+		return "producer.name " + sortDir + ", wine.id ASC"
+	}
+}
+
+// sortWinesByStatus orders results by Garde Status ascending/descending,
+// following CONTEXT.md's definition sequence, with the same producer-name/id
+// tie-break used by the SQL-driven sorts.
+func sortWinesByStatus(results []WineSearchResult, sortDir string) {
+	sort.SliceStable(results, func(i, j int) bool {
+		ri, rj := gardeStatusSortRank[results[i].GardeStatus], gardeStatusSortRank[results[j].GardeStatus]
+		if ri != rj {
+			if sortDir == "desc" {
+				return ri > rj
+			}
+			return ri < rj
+		}
+		if results[i].Producer.Name != results[j].Producer.Name {
+			return results[i].Producer.Name < results[j].Producer.Name
+		}
+		return results[i].ID < results[j].ID
+	})
 }
 
 func gardeStatus(w Wine, year int) string {
@@ -765,10 +824,15 @@ func gardeStatus(w Wine, year int) string {
 }
 
 func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResult, error) {
+	if err := validateSort(f.SortBy, f.SortDir); err != nil {
+		return nil, err
+	}
+
 	query := `
 		SELECT wine.id, wine.millesime, wine.appellation_id, wine.producer_id, producer.name, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity
 		FROM wine
 		JOIN producer ON producer.id = wine.producer_id
+		JOIN appellation ON appellation.id = wine.appellation_id
 		WHERE wine.quantity > 0
 	`
 	var args []interface{}
@@ -795,7 +859,7 @@ func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResu
 		`
 		args = append(args, *f.MealID)
 	}
-	query += " ORDER BY wine.id"
+	query += " ORDER BY " + sortWinesSQL(f.SortBy, f.SortDir)
 
 	rows, err := d.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -822,6 +886,10 @@ func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResu
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterating wines: %w", err)
+	}
+
+	if f.SortBy == "status" {
+		sortWinesByStatus(results, f.SortDir)
 	}
 
 	return results, nil

@@ -185,3 +185,6 @@ GET {{baseUrl}}/search?ready_now=true
 ### Search: no filters (everything in stock, flagged with garde_status)
 GET {{baseUrl}}/search
 
+### Search: sorted (sort_by: producer/appellation/millesime/status, sort_dir: asc/desc; defaults to appellation/asc; ties break on producer name then id; millesime nulls (NV) always sort last)
+GET {{baseUrl}}/search?sort_by=millesime&sort_dir=desc
+
