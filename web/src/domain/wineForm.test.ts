@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  deriveGardeFin,
   emptyWineFormFields,
   toWineInput,
   validateWineForm,
@@ -154,7 +155,7 @@ describe('wineToFormFields', () => {
 })
 
 describe('emptyWineFormFields', () => {
-  it('has no appellation or producer selected and every field blank', () => {
+  it('has no appellation or producer selected, blank garde, and quantity defaulted to 1', () => {
     expect(emptyWineFormFields).toEqual({
       millesime: '',
       appellationId: null,
@@ -162,7 +163,21 @@ describe('emptyWineFormFields', () => {
       color: '',
       gardeDebut: '',
       gardeFin: '',
-      quantity: '',
+      quantity: '1',
     })
+  })
+})
+
+describe('deriveGardeFin', () => {
+  it('copies garde_debut into garde_fin when garde_fin is empty', () => {
+    expect(deriveGardeFin('2020', '')).toBe('2020')
+  })
+
+  it('leaves garde_fin untouched when it already has a value', () => {
+    expect(deriveGardeFin('2020', '2028')).toBe('2028')
+  })
+
+  it('leaves garde_fin empty when garde_debut is empty', () => {
+    expect(deriveGardeFin('', '')).toBe('')
   })
 })

@@ -100,6 +100,9 @@ describe('WineFormView — add', () => {
     expect((wrapper.get('[data-testid="wine-producer-input"]').element as HTMLInputElement).value).toBe(
       '',
     )
+    expect((wrapper.get('[data-testid="wine-quantity-input"]').element as HTMLInputElement).value).toBe(
+      '1',
+    )
   })
 
   it('blocks submit and shows field errors when required fields are missing', async () => {
@@ -111,8 +114,69 @@ describe('WineFormView — add', () => {
     expect(wrapper.find('[data-testid="wine-appellation-error"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="wine-producer-error"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="wine-color-error"]').exists()).toBe(true)
+    expect(apiClient.post).not.toHaveBeenCalled()
+  })
+
+  it('blocks submit and shows a field error when quantity is cleared', async () => {
+    mockGet()
+
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="wine-quantity-input"]').setValue('')
+    await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
+
     expect(wrapper.find('[data-testid="wine-quantity-error"]').exists()).toBe(true)
     expect(apiClient.post).not.toHaveBeenCalled()
+  })
+
+  it('fills garde end from garde start on blur when garde end is empty', async () => {
+    mockGet()
+
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="wine-garde-debut-input"]').setValue('2020')
+    await wrapper.get('[data-testid="wine-garde-debut-input"]').trigger('blur')
+
+    expect((wrapper.get('[data-testid="wine-garde-fin-input"]').element as HTMLInputElement).value).toBe(
+      '2020',
+    )
+  })
+
+  it('does not overwrite a garde end the user already set', async () => {
+    mockGet()
+
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="wine-garde-fin-input"]').setValue('2028')
+    await wrapper.get('[data-testid="wine-garde-debut-input"]').setValue('2020')
+    await wrapper.get('[data-testid="wine-garde-debut-input"]').trigger('blur')
+
+    expect((wrapper.get('[data-testid="wine-garde-fin-input"]').element as HTMLInputElement).value).toBe(
+      '2028',
+    )
+  })
+
+  it('does not fill garde end on load when editing a wine that only has garde start set', async () => {
+    mockGet({ wine: { ...existingWine, garde_debut: 2020, garde_fin: null } })
+
+    const { wrapper } = await mountAt('/wines/5/edit')
+
+    expect((wrapper.get('[data-testid="wine-garde-fin-input"]').element as HTMLInputElement).value).toBe(
+      '',
+    )
+  })
+
+  it('re-fills garde end after it is cleared and garde start is blurred again', async () => {
+    mockGet()
+
+    const { wrapper } = await mountAt('/wines/new')
+    const debutInput = wrapper.get('[data-testid="wine-garde-debut-input"]')
+    await debutInput.setValue('2020')
+    await debutInput.trigger('blur')
+    await wrapper.get('[data-testid="wine-garde-fin-input"]').setValue('')
+    await debutInput.setValue('2021')
+    await debutInput.trigger('blur')
+
+    expect((wrapper.get('[data-testid="wine-garde-fin-input"]').element as HTMLInputElement).value).toBe(
+      '2021',
+    )
   })
 
   it('rejects garde_debut greater than garde_fin', async () => {
@@ -275,6 +339,16 @@ describe('WineFormView — edit', () => {
     ).toBe('Chinon')
     expect((wrapper.get('[data-testid="wine-quantity-input"]').element as HTMLInputElement).value).toBe(
       '3',
+    )
+  })
+
+  it('shows a stored quantity of 0, not the create-mode default', async () => {
+    mockGet({ wine: { ...existingWine, quantity: 0 } })
+
+    const { wrapper } = await mountAt('/wines/5/edit')
+
+    expect((wrapper.get('[data-testid="wine-quantity-input"]').element as HTMLInputElement).value).toBe(
+      '0',
     )
   })
 

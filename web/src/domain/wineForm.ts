@@ -17,7 +17,7 @@ export const emptyWineFormFields: WineFormFields = {
   color: '',
   gardeDebut: '',
   gardeFin: '',
-  quantity: '',
+  quantity: '1',
 }
 
 export type WineFormErrors = Partial<Record<keyof WineFormFields, string>>
@@ -64,6 +64,10 @@ export function wineToFormFields(wine: WineInput): WineFormFields {
     gardeFin: wine.garde_fin === null ? '' : String(wine.garde_fin),
     quantity: String(wine.quantity),
   }
+}
+
+export function deriveGardeFin(gardeDebut: string, gardeFin: string): string {
+  return gardeFin === '' ? gardeDebut : gardeFin
 }
 
 function parseNumber(value: string): number | null {

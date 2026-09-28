@@ -13,6 +13,7 @@ import { useProducers } from '../composables/useProducers'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { useWines } from '../composables/useWines'
 import {
+  deriveGardeFin,
   emptyWineFormFields,
   toWineInput,
   validateWineForm,
@@ -79,6 +80,10 @@ const fields = computed<WineFormFields>(() => ({
 }))
 
 const errors = ref<WineFormErrors>({})
+
+function fillGardeFin() {
+  gardeFin.value = deriveGardeFin(gardeDebut.value, gardeFin.value)
+}
 
 function stepQuantity(delta: number) {
   const next = Math.max(0, (Number(quantity.value) || 0) + delta)
@@ -295,7 +300,13 @@ async function submit() {
 
       <div class="grid grid-cols-2 gap-4">
         <FormField label="Garde start" :error="errors.gardeDebut" error-testid="wine-garde-debut-error">
-          <input v-model="gardeDebut" data-testid="wine-garde-debut-input" type="number" class="w-full" />
+          <input
+            v-model="gardeDebut"
+            data-testid="wine-garde-debut-input"
+            type="number"
+            class="w-full"
+            @blur="fillGardeFin"
+          />
         </FormField>
 
         <FormField label="Garde end" :error="errors.gardeFin" error-testid="wine-garde-fin-error">
