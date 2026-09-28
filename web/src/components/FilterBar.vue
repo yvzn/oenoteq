@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { Appellation, Color, Meal } from '../api/types'
+import { computed, ref, watch } from 'vue'
+import type { Appellation, Meal } from '../api/types'
 import { emptySearchFilters, type SearchFilters } from '../domain/searchFilters'
 import AppButton from './AppButton.vue'
-import AutocompleteField from './AutocompleteField.vue'
-import ColorSwatch from './ColorSwatch.vue'
-import FormField from './FormField.vue'
+import FilterFields from './FilterFields.vue'
 
 const props = defineProps<{
   filters: SearchFilters
@@ -15,85 +13,135 @@ const props = defineProps<{
 
 const emit = defineEmits<{ 'update:filters': [value: SearchFilters] }>()
 
-const colors: Color[] = ['rouge', 'blanc', 'rose']
-
-const hasActiveFilters = computed(
+const activeFilterCount = computed(
   () =>
-    props.filters.mealId !== null ||
-    props.filters.appellationId !== null ||
-    props.filters.color !== null ||
-    props.filters.readyNow,
+    [
+      props.filters.mealId !== null,
+      props.filters.appellationId !== null,
+      props.filters.color !== null,
+      props.filters.readyNow,
+    ].filter(Boolean).length,
 )
 
-function update(patch: Partial<SearchFilters>) {
-  emit('update:filters', { ...props.filters, ...patch })
-}
+const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
 function clearFilters() {
   emit('update:filters', emptySearchFilters)
 }
+
+// Mobile filter panel: edits happen against a draft, only applied on demand.
+const panel = ref<HTMLDialogElement | null>(null)
+const panelOpen = ref(false)
+const draft = ref<SearchFilters>({ ...props.filters })
+
+watch(panelOpen, (isOpen) => {
+  if (isOpen) panel.value?.showModal()
+  else panel.value?.close()
+})
+
+function openPanel() {
+  draft.value = { ...props.filters }
+  panelOpen.value = true
+}
+
+function applyPanel() {
+  emit('update:filters', draft.value)
+  panelOpen.value = false
+}
+
+function cancelPanel() {
+  panelOpen.value = false
+}
+
+function updateDraft(next: SearchFilters) {
+  draft.value = next
+}
+
+function clearPanel() {
+  draft.value = emptySearchFilters
+  emit('update:filters', emptySearchFilters)
+  panelOpen.value = false
+}
+
+function onPanelBackdropClick(event: MouseEvent) {
+  if (event.target === panel.value) cancelPanel()
+}
 </script>
 
 <template>
-  <form class="border-line bg-parchment-raised flex flex-wrap items-end gap-4 border-b px-6 py-4" @submit.prevent>
-    <FormField label="Meal" class="w-40">
-      <AutocompleteField
-        testid="meal-filter"
-        :items="meals"
-        :model-value="filters.mealId"
-        placeholder="Any meal"
-        @update:model-value="(v) => update({ mealId: v })"
+  <div>
+    <form
+      class="border-line bg-parchment-raised hidden flex-wrap items-end gap-4 border-b px-6 py-4 sm:flex"
+      @submit.prevent
+    >
+      <FilterFields
+        inline
+        :model-value="filters"
+        :appellations="appellations"
+        :meals="meals"
+        @update:model-value="(v) => emit('update:filters', v)"
       />
-    </FormField>
 
-    <FormField label="Appellation" class="w-40">
-      <AutocompleteField
-        testid="appellation-filter"
-        :items="appellations"
-        :model-value="filters.appellationId"
-        placeholder="Any appellation"
-        @update:model-value="(v) => update({ appellationId: v })"
-      />
-    </FormField>
-
-    <FormField label="Color" class="w-40">
-      <div class="flex items-center gap-2">
-        <ColorSwatch v-if="filters.color" :color="filters.color" class="shrink-0" />
-        <select
-          data-testid="color-filter"
-          class="w-full text-sm"
-          :value="filters.color ?? ''"
-          @change="update({ color: (($event.target as HTMLSelectElement).value || null) as Color | null })"
-        >
-          <option value="">Any color</option>
-          <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
-        </select>
+      <div v-if="hasActiveFilters" class="flex h-[38px] items-center">
+        <AppButton variant="ghost" type="button" data-testid="clear-filters-button" @click="clearFilters">
+          Clear filters
+        </AppButton>
       </div>
-    </FormField>
+    </form>
 
-    <label class="text-muted flex h-[38px] cursor-pointer items-center gap-2 text-xs">
-      <input
-        type="checkbox"
-        data-testid="ready-now-filter"
-        class="peer sr-only"
-        :checked="filters.readyNow"
-        @change="update({ readyNow: ($event.target as HTMLInputElement).checked })"
-      />
-      <span
-        class="border-line bg-parchment-raised peer-checked:bg-bordeaux peer-checked:border-bordeaux peer-focus-visible:ring-bordeaux/40 text-transparent peer-checked:text-white inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:ring-2"
-        aria-hidden="true"
+    <div class="border-line bg-parchment-raised flex items-center gap-3 border-b px-6 py-4 sm:hidden">
+      <AppButton variant="secondary" type="button" data-testid="filter-toggle-button" @click="openPanel">
+        Filters<template v-if="activeFilterCount > 0"> ({{ activeFilterCount }})</template>
+      </AppButton>
+      <AppButton
+        v-if="hasActiveFilters"
+        variant="ghost"
+        type="button"
+        data-testid="mobile-clear-filters-button"
+        @click="clearFilters"
       >
-        <svg viewBox="0 0 12 12" class="h-2.5 w-2.5">
-          <path d="M2.5 6.3 4.9 8.6 9.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-      </span>
-      Ready now
-    </label>
-
-    <div v-if="hasActiveFilters" class="flex h-[38px] items-center">
-      <AppButton variant="ghost" type="button" data-testid="clear-filters-button" @click="clearFilters">
         Clear filters
       </AppButton>
     </div>
-  </form>
+
+    <dialog
+      ref="panel"
+      data-testid="filter-panel"
+      class="border-line bg-parchment-raised fixed inset-y-0 right-0 m-0 h-full w-full max-w-xs rounded-none border-l p-5 shadow-lg backdrop:bg-ink/40"
+      @cancel.prevent="cancelPanel"
+      @click="onPanelBackdropClick"
+    >
+      <div class="flex items-center justify-between">
+        <h2 class="font-display text-ink text-base">Filters</h2>
+        <button
+          type="button"
+          data-testid="filter-panel-close"
+          aria-label="Close filters"
+          class="text-muted hover:text-ink cursor-pointer text-xl leading-none"
+          @click="cancelPanel"
+        >
+          &times;
+        </button>
+      </div>
+
+      <div class="mt-4 flex flex-col gap-4">
+        <FilterFields
+          testid-suffix="mobile"
+          :model-value="draft"
+          :appellations="appellations"
+          :meals="meals"
+          @update:model-value="updateDraft"
+        />
+      </div>
+
+      <div class="mt-6 flex items-center justify-between">
+        <AppButton variant="ghost" type="button" data-testid="filter-panel-clear" @click="clearPanel">
+          Clear filters
+        </AppButton>
+        <AppButton variant="primary" type="button" data-testid="filter-panel-apply" @click="applyPanel">
+          Apply
+        </AppButton>
+      </div>
+    </dialog>
+  </div>
 </template>
