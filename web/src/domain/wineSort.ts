@@ -32,15 +32,11 @@ export function nextSort(current: WineSort, sortBy: SortBy): WineSort {
   return { sortBy, sortDir: current.sortDir === 'asc' ? 'desc' : 'asc' }
 }
 
-export const sortOptions: { label: string; value: WineSort }[] = [
-  { label: 'Producer (A → Z)', value: { sortBy: 'producer', sortDir: 'asc' } },
-  { label: 'Producer (Z → A)', value: { sortBy: 'producer', sortDir: 'desc' } },
-  { label: 'Appellation (A → Z)', value: { sortBy: 'appellation', sortDir: 'asc' } },
-  { label: 'Appellation (Z → A)', value: { sortBy: 'appellation', sortDir: 'desc' } },
-  { label: 'Millesime (oldest first)', value: { sortBy: 'millesime', sortDir: 'asc' } },
-  { label: 'Millesime (newest first)', value: { sortBy: 'millesime', sortDir: 'desc' } },
-  { label: 'Status (too young → past peak)', value: { sortBy: 'status', sortDir: 'asc' } },
-  { label: 'Status (past peak → too young)', value: { sortBy: 'status', sortDir: 'desc' } },
+export const sortAxes: { sortBy: SortBy; label: string }[] = [
+  { sortBy: 'producer', label: 'Producer' },
+  { sortBy: 'appellation', label: 'Appellation' },
+  { sortBy: 'millesime', label: 'Millesime' },
+  { sortBy: 'status', label: 'Status' },
 ]
 
 function parseSortBy(value: unknown): SortBy {

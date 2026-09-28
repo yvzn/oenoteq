@@ -67,7 +67,7 @@ function sortByColumn(column: SortBy) {
 
 function sortIndicator(column: SortBy) {
   if (sort.value.sortBy !== column) return ''
-  return sort.value.sortDir === 'asc' ? '▲' : '▼'
+  return sort.value.sortDir === 'asc' ? '↑' : '↓'
 }
 
 function loadFilterOptions() {
@@ -124,7 +124,7 @@ onMounted(loadFilterOptions)
             <button
               type="button"
               data-testid="sort-header-producer"
-              class="text-label flex items-center gap-1 text-xs font-medium"
+              class="text-label flex cursor-pointer items-center gap-1 text-xs font-medium"
               @click="sortByColumn('producer')"
             >
               Producer <span aria-hidden="true">{{ sortIndicator('producer') }}</span>
@@ -132,7 +132,7 @@ onMounted(loadFilterOptions)
             <button
               type="button"
               data-testid="sort-header-appellation"
-              class="text-label flex items-center gap-1 text-xs font-medium"
+              class="text-label flex cursor-pointer items-center gap-1 text-xs font-medium"
               @click="sortByColumn('appellation')"
             >
               Appellation <span aria-hidden="true">{{ sortIndicator('appellation') }}</span>
@@ -141,7 +141,7 @@ onMounted(loadFilterOptions)
           <button
             type="button"
             data-testid="sort-header-millesime"
-            class="text-label flex items-center justify-end gap-1 text-right text-xs font-medium"
+            class="text-label flex cursor-pointer items-center justify-end gap-1 text-right text-xs font-medium"
             @click="sortByColumn('millesime')"
           >
             Millesime <span aria-hidden="true">{{ sortIndicator('millesime') }}</span>
@@ -150,7 +150,7 @@ onMounted(loadFilterOptions)
           <button
             type="button"
             data-testid="sort-header-status"
-            class="text-label flex items-center justify-end gap-1 text-right text-xs font-medium"
+            class="text-label flex cursor-pointer items-center justify-end gap-1 text-right text-xs font-medium"
             @click="sortByColumn('status')"
           >
             Status <span aria-hidden="true">{{ sortIndicator('status') }}</span>

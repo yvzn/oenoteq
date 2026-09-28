@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { Appellation, Meal } from '../api/types'
 import { emptySearchFilters, type SearchFilters } from '../domain/searchFilters'
-import { sortOptions, type WineSort } from '../domain/wineSort'
+import { defaultWineSort, sortAxes, type SortBy, type WineSort } from '../domain/wineSort'
 import AppButton from './AppButton.vue'
 import FilterFields from './FilterFields.vue'
 
@@ -29,6 +29,10 @@ const activeFilterCount = computed(
 )
 
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
+
+const isDefaultSort = computed(
+  () => props.sort.sortBy === defaultWineSort.sortBy && props.sort.sortDir === defaultWineSort.sortDir,
+)
 
 function clearFilters() {
   emit('update:filters', emptySearchFilters)
@@ -72,9 +76,11 @@ function onPanelBackdropClick(event: MouseEvent) {
   if (event.target === panel.value) cancelPanel()
 }
 
-// Mobile sort panel: a single radio choice applies immediately, no draft/apply needed.
+// Mobile sort panel: two steps (axis, then direction). Picking a direction
+// applies immediately; picking an axis alone just updates the local draft.
 const sortPanel = ref<HTMLDialogElement | null>(null)
 const sortPanelOpen = ref(false)
+const draftAxis = ref<SortBy>(props.sort.sortBy)
 
 watch(sortPanelOpen, (isOpen) => {
   if (isOpen) sortPanel.value?.showModal()
@@ -82,6 +88,7 @@ watch(sortPanelOpen, (isOpen) => {
 })
 
 function openSortPanel() {
+  draftAxis.value = props.sort.sortBy
   sortPanelOpen.value = true
 }
 
@@ -89,17 +96,13 @@ function closeSortPanel() {
   sortPanelOpen.value = false
 }
 
-function chooseSort(value: WineSort) {
-  emit('update:sort', value)
+function chooseDirection(sortDir: WineSort['sortDir']) {
+  emit('update:sort', { sortBy: draftAxis.value, sortDir })
   sortPanelOpen.value = false
 }
 
 function onSortPanelBackdropClick(event: MouseEvent) {
   if (event.target === sortPanel.value) closeSortPanel()
-}
-
-function sortOptionTestId(value: WineSort) {
-  return `sort-option-${value.sortBy}-${value.sortDir}`
 }
 </script>
 
@@ -129,7 +132,7 @@ function sortOptionTestId(value: WineSort) {
         Filters<template v-if="activeFilterCount > 0"> ({{ activeFilterCount }})</template>
       </AppButton>
       <AppButton variant="secondary" type="button" data-testid="sort-toggle-button" @click="openSortPanel">
-        Sort
+        Sort<template v-if="!isDefaultSort"> {{ sort.sortDir === 'asc' ? '↑' : '↓' }}</template>
       </AppButton>
       <AppButton
         v-if="hasActiveFilters"
@@ -203,20 +206,35 @@ function sortOptionTestId(value: WineSort) {
       </div>
 
       <div class="mt-4 flex flex-col gap-3">
-        <label
-          v-for="option in sortOptions"
-          :key="sortOptionTestId(option.value)"
-          class="flex cursor-pointer items-center gap-2 text-sm"
-        >
+        <label v-for="axis in sortAxes" :key="axis.sortBy" class="flex cursor-pointer items-center gap-2 text-sm">
           <input
             type="radio"
-            name="wine-sort"
-            :data-testid="sortOptionTestId(option.value)"
-            :checked="sort.sortBy === option.value.sortBy && sort.sortDir === option.value.sortDir"
-            @change="chooseSort(option.value)"
+            name="wine-sort-axis"
+            :data-testid="`sort-axis-${axis.sortBy}`"
+            :checked="draftAxis === axis.sortBy"
+            @change="draftAxis = axis.sortBy"
           />
-          {{ option.label }}
+          {{ axis.label }}
         </label>
+      </div>
+
+      <div class="mt-6 flex items-center gap-3">
+        <AppButton
+          variant="secondary"
+          type="button"
+          data-testid="sort-direction-asc"
+          @click="chooseDirection('asc')"
+        >
+          ↑ Ascending
+        </AppButton>
+        <AppButton
+          variant="secondary"
+          type="button"
+          data-testid="sort-direction-desc"
+          @click="chooseDirection('desc')"
+        >
+          ↓ Descending
+        </AppButton>
       </div>
     </dialog>
   </div>

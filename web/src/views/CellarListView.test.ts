@@ -221,8 +221,8 @@ describe('CellarListView', () => {
 
     const { wrapper } = await mountAt('/')
 
-    expect(wrapper.get('[data-testid="sort-header-appellation"]').text()).toContain('▲')
-    expect(wrapper.find('[data-testid="sort-header-producer"]').text()).not.toMatch(/[▲▼]/)
+    expect(wrapper.get('[data-testid="sort-header-appellation"]').text()).toContain('↑')
+    expect(wrapper.find('[data-testid="sort-header-producer"]').text()).not.toMatch(/[↑↓]/)
   })
 
   it('pre-applies sort from the URL query params on load', async () => {
@@ -243,7 +243,7 @@ describe('CellarListView', () => {
 
     expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer' })
     expect(apiClient.get).toHaveBeenLastCalledWith('/search?sort_by=producer')
-    expect(wrapper.get('[data-testid="sort-header-producer"]').text()).toContain('▲')
+    expect(wrapper.get('[data-testid="sort-header-producer"]').text()).toContain('↑')
   })
 
   it('toggles direction when clicking the already-active column header', async () => {
@@ -255,7 +255,7 @@ describe('CellarListView', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer', sort_dir: 'desc' })
-    expect(wrapper.get('[data-testid="sort-header-producer"]').text()).toContain('▼')
+    expect(wrapper.get('[data-testid="sort-header-producer"]').text()).toContain('↓')
   })
 
   it('changes sort from the mobile sort panel and reflects it in the URL', async () => {
@@ -264,7 +264,8 @@ describe('CellarListView', () => {
     const { wrapper, router } = await mountAt('/')
 
     await wrapper.get('[data-testid="sort-toggle-button"]').trigger('click')
-    await wrapper.get('[data-testid="sort-option-status-asc"]').setValue(true)
+    await wrapper.get('[data-testid="sort-axis-status"]').setValue(true)
+    await wrapper.get('[data-testid="sort-direction-asc"]').trigger('click')
     await flushPromises()
 
     expect(router.currentRoute.value.query).toEqual({ sort_by: 'status' })

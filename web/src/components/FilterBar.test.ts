@@ -154,6 +154,26 @@ describe('FilterBar', () => {
     })
   })
 
+  describe('sort toggle button', () => {
+    it('shows no direction indicator when sort is default', () => {
+      const wrapper = mountFilterBar(emptySearchFilters, defaultWineSort)
+
+      expect(wrapper.get('[data-testid="sort-toggle-button"]').text()).not.toMatch(/[↑↓]/)
+    })
+
+    it('shows an ascending indicator when a non-default ascending sort is active', () => {
+      const wrapper = mountFilterBar(emptySearchFilters, { sortBy: 'producer', sortDir: 'asc' })
+
+      expect(wrapper.get('[data-testid="sort-toggle-button"]').text()).toContain('↑')
+    })
+
+    it('shows a descending indicator when a non-default descending sort is active', () => {
+      const wrapper = mountFilterBar(emptySearchFilters, { sortBy: 'appellation', sortDir: 'desc' })
+
+      expect(wrapper.get('[data-testid="sort-toggle-button"]').text()).toContain('↓')
+    })
+  })
+
   describe('mobile sort panel', () => {
     it('is closed until the sort toggle button is clicked', async () => {
       const wrapper = mountFilterBar(emptySearchFilters)
@@ -166,28 +186,49 @@ describe('FilterBar', () => {
       expect(dialog.open).toBe(true)
     })
 
-    it('marks the current sort option as checked', async () => {
+    it('pre-selects the current sort axis when opened', async () => {
       const wrapper = mountFilterBar(emptySearchFilters, { sortBy: 'producer', sortDir: 'desc' })
 
       await openSortPanel(wrapper)
 
+      expect(wrapper.get<HTMLInputElement>('[data-testid="sort-axis-producer"]').element.checked).toBe(
+        true,
+      )
       expect(
-        wrapper.get<HTMLInputElement>('[data-testid="sort-option-producer-desc"]').element.checked,
-      ).toBe(true)
-      expect(
-        wrapper.get<HTMLInputElement>('[data-testid="sort-option-producer-asc"]').element.checked,
+        wrapper.get<HTMLInputElement>('[data-testid="sort-axis-appellation"]').element.checked,
       ).toBe(false)
     })
 
-    it('emits the chosen sort and closes immediately on selection', async () => {
+    it('does not emit or close when only an axis is chosen', async () => {
       const wrapper = mountFilterBar(emptySearchFilters)
       const dialog = wrapper.get('[data-testid="sort-panel"]').element as HTMLDialogElement
 
       await openSortPanel(wrapper)
-      await wrapper.get('[data-testid="sort-option-millesime-desc"]').setValue(true)
+      await wrapper.get('[data-testid="sort-axis-millesime"]').setValue(true)
+
+      expect(wrapper.emitted('update:sort')).toBeUndefined()
+      expect(dialog.open).toBe(true)
+    })
+
+    it('emits the chosen axis+direction and closes when a direction is picked', async () => {
+      const wrapper = mountFilterBar(emptySearchFilters)
+      const dialog = wrapper.get('[data-testid="sort-panel"]').element as HTMLDialogElement
+
+      await openSortPanel(wrapper)
+      await wrapper.get('[data-testid="sort-axis-millesime"]').setValue(true)
+      await wrapper.get('[data-testid="sort-direction-desc"]').trigger('click')
 
       expect(wrapper.emitted('update:sort')![0]).toEqual([{ sortBy: 'millesime', sortDir: 'desc' }])
       expect(dialog.open).toBe(false)
+    })
+
+    it('applies the current axis when only a direction is picked (quick flip)', async () => {
+      const wrapper = mountFilterBar(emptySearchFilters, { sortBy: 'status', sortDir: 'asc' })
+
+      await openSortPanel(wrapper)
+      await wrapper.get('[data-testid="sort-direction-desc"]').trigger('click')
+
+      expect(wrapper.emitted('update:sort')![0]).toEqual([{ sortBy: 'status', sortDir: 'desc' }])
     })
 
     it('emits nothing when closed via the close button', async () => {
