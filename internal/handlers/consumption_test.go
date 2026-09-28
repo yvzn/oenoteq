@@ -97,6 +97,55 @@ func TestConsumptionOptionalRatingAndNotes(t *testing.T) {
 	}
 }
 
+func TestConsumptionCreateIdempotentByClientID(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Chinon")
+	wine := createTestWine(t, harness, appellationID, 3)
+
+	resp := harness.Do("POST", "/wines/"+strconv.Itoa(wine.ID)+"/consumptions", map[string]interface{}{
+		"date":      "2026-01-15",
+		"client_id": "client-abc",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var first db.Consumption
+	harness.JSONResponse(resp, &first)
+
+	resp = harness.Do("POST", "/wines/"+strconv.Itoa(wine.ID)+"/consumptions", map[string]interface{}{
+		"date":      "2026-01-15",
+		"client_id": "client-abc",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d on retry, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var retried db.Consumption
+	harness.JSONResponse(resp, &retried)
+	if retried.ID != first.ID {
+		t.Errorf("Expected retried create to return original id %d, got %d", first.ID, retried.ID)
+	}
+
+	resp = harness.Do("GET", "/wines/"+strconv.Itoa(wine.ID), nil)
+	var detail db.WineDetail
+	harness.JSONResponse(resp, &detail)
+	if detail.Quantity != 2 {
+		t.Errorf("Expected quantity decremented only once to 2, got %d", detail.Quantity)
+	}
+
+	resp = harness.Do("POST", "/wines/"+strconv.Itoa(wine.ID)+"/consumptions", map[string]interface{}{
+		"date":      "2026-01-16",
+		"client_id": "client-def",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var second db.Consumption
+	harness.JSONResponse(resp, &second)
+	if second.ID == first.ID {
+		t.Errorf("Expected distinct id for different client_id, got same id %d", second.ID)
+	}
+}
+
 func TestConsumptionRequiresDate(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Saumur")

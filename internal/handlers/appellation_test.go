@@ -48,6 +48,53 @@ func TestAppellationRenameRejectsDuplicate(t *testing.T) {
 	}
 }
 
+func TestAppellationCreateIdempotentByClientID(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+
+	resp := harness.Do("POST", "/appellations", map[string]interface{}{
+		"name":      "Chablis",
+		"client_id": "client-abc",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var first db.Appellation
+	harness.JSONResponse(resp, &first)
+
+	resp = harness.Do("POST", "/appellations", map[string]interface{}{
+		"name":      "Chablis",
+		"client_id": "client-abc",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d on retry, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var retried db.Appellation
+	harness.JSONResponse(resp, &retried)
+	if retried.ID != first.ID {
+		t.Errorf("Expected retried create to return original id %d, got %d", first.ID, retried.ID)
+	}
+
+	resp = harness.Do("POST", "/appellations", map[string]interface{}{
+		"name":      "Sancerre",
+		"client_id": "client-def",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var second db.Appellation
+	harness.JSONResponse(resp, &second)
+	if second.ID == first.ID {
+		t.Errorf("Expected distinct id for different client_id, got same id %d", second.ID)
+	}
+
+	resp = harness.Do("GET", "/appellations", nil)
+	var appellations []db.Appellation
+	harness.JSONResponse(resp, &appellations)
+	if len(appellations) != 2 {
+		t.Errorf("Expected 2 appellations, got %d", len(appellations))
+	}
+}
+
 func TestAppellationRenameNotFound(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 

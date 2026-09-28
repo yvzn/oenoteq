@@ -96,29 +96,74 @@ func (d *DB) applyMigration(ctx context.Context, name string) error {
 var ErrUniqueConstraint = errors.New("unique constraint violation")
 
 type Appellation struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID        int       `json:"id"`
+	ClientID  *string   `json:"client_id"`
+	Name      string    `json:"name"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func (d *DB) CreateAppellation(ctx context.Context, name string) (*Appellation, error) {
-	_, err := d.ExecContext(ctx, "INSERT INTO appellation (name) VALUES (?)", name)
+func (d *DB) appellationByClientID(ctx context.Context, clientID string) (*Appellation, error) {
+	var id int
+	err := d.QueryRowContext(ctx, "SELECT id FROM appellation WHERE client_id = ?", clientID).Scan(&id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("looking up appellation by client_id: %w", err)
+	}
+	return d.appellationByID(ctx, id)
+}
+
+func (d *DB) appellationByID(ctx context.Context, id int) (*Appellation, error) {
+	var a Appellation
+	err := d.QueryRowContext(ctx, "SELECT id, client_id, name, updated_at FROM appellation WHERE id = ?", id).
+		Scan(&a.ID, &a.ClientID, &a.Name, &a.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("appellation id %d: %w", id, ErrAppellationNotFound)
+		}
+		return nil, fmt.Errorf("getting appellation: %w", err)
+	}
+	return &a, nil
+}
+
+func (d *DB) CreateAppellation(ctx context.Context, name string, clientID *string) (*Appellation, error) {
+	if clientID != nil {
+		existing, err := d.appellationByClientID(ctx, *clientID)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return existing, nil
+		}
+	}
+
+	res, err := d.ExecContext(ctx, "INSERT INTO appellation (client_id, name, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)", clientID, name)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
+			// A concurrent request with the same client_id may have won the
+			// race between our lookup and this insert; if so, that row is
+			// the correct idempotent result rather than a name conflict.
+			if clientID != nil {
+				if existing, lookupErr := d.appellationByClientID(ctx, *clientID); lookupErr == nil && existing != nil {
+					return existing, nil
+				}
+			}
 			return nil, fmt.Errorf("appellation already exists: %s: %w", name, ErrUniqueConstraint)
 		}
 		return nil, fmt.Errorf("creating appellation: %w", err)
 	}
 
-	var id int
-	if err := d.QueryRowContext(ctx, "SELECT last_insert_rowid()").Scan(&id); err != nil {
+	id, err := res.LastInsertId()
+	if err != nil {
 		return nil, fmt.Errorf("getting last insert id: %w", err)
 	}
 
-	return &Appellation{ID: id, Name: name}, nil
+	return d.appellationByID(ctx, int(id))
 }
 
 func (d *DB) ListAppellations(ctx context.Context) ([]Appellation, error) {
-	rows, err := d.QueryContext(ctx, "SELECT id, name FROM appellation ORDER BY name")
+	rows, err := d.QueryContext(ctx, "SELECT id, client_id, name, updated_at FROM appellation ORDER BY name")
 	if err != nil {
 		return nil, fmt.Errorf("querying appellations: %w", err)
 	}
@@ -127,7 +172,7 @@ func (d *DB) ListAppellations(ctx context.Context) ([]Appellation, error) {
 	var appellations []Appellation
 	for rows.Next() {
 		var a Appellation
-		if err := rows.Scan(&a.ID, &a.Name); err != nil {
+		if err := rows.Scan(&a.ID, &a.ClientID, &a.Name, &a.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scanning appellation: %w", err)
 		}
 		appellations = append(appellations, a)
@@ -141,7 +186,7 @@ func (d *DB) ListAppellations(ctx context.Context) ([]Appellation, error) {
 }
 
 func (d *DB) UpdateAppellation(ctx context.Context, id int, name string) (*Appellation, error) {
-	res, err := d.ExecContext(ctx, "UPDATE appellation SET name = ? WHERE id = ?", name, id)
+	res, err := d.ExecContext(ctx, "UPDATE appellation SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", name, id)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return nil, fmt.Errorf("appellation already exists: %s: %w", name, ErrUniqueConstraint)
@@ -157,7 +202,7 @@ func (d *DB) UpdateAppellation(ctx context.Context, id int, name string) (*Appel
 		return nil, fmt.Errorf("appellation id %d: %w", id, ErrAppellationNotFound)
 	}
 
-	return &Appellation{ID: id, Name: name}, nil
+	return d.appellationByID(ctx, id)
 }
 
 // DeleteAppellation explicitly checks for referencing wine and meal_pairing
@@ -191,29 +236,66 @@ func (d *DB) DeleteAppellation(ctx context.Context, id int) error {
 }
 
 type Producer struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID        int       `json:"id"`
+	ClientID  *string   `json:"client_id"`
+	Name      string    `json:"name"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func (d *DB) CreateProducer(ctx context.Context, name string) (*Producer, error) {
-	_, err := d.ExecContext(ctx, "INSERT INTO producer (name) VALUES (?)", name)
+func (d *DB) producerByClientID(ctx context.Context, clientID string) (*Producer, error) {
+	var id int
+	err := d.QueryRowContext(ctx, "SELECT id FROM producer WHERE client_id = ?", clientID).Scan(&id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("looking up producer by client_id: %w", err)
+	}
+	p, err := d.producerByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (d *DB) CreateProducer(ctx context.Context, name string, clientID *string) (*Producer, error) {
+	if clientID != nil {
+		existing, err := d.producerByClientID(ctx, *clientID)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return existing, nil
+		}
+	}
+
+	res, err := d.ExecContext(ctx, "INSERT INTO producer (client_id, name, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)", clientID, name)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
+			if clientID != nil {
+				if existing, lookupErr := d.producerByClientID(ctx, *clientID); lookupErr == nil && existing != nil {
+					return existing, nil
+				}
+			}
 			return nil, fmt.Errorf("producer already exists: %s: %w", name, ErrUniqueConstraint)
 		}
 		return nil, fmt.Errorf("creating producer: %w", err)
 	}
 
-	var id int
-	if err := d.QueryRowContext(ctx, "SELECT last_insert_rowid()").Scan(&id); err != nil {
+	id, err := res.LastInsertId()
+	if err != nil {
 		return nil, fmt.Errorf("getting last insert id: %w", err)
 	}
 
-	return &Producer{ID: id, Name: name}, nil
+	p, err := d.producerByID(ctx, int(id))
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 func (d *DB) ListProducers(ctx context.Context) ([]Producer, error) {
-	rows, err := d.QueryContext(ctx, "SELECT id, name FROM producer ORDER BY name")
+	rows, err := d.QueryContext(ctx, "SELECT id, client_id, name, updated_at FROM producer ORDER BY name")
 	if err != nil {
 		return nil, fmt.Errorf("querying producers: %w", err)
 	}
@@ -222,7 +304,7 @@ func (d *DB) ListProducers(ctx context.Context) ([]Producer, error) {
 	var producers []Producer
 	for rows.Next() {
 		var p Producer
-		if err := rows.Scan(&p.ID, &p.Name); err != nil {
+		if err := rows.Scan(&p.ID, &p.ClientID, &p.Name, &p.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scanning producer: %w", err)
 		}
 		producers = append(producers, p)
@@ -236,7 +318,7 @@ func (d *DB) ListProducers(ctx context.Context) ([]Producer, error) {
 }
 
 func (d *DB) UpdateProducer(ctx context.Context, id int, name string) (*Producer, error) {
-	res, err := d.ExecContext(ctx, "UPDATE producer SET name = ? WHERE id = ?", name, id)
+	res, err := d.ExecContext(ctx, "UPDATE producer SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", name, id)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return nil, fmt.Errorf("producer already exists: %s: %w", name, ErrUniqueConstraint)
@@ -252,7 +334,11 @@ func (d *DB) UpdateProducer(ctx context.Context, id int, name string) (*Producer
 		return nil, fmt.Errorf("producer id %d: %w", id, ErrProducerNotFound)
 	}
 
-	return &Producer{ID: id, Name: name}, nil
+	p, err := d.producerByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 // DeleteProducer explicitly checks for referencing wine rows before
@@ -279,29 +365,71 @@ func (d *DB) DeleteProducer(ctx context.Context, id int) error {
 }
 
 type Meal struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+	ID        int       `json:"id"`
+	ClientID  *string   `json:"client_id"`
+	Name      string    `json:"name"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
-func (d *DB) CreateMeal(ctx context.Context, name string) (*Meal, error) {
-	_, err := d.ExecContext(ctx, "INSERT INTO meal (name) VALUES (?)", name)
+func (d *DB) mealByClientID(ctx context.Context, clientID string) (*Meal, error) {
+	var id int
+	err := d.QueryRowContext(ctx, "SELECT id FROM meal WHERE client_id = ?", clientID).Scan(&id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("looking up meal by client_id: %w", err)
+	}
+	return d.mealByID(ctx, id)
+}
+
+func (d *DB) mealByID(ctx context.Context, id int) (*Meal, error) {
+	var m Meal
+	err := d.QueryRowContext(ctx, "SELECT id, client_id, name, updated_at FROM meal WHERE id = ?", id).
+		Scan(&m.ID, &m.ClientID, &m.Name, &m.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("meal id %d: %w", id, ErrMealNotFound)
+		}
+		return nil, fmt.Errorf("getting meal: %w", err)
+	}
+	return &m, nil
+}
+
+func (d *DB) CreateMeal(ctx context.Context, name string, clientID *string) (*Meal, error) {
+	if clientID != nil {
+		existing, err := d.mealByClientID(ctx, *clientID)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return existing, nil
+		}
+	}
+
+	res, err := d.ExecContext(ctx, "INSERT INTO meal (client_id, name, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)", clientID, name)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
+			if clientID != nil {
+				if existing, lookupErr := d.mealByClientID(ctx, *clientID); lookupErr == nil && existing != nil {
+					return existing, nil
+				}
+			}
 			return nil, fmt.Errorf("meal already exists: %s: %w", name, ErrUniqueConstraint)
 		}
 		return nil, fmt.Errorf("creating meal: %w", err)
 	}
 
-	var id int
-	if err := d.QueryRowContext(ctx, "SELECT last_insert_rowid()").Scan(&id); err != nil {
+	id, err := res.LastInsertId()
+	if err != nil {
 		return nil, fmt.Errorf("getting last insert id: %w", err)
 	}
 
-	return &Meal{ID: id, Name: name}, nil
+	return d.mealByID(ctx, int(id))
 }
 
 func (d *DB) ListMeals(ctx context.Context) ([]Meal, error) {
-	rows, err := d.QueryContext(ctx, "SELECT id, name FROM meal ORDER BY name")
+	rows, err := d.QueryContext(ctx, "SELECT id, client_id, name, updated_at FROM meal ORDER BY name")
 	if err != nil {
 		return nil, fmt.Errorf("querying meals: %w", err)
 	}
@@ -310,7 +438,7 @@ func (d *DB) ListMeals(ctx context.Context) ([]Meal, error) {
 	var meals []Meal
 	for rows.Next() {
 		var m Meal
-		if err := rows.Scan(&m.ID, &m.Name); err != nil {
+		if err := rows.Scan(&m.ID, &m.ClientID, &m.Name, &m.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scanning meal: %w", err)
 		}
 		meals = append(meals, m)
@@ -324,7 +452,7 @@ func (d *DB) ListMeals(ctx context.Context) ([]Meal, error) {
 }
 
 func (d *DB) UpdateMeal(ctx context.Context, id int, name string) (*Meal, error) {
-	res, err := d.ExecContext(ctx, "UPDATE meal SET name = ? WHERE id = ?", name, id)
+	res, err := d.ExecContext(ctx, "UPDATE meal SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", name, id)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return nil, fmt.Errorf("meal already exists: %s: %w", name, ErrUniqueConstraint)
@@ -340,7 +468,7 @@ func (d *DB) UpdateMeal(ctx context.Context, id int, name string) (*Meal, error)
 		return nil, fmt.Errorf("meal id %d: %w", id, ErrMealNotFound)
 	}
 
-	return &Meal{ID: id, Name: name}, nil
+	return d.mealByID(ctx, id)
 }
 
 // DeleteMeal explicitly checks for referencing meal_pairing rows before
@@ -395,15 +523,17 @@ var validSortDir = map[string]bool{"asc": true, "desc": true}
 var gardeStatusSortRank = map[string]int{"too_young": 0, "ready": 1, "past_peak": 2, "unassessed": 3}
 
 type Wine struct {
-	ID            int      `json:"id"`
-	Millesime     *int     `json:"millesime"`
-	AppellationID int      `json:"appellation_id"`
-	ProducerID    int      `json:"producer_id"`
-	Producer      Producer `json:"producer"`
-	Color         string   `json:"color"`
-	GardeDebut    *int     `json:"garde_debut"`
-	GardeFin      *int     `json:"garde_fin"`
-	Quantity      int      `json:"quantity"`
+	ID            int       `json:"id"`
+	ClientID      *string   `json:"client_id"`
+	Millesime     *int      `json:"millesime"`
+	AppellationID int       `json:"appellation_id"`
+	ProducerID    int       `json:"producer_id"`
+	Producer      Producer  `json:"producer"`
+	Color         string    `json:"color"`
+	GardeDebut    *int      `json:"garde_debut"`
+	GardeFin      *int      `json:"garde_fin"`
+	Quantity      int       `json:"quantity"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 func validateWine(w Wine) error {
@@ -450,23 +580,48 @@ func (d *DB) producerByID(ctx context.Context, id int) (Producer, error) {
 	return p, nil
 }
 
+func (d *DB) wineByClientID(ctx context.Context, clientID string) (*Wine, error) {
+	var id int
+	err := d.QueryRowContext(ctx, "SELECT id FROM wine WHERE client_id = ?", clientID).Scan(&id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("looking up wine by client_id: %w", err)
+	}
+	return d.GetWine(ctx, id)
+}
+
 func (d *DB) CreateWine(ctx context.Context, w Wine) (*Wine, error) {
 	if err := validateWine(w); err != nil {
 		return nil, err
 	}
+	if w.ClientID != nil {
+		existing, err := d.wineByClientID(ctx, *w.ClientID)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return existing, nil
+		}
+	}
 	if err := d.appellationExists(ctx, w.AppellationID); err != nil {
 		return nil, err
 	}
-	producer, err := d.producerByID(ctx, w.ProducerID)
-	if err != nil {
+	if _, err := d.producerByID(ctx, w.ProducerID); err != nil {
 		return nil, err
 	}
 
 	res, err := d.ExecContext(ctx, `
-		INSERT INTO wine (millesime, appellation_id, producer_id, color, garde_debut, garde_fin, quantity)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, w.Millesime, w.AppellationID, w.ProducerID, w.Color, w.GardeDebut, w.GardeFin, w.Quantity)
+		INSERT INTO wine (client_id, millesime, appellation_id, producer_id, color, garde_debut, garde_fin, quantity, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`, w.ClientID, w.Millesime, w.AppellationID, w.ProducerID, w.Color, w.GardeDebut, w.GardeFin, w.Quantity)
 	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") && w.ClientID != nil {
+			if existing, lookupErr := d.wineByClientID(ctx, *w.ClientID); lookupErr == nil && existing != nil {
+				return existing, nil
+			}
+		}
 		return nil, fmt.Errorf("creating wine: %w", err)
 	}
 
@@ -475,18 +630,16 @@ func (d *DB) CreateWine(ctx context.Context, w Wine) (*Wine, error) {
 		return nil, fmt.Errorf("getting last insert id: %w", err)
 	}
 
-	w.ID = int(id)
-	w.Producer = producer
-	return &w, nil
+	return d.GetWine(ctx, int(id))
 }
 
 func (d *DB) GetWine(ctx context.Context, id int) (*Wine, error) {
 	var w Wine
 	err := d.QueryRowContext(ctx, `
-		SELECT wine.id, wine.millesime, wine.appellation_id, wine.producer_id, producer.name, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity
+		SELECT wine.id, wine.client_id, wine.millesime, wine.appellation_id, wine.producer_id, producer.name, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity, wine.updated_at
 		FROM wine JOIN producer ON producer.id = wine.producer_id
 		WHERE wine.id = ?
-	`, id).Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.ProducerID, &w.Producer.Name, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity)
+	`, id).Scan(&w.ID, &w.ClientID, &w.Millesime, &w.AppellationID, &w.ProducerID, &w.Producer.Name, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity, &w.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("wine id %d: %w", id, ErrWineNotFound)
@@ -500,7 +653,7 @@ func (d *DB) GetWine(ctx context.Context, id int) (*Wine, error) {
 
 func (d *DB) ListWines(ctx context.Context) ([]Wine, error) {
 	rows, err := d.QueryContext(ctx, `
-		SELECT wine.id, wine.millesime, wine.appellation_id, wine.producer_id, producer.name, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity
+		SELECT wine.id, wine.client_id, wine.millesime, wine.appellation_id, wine.producer_id, producer.name, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity, wine.updated_at
 		FROM wine JOIN producer ON producer.id = wine.producer_id
 		ORDER BY wine.id
 	`)
@@ -512,7 +665,7 @@ func (d *DB) ListWines(ctx context.Context) ([]Wine, error) {
 	var wines []Wine
 	for rows.Next() {
 		var w Wine
-		if err := rows.Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.ProducerID, &w.Producer.Name, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity); err != nil {
+		if err := rows.Scan(&w.ID, &w.ClientID, &w.Millesime, &w.AppellationID, &w.ProducerID, &w.Producer.Name, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity, &w.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scanning wine: %w", err)
 		}
 		w.Producer.ID = w.ProducerID
@@ -655,14 +808,13 @@ func (d *DB) UpdateWine(ctx context.Context, id int, w Wine) (*Wine, error) {
 	if err := d.appellationExists(ctx, w.AppellationID); err != nil {
 		return nil, err
 	}
-	producer, err := d.producerByID(ctx, w.ProducerID)
-	if err != nil {
+	if _, err := d.producerByID(ctx, w.ProducerID); err != nil {
 		return nil, err
 	}
 
 	res, err := d.ExecContext(ctx, `
 		UPDATE wine
-		SET millesime = ?, appellation_id = ?, producer_id = ?, color = ?, garde_debut = ?, garde_fin = ?, quantity = ?
+		SET millesime = ?, appellation_id = ?, producer_id = ?, color = ?, garde_debut = ?, garde_fin = ?, quantity = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`, w.Millesime, w.AppellationID, w.ProducerID, w.Color, w.GardeDebut, w.GardeFin, w.Quantity, id)
 	if err != nil {
@@ -677,17 +829,17 @@ func (d *DB) UpdateWine(ctx context.Context, id int, w Wine) (*Wine, error) {
 		return nil, fmt.Errorf("wine id %d: %w", id, ErrWineNotFound)
 	}
 
-	w.ID = id
-	w.Producer = producer
-	return &w, nil
+	return d.GetWine(ctx, id)
 }
 
 type Consumption struct {
-	ID     int     `json:"id"`
-	WineID int     `json:"wine_id"`
-	Date   string  `json:"date"`
-	Rating *int    `json:"rating"`
-	Notes  *string `json:"notes"`
+	ID        int       `json:"id"`
+	ClientID  *string   `json:"client_id"`
+	WineID    int       `json:"wine_id"`
+	Date      string    `json:"date"`
+	Rating    *int      `json:"rating"`
+	Notes     *string   `json:"notes"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func validateConsumption(c Consumption) error {
@@ -703,9 +855,46 @@ func validateConsumption(c Consumption) error {
 	return nil
 }
 
+func (d *DB) consumptionByClientID(ctx context.Context, clientID string) (*Consumption, error) {
+	var id int
+	err := d.QueryRowContext(ctx, "SELECT id FROM consumption WHERE client_id = ?", clientID).Scan(&id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("looking up consumption by client_id: %w", err)
+	}
+	return d.consumptionByID(ctx, id)
+}
+
+func (d *DB) consumptionByID(ctx context.Context, id int) (*Consumption, error) {
+	var c Consumption
+	var date time.Time
+	err := d.QueryRowContext(ctx, `
+		SELECT id, client_id, wine_id, date, rating, notes, updated_at FROM consumption WHERE id = ?
+	`, id).Scan(&c.ID, &c.ClientID, &c.WineID, &date, &c.Rating, &c.Notes, &c.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("consumption id %d: %w", id, ErrConsumptionNotFound)
+		}
+		return nil, fmt.Errorf("getting consumption: %w", err)
+	}
+	c.Date = date.Format("2006-01-02")
+	return &c, nil
+}
+
 func (d *DB) CreateConsumption(ctx context.Context, c Consumption) (*Consumption, error) {
 	if err := validateConsumption(c); err != nil {
 		return nil, err
+	}
+	if c.ClientID != nil {
+		existing, err := d.consumptionByClientID(ctx, *c.ClientID)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return existing, nil
+		}
 	}
 
 	tx, err := d.BeginTx(ctx, nil)
@@ -726,9 +915,18 @@ func (d *DB) CreateConsumption(ctx context.Context, c Consumption) (*Consumption
 	}
 
 	res, err := tx.ExecContext(ctx, `
-		INSERT INTO consumption (wine_id, date, rating, notes) VALUES (?, ?, ?, ?)
-	`, c.WineID, c.Date, c.Rating, c.Notes)
+		INSERT INTO consumption (client_id, wine_id, date, rating, notes, updated_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`, c.ClientID, c.WineID, c.Date, c.Rating, c.Notes)
 	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") && c.ClientID != nil {
+			// Roll back before falling back to a lookup on d (not tx) —
+			// otherwise this read would block forever on the write lock
+			// still held by our own open, uncommitted transaction.
+			tx.Rollback()
+			if existing, lookupErr := d.consumptionByClientID(ctx, *c.ClientID); lookupErr == nil && existing != nil {
+				return existing, nil
+			}
+		}
 		return nil, fmt.Errorf("creating consumption: %w", err)
 	}
 
@@ -745,8 +943,7 @@ func (d *DB) CreateConsumption(ctx context.Context, c Consumption) (*Consumption
 		return nil, fmt.Errorf("committing transaction: %w", err)
 	}
 
-	c.ID = int(id)
-	return &c, nil
+	return d.consumptionByID(ctx, int(id))
 }
 
 type WineSearchResult struct {
@@ -829,7 +1026,7 @@ func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResu
 	}
 
 	query := `
-		SELECT wine.id, wine.millesime, wine.appellation_id, wine.producer_id, producer.name, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity
+		SELECT wine.id, wine.client_id, wine.millesime, wine.appellation_id, wine.producer_id, producer.name, wine.color, wine.garde_debut, wine.garde_fin, wine.quantity, wine.updated_at
 		FROM wine
 		JOIN producer ON producer.id = wine.producer_id
 		JOIN appellation ON appellation.id = wine.appellation_id
@@ -871,7 +1068,7 @@ func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResu
 	var results []WineSearchResult
 	for rows.Next() {
 		var w Wine
-		if err := rows.Scan(&w.ID, &w.Millesime, &w.AppellationID, &w.ProducerID, &w.Producer.Name, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity); err != nil {
+		if err := rows.Scan(&w.ID, &w.ClientID, &w.Millesime, &w.AppellationID, &w.ProducerID, &w.Producer.Name, &w.Color, &w.GardeDebut, &w.GardeFin, &w.Quantity, &w.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scanning wine: %w", err)
 		}
 		w.Producer.ID = w.ProducerID
@@ -915,19 +1112,17 @@ func (d *DB) UpdateConsumption(ctx context.Context, id int, date string, rating 
 		return nil, err
 	}
 
-	wineID, err := d.consumptionWineID(ctx, id)
-	if err != nil {
+	if _, err := d.consumptionWineID(ctx, id); err != nil {
 		return nil, err
 	}
 
 	if _, err := d.ExecContext(ctx, `
-		UPDATE consumption SET date = ?, rating = ?, notes = ? WHERE id = ?
+		UPDATE consumption SET date = ?, rating = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
 	`, date, rating, notes, id); err != nil {
 		return nil, fmt.Errorf("updating consumption: %w", err)
 	}
 
-	c.WineID = wineID
-	return &c, nil
+	return d.consumptionByID(ctx, id)
 }
 
 // DeleteConsumption removes the entry and restores the referenced Wine's
@@ -964,7 +1159,7 @@ func (d *DB) DeleteConsumption(ctx context.Context, id int) error {
 
 func (d *DB) ListConsumptions(ctx context.Context, wineID int) ([]Consumption, error) {
 	rows, err := d.QueryContext(ctx, `
-		SELECT id, wine_id, date, rating, notes FROM consumption WHERE wine_id = ? ORDER BY date, id
+		SELECT id, client_id, wine_id, date, rating, notes, updated_at FROM consumption WHERE wine_id = ? ORDER BY date, id
 	`, wineID)
 	if err != nil {
 		return nil, fmt.Errorf("querying consumptions: %w", err)
@@ -975,7 +1170,7 @@ func (d *DB) ListConsumptions(ctx context.Context, wineID int) ([]Consumption, e
 	for rows.Next() {
 		var c Consumption
 		var date time.Time
-		if err := rows.Scan(&c.ID, &c.WineID, &date, &c.Rating, &c.Notes); err != nil {
+		if err := rows.Scan(&c.ID, &c.ClientID, &c.WineID, &date, &c.Rating, &c.Notes, &c.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scanning consumption: %w", err)
 		}
 		c.Date = date.Format("2006-01-02")

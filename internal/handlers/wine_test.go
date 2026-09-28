@@ -93,6 +93,70 @@ func TestWineCreateWithMillesime(t *testing.T) {
 	}
 }
 
+func TestWineCreateIdempotentByClientID(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Bourgueil")
+	producerID := createTestProducer(t, harness, uniqueTestProducerName("Domaine Test"))
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "rouge",
+		"garde_debut":    2020,
+		"garde_fin":      2028,
+		"quantity":       6,
+		"client_id":      "client-abc",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var first db.Wine
+	harness.JSONResponse(resp, &first)
+
+	resp = harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "rouge",
+		"garde_debut":    2020,
+		"garde_fin":      2028,
+		"quantity":       6,
+		"client_id":      "client-abc",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d on retry, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var retried db.Wine
+	harness.JSONResponse(resp, &retried)
+	if retried.ID != first.ID {
+		t.Errorf("Expected retried create to return original id %d, got %d", first.ID, retried.ID)
+	}
+
+	resp = harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "blanc",
+		"garde_debut":    2021,
+		"garde_fin":      2029,
+		"quantity":       3,
+		"client_id":      "client-def",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var second db.Wine
+	harness.JSONResponse(resp, &second)
+	if second.ID == first.ID {
+		t.Errorf("Expected distinct id for different client_id, got same id %d", second.ID)
+	}
+
+	resp = harness.Do("GET", "/wines", nil)
+	var wines []db.Wine
+	harness.JSONResponse(resp, &wines)
+	if len(wines) != 2 {
+		t.Errorf("Expected 2 wines, got %d", len(wines))
+	}
+}
+
 func TestWineCreateWithoutMillesime(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Champagne")

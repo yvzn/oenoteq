@@ -34,6 +34,53 @@ func TestMealRename(t *testing.T) {
 	}
 }
 
+func TestMealCreateIdempotentByClientID(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+
+	resp := harness.Do("POST", "/meals", map[string]interface{}{
+		"name":      "Roast Chicken",
+		"client_id": "client-abc",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var first db.Meal
+	harness.JSONResponse(resp, &first)
+
+	resp = harness.Do("POST", "/meals", map[string]interface{}{
+		"name":      "Roast Chicken",
+		"client_id": "client-abc",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d on retry, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var retried db.Meal
+	harness.JSONResponse(resp, &retried)
+	if retried.ID != first.ID {
+		t.Errorf("Expected retried create to return original id %d, got %d", first.ID, retried.ID)
+	}
+
+	resp = harness.Do("POST", "/meals", map[string]interface{}{
+		"name":      "Oysters",
+		"client_id": "client-def",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var second db.Meal
+	harness.JSONResponse(resp, &second)
+	if second.ID == first.ID {
+		t.Errorf("Expected distinct id for different client_id, got same id %d", second.ID)
+	}
+
+	resp = harness.Do("GET", "/meals", nil)
+	var meals []db.Meal
+	harness.JSONResponse(resp, &meals)
+	if len(meals) != 2 {
+		t.Errorf("Expected 2 meals, got %d", len(meals))
+	}
+}
+
 func TestMealRenameRejectsDuplicate(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	createTestMeal(t, harness, "Oysters")

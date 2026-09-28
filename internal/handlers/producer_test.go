@@ -34,6 +34,54 @@ func TestProducerRename(t *testing.T) {
 	}
 }
 
+func TestProducerCreateIdempotentByClientID(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	name := uniqueTestProducerName("Domaine Test")
+
+	resp := harness.Do("POST", "/producers", map[string]interface{}{
+		"name":      name,
+		"client_id": "client-abc",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var first db.Producer
+	harness.JSONResponse(resp, &first)
+
+	resp = harness.Do("POST", "/producers", map[string]interface{}{
+		"name":      name,
+		"client_id": "client-abc",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d on retry, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var retried db.Producer
+	harness.JSONResponse(resp, &retried)
+	if retried.ID != first.ID {
+		t.Errorf("Expected retried create to return original id %d, got %d", first.ID, retried.ID)
+	}
+
+	resp = harness.Do("POST", "/producers", map[string]interface{}{
+		"name":      uniqueTestProducerName("Domaine Other"),
+		"client_id": "client-def",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+	var second db.Producer
+	harness.JSONResponse(resp, &second)
+	if second.ID == first.ID {
+		t.Errorf("Expected distinct id for different client_id, got same id %d", second.ID)
+	}
+
+	resp = harness.Do("GET", "/producers", nil)
+	var producers []db.Producer
+	harness.JSONResponse(resp, &producers)
+	if len(producers) != 2 {
+		t.Errorf("Expected 2 producers, got %d", len(producers))
+	}
+}
+
 func TestProducerRenameRejectsDuplicate(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	existing := uniqueTestProducerName("Domaine A")

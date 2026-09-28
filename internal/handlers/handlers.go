@@ -133,7 +133,8 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateAppellation(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name string `json:"name"`
+		Name     string  `json:"name"`
+		ClientID *string `json:"client_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -141,7 +142,7 @@ func (h *Handler) CreateAppellation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	appellation, err := h.db.CreateAppellation(r.Context(), req.Name)
+	appellation, err := h.db.CreateAppellation(r.Context(), req.Name, req.ClientID)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, db.ErrUniqueConstraint) {
@@ -228,7 +229,8 @@ func (h *Handler) DeleteAppellation(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateProducer(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name string `json:"name"`
+		Name     string  `json:"name"`
+		ClientID *string `json:"client_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -236,7 +238,7 @@ func (h *Handler) CreateProducer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	producer, err := h.db.CreateProducer(r.Context(), req.Name)
+	producer, err := h.db.CreateProducer(r.Context(), req.Name, req.ClientID)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, db.ErrUniqueConstraint) {
@@ -323,7 +325,8 @@ func (h *Handler) DeleteProducer(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateMeal(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name string `json:"name"`
+		Name     string  `json:"name"`
+		ClientID *string `json:"client_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -331,7 +334,7 @@ func (h *Handler) CreateMeal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	meal, err := h.db.CreateMeal(r.Context(), req.Name)
+	meal, err := h.db.CreateMeal(r.Context(), req.Name, req.ClientID)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, db.ErrUniqueConstraint) {
@@ -417,17 +420,19 @@ func (h *Handler) DeleteMeal(w http.ResponseWriter, r *http.Request) {
 }
 
 type wineRequest struct {
-	Millesime     *int   `json:"millesime"`
-	AppellationID int    `json:"appellation_id"`
-	ProducerID    int    `json:"producer_id"`
-	Color         string `json:"color"`
-	GardeDebut    *int   `json:"garde_debut"`
-	GardeFin      *int   `json:"garde_fin"`
-	Quantity      int    `json:"quantity"`
+	ClientID      *string `json:"client_id"`
+	Millesime     *int    `json:"millesime"`
+	AppellationID int     `json:"appellation_id"`
+	ProducerID    int     `json:"producer_id"`
+	Color         string  `json:"color"`
+	GardeDebut    *int    `json:"garde_debut"`
+	GardeFin      *int    `json:"garde_fin"`
+	Quantity      int     `json:"quantity"`
 }
 
 func (req wineRequest) toWine() db.Wine {
 	return db.Wine{
+		ClientID:      req.ClientID,
 		Millesime:     req.Millesime,
 		AppellationID: req.AppellationID,
 		ProducerID:    req.ProducerID,
@@ -502,9 +507,10 @@ func (h *Handler) GetWine(w http.ResponseWriter, r *http.Request) {
 }
 
 type consumptionRequest struct {
-	Date   string  `json:"date"`
-	Rating *int    `json:"rating"`
-	Notes  *string `json:"notes"`
+	ClientID *string `json:"client_id"`
+	Date     string  `json:"date"`
+	Rating   *int    `json:"rating"`
+	Notes    *string `json:"notes"`
 }
 
 func consumptionErrorStatus(err error) int {
@@ -536,10 +542,11 @@ func (h *Handler) CreateConsumption(w http.ResponseWriter, r *http.Request) {
 	}
 
 	consumption, err := h.db.CreateConsumption(r.Context(), db.Consumption{
-		WineID: wineID,
-		Date:   req.Date,
-		Rating: req.Rating,
-		Notes:  req.Notes,
+		ClientID: req.ClientID,
+		WineID:   wineID,
+		Date:     req.Date,
+		Rating:   req.Rating,
+		Notes:    req.Notes,
 	})
 	if err != nil {
 		writeError(w, consumptionErrorStatus(err), dbErrorCode(err))

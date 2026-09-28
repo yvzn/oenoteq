@@ -11,6 +11,15 @@ Content-Type: application/json
   "name": "Saint Nicolas de Bourgueil"
 }
 
+### Create Appellation with client_id (idempotent — retried POST with the same client_id returns the existing row instead of duplicating)
+POST {{baseUrl}}/appellations
+Content-Type: application/json
+
+{
+  "name": "Menetou-Salon",
+  "client_id": "a1b2c3d4-0000-0000-0000-000000000001"
+}
+
 ### List Appellations
 GET {{baseUrl}}/appellations
 
@@ -35,6 +44,15 @@ Content-Type: application/json
   "name": "Domaine du Closel"
 }
 
+### Create Producer with client_id (idempotent — retried POST with the same client_id returns the existing row instead of duplicating)
+POST {{baseUrl}}/producers
+Content-Type: application/json
+
+{
+  "name": "Domaine Bernard Baudry",
+  "client_id": "a1b2c3d4-0000-0000-0000-000000000002"
+}
+
 ### List Producers
 GET {{baseUrl}}/producers
 
@@ -57,6 +75,15 @@ Content-Type: application/json
 
 {
   "name": "Boeuf bourguignon"
+}
+
+### Create Meal with client_id (idempotent — retried POST with the same client_id returns the existing row instead of duplicating)
+POST {{baseUrl}}/meals
+Content-Type: application/json
+
+{
+  "name": "Canard a l'orange",
+  "client_id": "a1b2c3d4-0000-0000-0000-000000000003"
 }
 
 ### List Meals
@@ -101,6 +128,21 @@ Content-Type: application/json
   "quantity": 3
 }
 
+### Create Wine with client_id (idempotent — retried POST with the same client_id returns the existing row instead of duplicating)
+POST {{baseUrl}}/wines
+Content-Type: application/json
+
+{
+  "millesime": 2019,
+  "appellation_id": 1,
+  "producer_id": 1,
+  "color": "rouge",
+  "garde_debut": 2021,
+  "garde_fin": 2029,
+  "quantity": 4,
+  "client_id": "a1b2c3d4-0000-0000-0000-000000000004"
+}
+
 ### List Wines
 GET {{baseUrl}}/wines
 
@@ -131,6 +173,17 @@ Content-Type: application/json
   "date": "2026-01-15",
   "rating": 4,
   "notes": "Great with duck"
+}
+
+### Record a Consumption with client_id (idempotent — retried POST with the same client_id returns the existing row instead of double-decrementing quantity)
+POST {{baseUrl}}/wines/1/consumptions
+Content-Type: application/json
+
+{
+  "date": "2026-01-15",
+  "rating": 4,
+  "notes": "Great with duck",
+  "client_id": "a1b2c3d4-0000-0000-0000-000000000005"
 }
 
 ### Edit a Consumption (date/rating/notes only, wine_id is not editable)
