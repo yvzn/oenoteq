@@ -8,18 +8,21 @@ const label: Record<GardeStatus, string> = {
   too_young: 'Too young',
   ready: 'Ready',
   past_peak: 'Past peak',
+  unassessed: 'Not assessed',
 }
 
 const textClassByStatus: Record<GardeStatus, string> = {
   too_young: 'text-status-young',
   ready: 'text-status-ready',
   past_peak: 'text-status-past',
+  unassessed: 'text-muted',
 }
 
 const dotClassByStatus: Record<GardeStatus, string> = {
   too_young: 'bg-status-young',
   ready: 'bg-status-ready',
   past_peak: 'bg-status-past',
+  unassessed: 'bg-label',
 }
 
 const textClass = computed(() => textClassByStatus[props.status])

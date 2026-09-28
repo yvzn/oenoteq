@@ -31,8 +31,6 @@ export function validateWineForm(fields: WineFormFields): WineFormErrors {
 
   const gardeDebut = parseNumber(fields.gardeDebut)
   const gardeFin = parseNumber(fields.gardeFin)
-  if (gardeDebut === null) errors.gardeDebut = 'Garde start year is required'
-  if (gardeFin === null) errors.gardeFin = 'Garde end year is required'
   if (gardeDebut !== null && gardeFin !== null && gardeDebut > gardeFin) {
     errors.gardeFin = 'Garde end year must be on or after garde start year'
   }
@@ -50,8 +48,8 @@ export function toWineInput(fields: WineFormFields): WineInput {
     appellation_id: fields.appellationId as number,
     producer_id: fields.producerId as number,
     color: fields.color as Color,
-    garde_debut: parseNumber(fields.gardeDebut) as number,
-    garde_fin: parseNumber(fields.gardeFin) as number,
+    garde_debut: parseNumber(fields.gardeDebut),
+    garde_fin: parseNumber(fields.gardeFin),
     quantity: parseNumber(fields.quantity) as number,
   }
 }
@@ -62,8 +60,8 @@ export function wineToFormFields(wine: WineInput): WineFormFields {
     appellationId: wine.appellation_id,
     producerId: wine.producer_id,
     color: wine.color,
-    gardeDebut: String(wine.garde_debut),
-    gardeFin: String(wine.garde_fin),
+    gardeDebut: wine.garde_debut === null ? '' : String(wine.garde_debut),
+    gardeFin: wine.garde_fin === null ? '' : String(wine.garde_fin),
     quantity: String(wine.quantity),
   }
 }

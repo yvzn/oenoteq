@@ -89,6 +89,18 @@ Content-Type: application/json
   "quantity": 6
 }
 
+### Create Wine without a Garde window (both bounds optional, independently)
+POST {{baseUrl}}/wines
+Content-Type: application/json
+
+{
+  "millesime": 2022,
+  "appellation_id": 1,
+  "producer_id": 1,
+  "color": "blanc",
+  "quantity": 3
+}
+
 ### List Wines
 GET {{baseUrl}}/wines
 
@@ -161,13 +173,13 @@ Content-Type: application/json
 
 
 
-### Search: filters (meal, appellation, color, ready_now) combine with AND; quantity=0 excluded by default; each result carries garde_status (too_young/ready/past_peak)
+### Search: filters (meal, appellation, color, ready_now) combine with AND; quantity=0 excluded by default; each result carries garde_status (too_young/ready/past_peak/unassessed)
 GET {{baseUrl}}/search?appellation_id=1&color=rouge&ready_now=true
 
 ### Search: by meal alone (matches Wines whose appellation+color is paired with the meal)
 GET {{baseUrl}}/search?meal_id=1
 
-### Search: ready_now alone (everything currently in its garde window)
+### Search: ready_now alone (everything currently in its garde window; unassessed wines never qualify)
 GET {{baseUrl}}/search?ready_now=true
 
 ### Search: no filters (everything in stock, flagged with garde_status)

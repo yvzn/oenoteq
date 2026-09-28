@@ -391,8 +391,8 @@ type Wine struct {
 	ProducerID    int      `json:"producer_id"`
 	Producer      Producer `json:"producer"`
 	Color         string   `json:"color"`
-	GardeDebut    int      `json:"garde_debut"`
-	GardeFin      int      `json:"garde_fin"`
+	GardeDebut    *int     `json:"garde_debut"`
+	GardeFin      *int     `json:"garde_fin"`
 	Quantity      int      `json:"quantity"`
 }
 
@@ -752,14 +752,16 @@ type SearchFilters struct {
 }
 
 func gardeStatus(w Wine, year int) string {
-	switch {
-	case year < w.GardeDebut:
-		return "too_young"
-	case year > w.GardeFin:
-		return "past_peak"
-	default:
-		return "ready"
+	if w.GardeDebut == nil && w.GardeFin == nil {
+		return "unassessed"
 	}
+	if w.GardeDebut != nil && year < *w.GardeDebut {
+		return "too_young"
+	}
+	if w.GardeFin != nil && year > *w.GardeFin {
+		return "past_peak"
+	}
+	return "ready"
 }
 
 func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResult, error) {

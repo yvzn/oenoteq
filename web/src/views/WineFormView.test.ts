@@ -111,8 +111,6 @@ describe('WineFormView — add', () => {
     expect(wrapper.find('[data-testid="wine-appellation-error"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="wine-producer-error"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="wine-color-error"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="wine-garde-debut-error"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="wine-garde-fin-error"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="wine-quantity-error"]').exists()).toBe(true)
     expect(apiClient.post).not.toHaveBeenCalled()
   })

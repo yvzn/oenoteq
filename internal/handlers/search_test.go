@@ -32,6 +32,34 @@ func createSearchTestWine(t *testing.T, harness *test.Harness, appellationID int
 	return wine
 }
 
+func createSearchTestWineWithOptionalGarde(t *testing.T, harness *test.Harness, appellationID int, color string, gardeDebut, gardeFin *int, quantity int) db.Wine {
+	t.Helper()
+
+	producerID := createTestProducer(t, harness, uniqueTestProducerName("Test Producer"))
+
+	body := map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          color,
+		"quantity":       quantity,
+	}
+	if gardeDebut != nil {
+		body["garde_debut"] = *gardeDebut
+	}
+	if gardeFin != nil {
+		body["garde_fin"] = *gardeFin
+	}
+
+	resp := harness.Do("POST", "/wines", body)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d creating wine, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	var wine db.Wine
+	harness.JSONResponse(resp, &wine)
+	return wine
+}
+
 func doSearch(t *testing.T, harness *test.Harness, query string) []db.WineSearchResult {
 	t.Helper()
 
@@ -149,6 +177,56 @@ func TestSearchWithoutReadyNowIncludesFlaggedResults(t *testing.T) {
 	}
 	if statuses[pastPeak.ID] != "past_peak" {
 		t.Errorf("Expected past_peak status, got %q", statuses[pastPeak.ID])
+	}
+}
+
+func TestSearchGardeStatusWithPartialOrMissingBounds(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	year := time.Now().Year()
+	appellation := createTestAppellation(t, harness, "Bandol")
+
+	past := year - 1
+	future := year + 1
+
+	unassessed := createSearchTestWineWithOptionalGarde(t, harness, appellation, "rouge", nil, nil, 3)
+	startOnlyTooYoung := createSearchTestWineWithOptionalGarde(t, harness, appellation, "rouge", &future, nil, 3)
+	startOnlyReady := createSearchTestWineWithOptionalGarde(t, harness, appellation, "rouge", &past, nil, 3)
+	endOnlyReady := createSearchTestWineWithOptionalGarde(t, harness, appellation, "rouge", nil, &future, 3)
+	endOnlyPastPeak := createSearchTestWineWithOptionalGarde(t, harness, appellation, "rouge", nil, &past, 3)
+
+	results := doSearch(t, harness, "?appellation_id="+itoa(appellation))
+
+	statuses := map[int]string{}
+	for _, r := range results {
+		statuses[r.ID] = r.GardeStatus
+	}
+	if statuses[unassessed.ID] != "unassessed" {
+		t.Errorf("Expected unassessed status for wine with no garde bounds, got %q", statuses[unassessed.ID])
+	}
+	if statuses[startOnlyTooYoung.ID] != "too_young" {
+		t.Errorf("Expected too_young for future start bound with no end, got %q", statuses[startOnlyTooYoung.ID])
+	}
+	if statuses[startOnlyReady.ID] != "ready" {
+		t.Errorf("Expected ready for past start bound with no end, got %q", statuses[startOnlyReady.ID])
+	}
+	if statuses[endOnlyReady.ID] != "ready" {
+		t.Errorf("Expected ready for future end bound with no start, got %q", statuses[endOnlyReady.ID])
+	}
+	if statuses[endOnlyPastPeak.ID] != "past_peak" {
+		t.Errorf("Expected past_peak for past end bound with no start, got %q", statuses[endOnlyPastPeak.ID])
+	}
+}
+
+func TestSearchReadyNowExcludesUnassessed(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellation := createTestAppellation(t, harness, "Cahors")
+
+	unassessed := createSearchTestWineWithOptionalGarde(t, harness, appellation, "rouge", nil, nil, 3)
+
+	results := doSearch(t, harness, "?ready_now=true")
+
+	if containsWineID(results, unassessed.ID) {
+		t.Errorf("Expected unassessed wine to be excluded from ready_now results")
 	}
 }
 

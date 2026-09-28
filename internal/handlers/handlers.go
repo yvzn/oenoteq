@@ -418,8 +418,8 @@ type wineRequest struct {
 	AppellationID int    `json:"appellation_id"`
 	ProducerID    int    `json:"producer_id"`
 	Color         string `json:"color"`
-	GardeDebut    int    `json:"garde_debut"`
-	GardeFin      int    `json:"garde_fin"`
+	GardeDebut    *int   `json:"garde_debut"`
+	GardeFin      *int   `json:"garde_fin"`
 	Quantity      int    `json:"quantity"`
 }
 

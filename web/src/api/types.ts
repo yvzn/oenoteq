@@ -1,5 +1,5 @@
 export type Color = 'rouge' | 'blanc' | 'rose'
-export type GardeStatus = 'too_young' | 'ready' | 'past_peak'
+export type GardeStatus = 'too_young' | 'ready' | 'past_peak' | 'unassessed'
 
 export interface Producer {
   id: number
@@ -13,8 +13,8 @@ export interface Wine {
   producer_id: number
   producer: Producer
   color: Color
-  garde_debut: number
-  garde_fin: number
+  garde_debut: number | null
+  garde_fin: number | null
   quantity: number
 }
 
@@ -27,8 +27,8 @@ export interface WineInput {
   appellation_id: number
   producer_id: number
   color: Color
-  garde_debut: number
-  garde_fin: number
+  garde_debut: number | null
+  garde_fin: number | null
   quantity: number
 }
 

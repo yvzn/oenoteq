@@ -21,7 +21,7 @@ The vintage year a wine was produced. Optional — non-vintage wines (e.g. Champ
 _Avoid_: Vintage, year
 
 **Garde**:
-The drinking window for a wine, expressed as a range (`garde_debut` start year, `garde_fin` end year) rather than a single target year.
+The drinking window for a wine, expressed as a range (`garde_debut` start year, `garde_fin` end year) rather than a single target year. Each bound is independently optional. A missing bound isn't "no limit" — it means no judgment has been made for that side yet.
 _Avoid_: Peak year, optimal year
 
 **Appellation**:
@@ -41,8 +41,8 @@ A shared, reusable lookup keyed by (Appellation, Color) that suggests which meal
 _Avoid_: Food match, pairing (ambiguous alone)
 
 **Garde Status**:
-A Wine's position in its Garde window, derived (not stored) by comparing the current year to `garde_debut`/`garde_fin`: `too_young` (before the window), `ready` (inside it), or `past_peak` (after it). Computed at read time, e.g. by Search.
-_Avoid_: Drinking status, maturity
+A Wine's position in its Garde window, derived (not stored) by comparing the current year to whichever of `garde_debut`/`garde_fin` are set: `too_young` (before garde_debut, if set), `ready` (inside the known window, or unconstrained on whichever side is unset), `past_peak` (after garde_fin, if set), or `unassessed` (both bounds unset — no judgment made yet, distinct from "ready"). Computed at read time, e.g. by Search. Search's "ready now" filter matches only `ready`; `unassessed` never qualifies.
+_Avoid_: Drinking status, maturity, unknown (use "unassessed")
 
 **Label Scan**:
 Prefilling the Add Wine form's Millesime, Appellation, Producer, and Color from a photo of the bottle's etiquette, via client-side OCR. Always reviewed and submitted manually — never auto-adds a Wine. Garde and Quantity are never scanned: they're the user's own judgment/stock count, not printed on a label.

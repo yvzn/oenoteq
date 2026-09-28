@@ -123,6 +123,13 @@ const appellationName = computed(() => {
 
 const gardeStatus = computed(() => (wine.value ? computeGardeStatus(wine.value) : null))
 
+const gardeRangeLabel = computed(() => {
+  if (!wine.value) return null
+  const { garde_debut, garde_fin } = wine.value
+  if (garde_debut === null && garde_fin === null) return null
+  return `Garde ${garde_debut ?? ''}–${garde_fin ?? ''}`
+})
+
 watch(
   id,
   (next) => {
@@ -179,8 +186,10 @@ function retry() {
         <span class="text-muted/40">·</span>
         <span class="text-ink-soft tabular-nums">{{ wine.millesime ?? 'NV' }}</span>
         <span class="text-muted/40">·</span>
-        <span>Garde {{ wine.garde_debut }}–{{ wine.garde_fin }}</span>
-        <span class="text-muted/40">·</span>
+        <template v-if="gardeRangeLabel">
+          <span>{{ gardeRangeLabel }}</span>
+          <span class="text-muted/40">·</span>
+        </template>
         <span class="text-ink-soft tabular-nums">×{{ wine.quantity }}</span>
         <GardeStatusBadge v-if="gardeStatus" :status="gardeStatus" class="ml-1" />
       </div>

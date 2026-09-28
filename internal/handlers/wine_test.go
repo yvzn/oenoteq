@@ -85,8 +85,8 @@ func TestWineCreateWithMillesime(t *testing.T) {
 	if wine.Color != "rouge" {
 		t.Errorf("Expected color 'rouge', got %q", wine.Color)
 	}
-	if wine.GardeDebut != 2020 || wine.GardeFin != 2028 {
-		t.Errorf("Expected garde 2020-2028, got %d-%d", wine.GardeDebut, wine.GardeFin)
+	if wine.GardeDebut == nil || *wine.GardeDebut != 2020 || wine.GardeFin == nil || *wine.GardeFin != 2028 {
+		t.Errorf("Expected garde 2020-2028, got %v-%v", wine.GardeDebut, wine.GardeFin)
 	}
 	if wine.Quantity != 6 {
 		t.Errorf("Expected quantity 6, got %d", wine.Quantity)
@@ -116,6 +116,61 @@ func TestWineCreateWithoutMillesime(t *testing.T) {
 
 	if wine.Millesime != nil {
 		t.Errorf("Expected nil millesime, got %v", *wine.Millesime)
+	}
+}
+
+func TestWineCreateWithoutGarde(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Muscadet")
+	producerID := createTestProducer(t, harness, "Domaine C")
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "blanc",
+		"quantity":       2,
+	})
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	var wine db.Wine
+	harness.JSONResponse(resp, &wine)
+
+	if wine.GardeDebut != nil {
+		t.Errorf("Expected nil garde_debut, got %v", *wine.GardeDebut)
+	}
+	if wine.GardeFin != nil {
+		t.Errorf("Expected nil garde_fin, got %v", *wine.GardeFin)
+	}
+}
+
+func TestWineCreateWithOnlyGardeDebut(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Savennieres")
+	producerID := createTestProducer(t, harness, "Domaine D")
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "blanc",
+		"garde_debut":    2025,
+		"quantity":       2,
+	})
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	var wine db.Wine
+	harness.JSONResponse(resp, &wine)
+
+	if wine.GardeDebut == nil || *wine.GardeDebut != 2025 {
+		t.Errorf("Expected garde_debut 2025, got %v", wine.GardeDebut)
+	}
+	if wine.GardeFin != nil {
+		t.Errorf("Expected nil garde_fin, got %v", *wine.GardeFin)
 	}
 }
 
@@ -235,8 +290,8 @@ func TestWineEditFields(t *testing.T) {
 	if updated.Color != "rose" {
 		t.Errorf("Expected color 'rose', got %q", updated.Color)
 	}
-	if updated.GardeDebut != 2023 || updated.GardeFin != 2031 {
-		t.Errorf("Expected garde 2023-2031, got %d-%d", updated.GardeDebut, updated.GardeFin)
+	if updated.GardeDebut == nil || *updated.GardeDebut != 2023 || updated.GardeFin == nil || *updated.GardeFin != 2031 {
+		t.Errorf("Expected garde 2023-2031, got %v-%v", updated.GardeDebut, updated.GardeFin)
 	}
 	if updated.Quantity != 2 {
 		t.Errorf("Expected quantity 2, got %d", updated.Quantity)

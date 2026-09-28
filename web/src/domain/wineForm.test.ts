@@ -44,11 +44,16 @@ describe('validateWineForm', () => {
     })
   })
 
-  it('requires garde_debut and garde_fin', () => {
-    expect(validateWineForm({ ...validFields, gardeDebut: '', gardeFin: '' })).toMatchObject({
-      gardeDebut: expect.any(String),
-      gardeFin: expect.any(String),
-    })
+  it('allows garde_debut and garde_fin to both be empty (optional)', () => {
+    expect(validateWineForm({ ...validFields, gardeDebut: '', gardeFin: '' })).toEqual({})
+  })
+
+  it('allows only garde_debut to be set', () => {
+    expect(validateWineForm({ ...validFields, gardeFin: '' })).toEqual({})
+  })
+
+  it('allows only garde_fin to be set', () => {
+    expect(validateWineForm({ ...validFields, gardeDebut: '' })).toEqual({})
   })
 
   it('rejects garde_debut greater than garde_fin', () => {
@@ -96,6 +101,12 @@ describe('toWineInput', () => {
   it('converts an empty millesime to null', () => {
     expect(toWineInput({ ...validFields, millesime: '' }).millesime).toBeNull()
   })
+
+  it('converts empty garde_debut/garde_fin to null', () => {
+    const input = toWineInput({ ...validFields, gardeDebut: '', gardeFin: '' })
+    expect(input.garde_debut).toBeNull()
+    expect(input.garde_fin).toBeNull()
+  })
 })
 
 describe('wineToFormFields', () => {
@@ -125,6 +136,20 @@ describe('wineToFormFields', () => {
         quantity: 6,
       }).millesime,
     ).toBe('')
+  })
+
+  it('converts null garde_debut/garde_fin to empty strings', () => {
+    const fields = wineToFormFields({
+      millesime: 2018,
+      appellation_id: 1,
+      producer_id: 2,
+      color: 'rouge',
+      garde_debut: null,
+      garde_fin: null,
+      quantity: 6,
+    })
+    expect(fields.gardeDebut).toBe('')
+    expect(fields.gardeFin).toBe('')
   })
 })
 
