@@ -25,5 +25,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: false,
     setupFiles: ['./src/test/dialogPolyfill.ts'],
+    pool: 'vmThreads',
   },
 })
