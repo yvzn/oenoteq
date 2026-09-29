@@ -21,7 +21,11 @@ type DB struct {
 }
 
 func Open(path string) (*DB, error) {
-	sqlDB, err := sql.Open("sqlite", "file:"+path)
+	// Without a busy_timeout, a request that lands while another connection
+	// holds a write lock fails immediately (SQLITE_BUSY) instead of waiting
+	// for it to clear — WAL lets readers and a writer proceed concurrently,
+	// and busy_timeout is the backstop for the remaining writer-vs-writer case.
+	sqlDB, err := sql.Open("sqlite", "file:"+path+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)")
 	if err != nil {
 		return nil, fmt.Errorf("opening sqlite: %w", err)
 	}

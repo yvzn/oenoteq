@@ -100,6 +100,20 @@ describe('WineDetailView', () => {
     expect(detail.text()).toContain('Chinon')
   })
 
+  it('never fetches a not-yet-synced (local-only) wine, since it cannot exist on the server yet', async () => {
+    const localOnly = { ...wineDetail, id: -123 } as WineDetail
+    await db.wines.put(localOnly)
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/appellations') return Promise.resolve(appellations)
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/wines/-123')
+
+    expect(apiClient.get).not.toHaveBeenCalledWith('/wines/-123')
+    const detail = wrapper.get('[data-testid="wine-detail"]')
+    expect(detail.text()).toContain('Les Garillères')
+  })
 
   it('shows a loading indicator before the fetches resolve', async () => {
     vi.mocked(apiClient.get).mockReturnValue(new Promise(() => {}))

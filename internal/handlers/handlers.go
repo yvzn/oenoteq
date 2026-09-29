@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -84,6 +85,9 @@ func dbErrorCode(err error) string {
 	case errors.Is(err, db.ErrInitialQuantityRequired):
 		return codeInitialQuantityRequired
 	default:
+		// Unrecognized errors are exactly the ones nobody has a friendly
+		// code for yet — log the real one so a 500 is debuggable server-side.
+		log.Printf("internal error: %v", err)
 		return codeInternal
 	}
 }

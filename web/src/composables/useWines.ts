@@ -66,6 +66,13 @@ export function useWines() {
     error.value = null
     const cached = await db.wines.get(id)
     if (cached) wine.value = cached
+    // A negative id is local-only and hasn't synced yet, so it can never
+    // exist at the server — fetching it would just 404 and race the
+    // background push that's already trying to create it.
+    if (id < 0) {
+      loading.value = false
+      return
+    }
     try {
       if (navigator.onLine !== false) {
         wine.value = await pullWine(id)
