@@ -21,8 +21,10 @@ const isManage = computed(() => manageRouteNames.includes(route.name as string))
 
 <template>
   <header class="border-line bg-parchment-raised border-b px-6 py-5">
-    <p class="text-muted text-[11px] tracking-widest uppercase">Oenoteq</p>
-    <h1 class="font-display text-ink mt-0.5 text-base leading-none">Wine Cellar Tracker</h1>
+    <a href="/" class="block w-fit">
+      <p class="text-muted text-[11px] tracking-widest uppercase">Oenoteq</p>
+      <h1 class="font-display text-ink mt-0.5 text-base leading-none">Wine Cellar Tracker</h1>
+    </a>
     <nav class="mt-4 flex gap-6 text-sm">
       <RouterLink
         to="/"
