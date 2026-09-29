@@ -102,7 +102,7 @@ DELETE {{baseUrl}}/meals/1
 
 
 
-### Create Wine
+### Create Wine (quantity is not settable here — it starts at 0 and only changes via Consumption or a quantity adjustment, ADR-0006)
 POST {{baseUrl}}/wines
 Content-Type: application/json
 
@@ -112,8 +112,7 @@ Content-Type: application/json
   "producer_id": 1,
   "color": "rouge",
   "garde_debut": 2020,
-  "garde_fin": 2028,
-  "quantity": 6
+  "garde_fin": 2028
 }
 
 ### Create Wine without a Garde window (both bounds optional, independently)
@@ -124,8 +123,7 @@ Content-Type: application/json
   "millesime": 2022,
   "appellation_id": 1,
   "producer_id": 1,
-  "color": "blanc",
-  "quantity": 3
+  "color": "blanc"
 }
 
 ### Create Wine with client_id (idempotent — retried POST with the same client_id returns the existing row instead of duplicating)
@@ -139,7 +137,6 @@ Content-Type: application/json
   "color": "rouge",
   "garde_debut": 2021,
   "garde_fin": 2029,
-  "quantity": 4,
   "client_id": "a1b2c3d4-0000-0000-0000-000000000004"
 }
 
@@ -149,7 +146,7 @@ GET {{baseUrl}}/wines
 ### Get Wine detail (response includes suggested_meals derived from appellation+color, and consumption_history ordered by date)
 GET {{baseUrl}}/wines/1
 
-### Edit Wine
+### Edit Wine (quantity is not settable here either — sending it has no effect)
 PUT {{baseUrl}}/wines/1
 Content-Type: application/json
 
@@ -159,8 +156,24 @@ Content-Type: application/json
   "producer_id": 1,
   "color": "rouge",
   "garde_debut": 2020,
-  "garde_fin": 2028,
-  "quantity": 5
+  "garde_fin": 2028
+}
+
+### Manually adjust a Wine's quantity by a signed delta (reason is always "manual"; rejected with quantity_zero if it would go below zero)
+POST {{baseUrl}}/wines/1/quantity-adjustments
+Content-Type: application/json
+
+{
+  "delta": 6
+}
+
+### Manually adjust a Wine's quantity with client_id (idempotent — retried POST with the same client_id returns the current state instead of re-applying the delta)
+POST {{baseUrl}}/wines/1/quantity-adjustments
+Content-Type: application/json
+
+{
+  "delta": -2,
+  "client_id": "a1b2c3d4-0000-0000-0000-000000000006"
 }
 
 

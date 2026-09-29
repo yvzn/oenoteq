@@ -44,6 +44,23 @@ func createTestProducer(t *testing.T, harness *test.Harness, name string) int {
 	return producer.ID
 }
 
+// applyQuantityAdjustment applies a manual signed delta to a Wine's quantity
+// via the quantity-adjustments endpoint and returns the updated Wine.
+func applyQuantityAdjustment(t *testing.T, harness *test.Harness, wineID, delta int) db.Wine {
+	t.Helper()
+
+	resp := harness.Do("POST", "/wines/"+strconv.Itoa(wineID)+"/quantity-adjustments", map[string]interface{}{
+		"delta": delta,
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d applying quantity adjustment, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	var wine db.Wine
+	harness.JSONResponse(resp, &wine)
+	return wine
+}
+
 func TestWineCreateWithMillesime(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	appellationID := createTestAppellation(t, harness, "Bourgueil")
@@ -57,7 +74,6 @@ func TestWineCreateWithMillesime(t *testing.T) {
 		"color":          "rouge",
 		"garde_debut":    2020,
 		"garde_fin":      2028,
-		"quantity":       6,
 	})
 
 	if resp.StatusCode != http.StatusCreated {
@@ -88,8 +104,29 @@ func TestWineCreateWithMillesime(t *testing.T) {
 	if wine.GardeDebut == nil || *wine.GardeDebut != 2020 || wine.GardeFin == nil || *wine.GardeFin != 2028 {
 		t.Errorf("Expected garde 2020-2028, got %v-%v", wine.GardeDebut, wine.GardeFin)
 	}
-	if wine.Quantity != 6 {
-		t.Errorf("Expected quantity 6, got %d", wine.Quantity)
+	if wine.Quantity != 0 {
+		t.Errorf("Expected quantity to start at 0, got %d", wine.Quantity)
+	}
+}
+
+func TestWineCreateIgnoresQuantityField(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Bourgueil Ignored")
+	producerID := createTestProducer(t, harness, "Domaine Ignored")
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "rouge",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	var wine db.Wine
+	harness.JSONResponse(resp, &wine)
+	if wine.Quantity != 0 {
+		t.Errorf("Expected quantity field in create body to have no effect, got %d", wine.Quantity)
 	}
 }
 
@@ -104,7 +141,6 @@ func TestWineCreateIdempotentByClientID(t *testing.T) {
 		"color":          "rouge",
 		"garde_debut":    2020,
 		"garde_fin":      2028,
-		"quantity":       6,
 		"client_id":      "client-abc",
 	})
 	if resp.StatusCode != http.StatusCreated {
@@ -119,7 +155,6 @@ func TestWineCreateIdempotentByClientID(t *testing.T) {
 		"color":          "rouge",
 		"garde_debut":    2020,
 		"garde_fin":      2028,
-		"quantity":       6,
 		"client_id":      "client-abc",
 	})
 	if resp.StatusCode != http.StatusCreated {
@@ -137,7 +172,6 @@ func TestWineCreateIdempotentByClientID(t *testing.T) {
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
-		"quantity":       3,
 		"client_id":      "client-def",
 	})
 	if resp.StatusCode != http.StatusCreated {
@@ -168,7 +202,6 @@ func TestWineCreateWithoutMillesime(t *testing.T) {
 		"color":          "blanc",
 		"garde_debut":    2022,
 		"garde_fin":      2030,
-		"quantity":       3,
 	})
 
 	if resp.StatusCode != http.StatusCreated {
@@ -192,7 +225,6 @@ func TestWineCreateWithoutGarde(t *testing.T) {
 		"appellation_id": appellationID,
 		"producer_id":    producerID,
 		"color":          "blanc",
-		"quantity":       2,
 	})
 
 	if resp.StatusCode != http.StatusCreated {
@@ -220,7 +252,6 @@ func TestWineCreateWithOnlyGardeDebut(t *testing.T) {
 		"producer_id":    producerID,
 		"color":          "blanc",
 		"garde_debut":    2025,
-		"quantity":       2,
 	})
 
 	if resp.StatusCode != http.StatusCreated {
@@ -247,7 +278,6 @@ func TestWineCreateRejectsUnknownAppellation(t *testing.T) {
 		"color":          "rouge",
 		"garde_debut":    2022,
 		"garde_fin":      2030,
-		"quantity":       3,
 	})
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -268,7 +298,6 @@ func TestWineCreateRejectsInvalidColor(t *testing.T) {
 		"color":          "orange",
 		"garde_debut":    2022,
 		"garde_fin":      2030,
-		"quantity":       3,
 	})
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -276,27 +305,6 @@ func TestWineCreateRejectsInvalidColor(t *testing.T) {
 	}
 	if code := harness.ErrorCode(resp); code != "invalid_color" {
 		t.Errorf("Expected error code 'invalid_color', got %q", code)
-	}
-}
-
-func TestWineCreateRejectsNegativeQuantity(t *testing.T) {
-	harness, _ := setupHandlerWithDB(t)
-	appellationID := createTestAppellation(t, harness, "Chinon")
-
-	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    0,
-		"color":          "rouge",
-		"garde_debut":    2022,
-		"garde_fin":      2030,
-		"quantity":       -1,
-	})
-
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
-	}
-	if code := harness.ErrorCode(resp); code != "invalid_quantity" {
-		t.Errorf("Expected error code 'invalid_quantity', got %q", code)
 	}
 }
 
@@ -313,7 +321,6 @@ func TestWineEditFields(t *testing.T) {
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
-		"quantity":       4,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -326,7 +333,6 @@ func TestWineEditFields(t *testing.T) {
 		"color":          "rose",
 		"garde_debut":    2023,
 		"garde_fin":      2031,
-		"quantity":       2,
 	})
 
 	if resp.StatusCode != http.StatusOK {
@@ -357,15 +363,43 @@ func TestWineEditFields(t *testing.T) {
 	if updated.GardeDebut == nil || *updated.GardeDebut != 2023 || updated.GardeFin == nil || *updated.GardeFin != 2031 {
 		t.Errorf("Expected garde 2023-2031, got %v-%v", updated.GardeDebut, updated.GardeFin)
 	}
-	if updated.Quantity != 2 {
-		t.Errorf("Expected quantity 2, got %d", updated.Quantity)
-	}
 
 	resp = harness.Do("GET", "/wines/"+strconv.Itoa(created.ID), nil)
 	var fetched db.Wine
 	harness.JSONResponse(resp, &fetched)
 	if fetched.Producer.Name != "Domaine B" {
 		t.Errorf("Expected persisted producer name 'Domaine B', got %q", fetched.Producer.Name)
+	}
+}
+
+func TestWineEditIgnoresQuantityField(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Vouvray Ignored")
+	producerID := createTestProducer(t, harness, "Domaine Ignored Edit")
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "blanc",
+	})
+	var created db.Wine
+	harness.JSONResponse(resp, &created)
+	applyQuantityAdjustment(t, harness, created.ID, 4)
+
+	resp = harness.Do("PUT", "/wines/"+strconv.Itoa(created.ID), map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "blanc",
+		"quantity":       9999,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var updated db.Wine
+	harness.JSONResponse(resp, &updated)
+	if updated.Quantity != 4 {
+		t.Errorf("Expected quantity field in edit body to have no effect, quantity should remain 4, got %d", updated.Quantity)
 	}
 }
 
@@ -380,7 +414,6 @@ func TestWineEditRejectsUnknownAppellation(t *testing.T) {
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
-		"quantity":       4,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -391,7 +424,6 @@ func TestWineEditRejectsUnknownAppellation(t *testing.T) {
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
-		"quantity":       4,
 	})
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -413,7 +445,6 @@ func TestWineEditRejectsInvalidColor(t *testing.T) {
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
-		"quantity":       4,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -424,7 +455,6 @@ func TestWineEditRejectsInvalidColor(t *testing.T) {
 		"color":          "orange",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
-		"quantity":       4,
 	})
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -432,39 +462,6 @@ func TestWineEditRejectsInvalidColor(t *testing.T) {
 	}
 	if code := harness.ErrorCode(resp); code != "invalid_color" {
 		t.Errorf("Expected error code 'invalid_color', got %q", code)
-	}
-}
-
-func TestWineEditRejectsNegativeQuantity(t *testing.T) {
-	harness, _ := setupHandlerWithDB(t)
-	appellationID := createTestAppellation(t, harness, "Quincy")
-	producerID := createTestProducer(t, harness, "Domaine A")
-
-	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2021,
-		"garde_fin":      2029,
-		"quantity":       4,
-	})
-	var created db.Wine
-	harness.JSONResponse(resp, &created)
-
-	resp = harness.Do("PUT", "/wines/"+strconv.Itoa(created.ID), map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2021,
-		"garde_fin":      2029,
-		"quantity":       -3,
-	})
-
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
-	}
-	if code := harness.ErrorCode(resp); code != "invalid_quantity" {
-		t.Errorf("Expected error code 'invalid_quantity', got %q", code)
 	}
 }
 
@@ -479,7 +476,6 @@ func TestWineEditNotFound(t *testing.T) {
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
-		"quantity":       4,
 	})
 
 	if resp.StatusCode != http.StatusNotFound {
@@ -502,7 +498,6 @@ func TestWineListIncludesZeroQuantity(t *testing.T) {
 		"color":          "blanc",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
-		"quantity":       0,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
@@ -514,11 +509,13 @@ func TestWineListIncludesZeroQuantity(t *testing.T) {
 		"color":          "rouge",
 		"garde_debut":    2021,
 		"garde_fin":      2029,
-		"quantity":       5,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
 	}
+	var stocked db.Wine
+	harness.JSONResponse(resp, &stocked)
+	applyQuantityAdjustment(t, harness, stocked.ID, 5)
 
 	resp = harness.Do("GET", "/wines", nil)
 	if resp.StatusCode != http.StatusOK {
@@ -554,7 +551,6 @@ func TestWineGetDetail(t *testing.T) {
 		"color":          "blanc",
 		"garde_debut":    2022,
 		"garde_fin":      2027,
-		"quantity":       1,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -614,7 +610,6 @@ func TestWineDetailIncludesSuggestedMeals(t *testing.T) {
 		"color":          "blanc",
 		"garde_debut":    2022,
 		"garde_fin":      2027,
-		"quantity":       1,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -646,7 +641,6 @@ func TestWineDetailEmptySuggestedMealsWhenNoPairing(t *testing.T) {
 		"color":          "rouge",
 		"garde_debut":    2020,
 		"garde_fin":      2026,
-		"quantity":       2,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -679,7 +673,6 @@ func TestWineDetailReflectsMealPairingEdits(t *testing.T) {
 		"color":          "rouge",
 		"garde_debut":    2021,
 		"garde_fin":      2025,
-		"quantity":       3,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)

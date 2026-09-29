@@ -20,7 +20,6 @@ func createTestWine(t *testing.T, harness *test.Harness, appellationID, quantity
 		"color":          "rouge",
 		"garde_debut":    2020,
 		"garde_fin":      2028,
-		"quantity":       quantity,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d creating wine, got %d", http.StatusCreated, resp.StatusCode)
@@ -28,6 +27,9 @@ func createTestWine(t *testing.T, harness *test.Harness, appellationID, quantity
 
 	var wine db.Wine
 	harness.JSONResponse(resp, &wine)
+	if quantity != 0 {
+		wine = applyQuantityAdjustment(t, harness, wine.ID, quantity)
+	}
 	return wine
 }
 

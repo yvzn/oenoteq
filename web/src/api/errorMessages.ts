@@ -11,7 +11,6 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   invalid_consumption_id: "Couldn't find that consumption entry. Refresh the page and try again.",
   already_exists: 'That name is already in use. Choose a different one.',
   invalid_color: 'Color must be rouge, blanc, or rose.',
-  invalid_quantity: "Quantity can't be negative. Enter 0 or more.",
   appellation_not_found: "That appellation doesn't exist anymore. Refresh the page and try again.",
   producer_not_found: "That producer doesn't exist anymore. Refresh the page and try again.",
   wine_not_found: "Couldn't find that wine. It may have been deleted — go back to the cellar and try again.",

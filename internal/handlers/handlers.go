@@ -30,7 +30,6 @@ const (
 	codeAlreadyExists        = "already_exists"
 	codeInvalidColor         = "invalid_color"
 	codeInvalidSort          = "invalid_sort"
-	codeInvalidQuantity      = "invalid_quantity"
 	codeAppellationNotFound  = "appellation_not_found"
 	codeProducerNotFound     = "producer_not_found"
 	codeWineNotFound         = "wine_not_found"
@@ -57,8 +56,6 @@ func dbErrorCode(err error) string {
 		return codeInvalidColor
 	case errors.Is(err, db.ErrInvalidSort):
 		return codeInvalidSort
-	case errors.Is(err, db.ErrInvalidQuantity):
-		return codeInvalidQuantity
 	case errors.Is(err, db.ErrAppellationNotFound):
 		return codeAppellationNotFound
 	case errors.Is(err, db.ErrProducerNotFound):
@@ -115,6 +112,7 @@ func (h *Handler) Register(mux *http.ServeMux, spa http.Handler) {
 	mux.HandleFunc("GET /wines", h.ListWines)
 	mux.HandleFunc("GET /wines/{id}", h.GetWine)
 	mux.HandleFunc("PUT /wines/{id}", h.UpdateWine)
+	mux.HandleFunc("POST /wines/{id}/quantity-adjustments", h.CreateQuantityAdjustment)
 	mux.HandleFunc("POST /wines/{id}/consumptions", h.CreateConsumption)
 	mux.HandleFunc("PUT /consumptions/{id}", h.UpdateConsumption)
 	mux.HandleFunc("DELETE /consumptions/{id}", h.DeleteConsumption)
@@ -419,6 +417,10 @@ func (h *Handler) DeleteMeal(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// wineRequest deliberately has no quantity field: Wine.quantity is never set
+// directly by a client, only via Consumption creation and quantity
+// adjustments (ADR-0006). Sending "quantity" in a create/update body is
+// simply ignored.
 type wineRequest struct {
 	ClientID      *string `json:"client_id"`
 	Millesime     *int    `json:"millesime"`
@@ -427,7 +429,6 @@ type wineRequest struct {
 	Color         string  `json:"color"`
 	GardeDebut    *int    `json:"garde_debut"`
 	GardeFin      *int    `json:"garde_fin"`
-	Quantity      int     `json:"quantity"`
 }
 
 func (req wineRequest) toWine() db.Wine {
@@ -439,13 +440,12 @@ func (req wineRequest) toWine() db.Wine {
 		Color:         req.Color,
 		GardeDebut:    req.GardeDebut,
 		GardeFin:      req.GardeFin,
-		Quantity:      req.Quantity,
 	}
 }
 
 func wineErrorStatus(err error) int {
 	switch {
-	case errors.Is(err, db.ErrInvalidColor), errors.Is(err, db.ErrInvalidQuantity), errors.Is(err, db.ErrAppellationNotFound), errors.Is(err, db.ErrProducerNotFound):
+	case errors.Is(err, db.ErrInvalidColor), errors.Is(err, db.ErrAppellationNotFound), errors.Is(err, db.ErrProducerNotFound):
 		return http.StatusBadRequest
 	case errors.Is(err, db.ErrWineNotFound):
 		return http.StatusNotFound
@@ -556,6 +556,53 @@ func (h *Handler) CreateConsumption(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(consumption)
+}
+
+type quantityAdjustmentRequest struct {
+	ClientID *string `json:"client_id"`
+	Delta    int     `json:"delta"`
+}
+
+func quantityAdjustmentErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, db.ErrWineNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, db.ErrQuantityZero):
+		return http.StatusConflict
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+// CreateQuantityAdjustment applies a manual, signed correction to a Wine's
+// quantity (reason fixed to "manual"). Unlike Consumption, it's not scoped
+// to a decrement of exactly one.
+func (h *Handler) CreateQuantityAdjustment(w http.ResponseWriter, r *http.Request) {
+	wineID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidWineID)
+		return
+	}
+
+	var req quantityAdjustmentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, codeInvalidRequest)
+		return
+	}
+
+	wine, err := h.db.ApplyQuantityAdjustment(r.Context(), db.QuantityAdjustment{
+		ClientID: req.ClientID,
+		WineID:   wineID,
+		Delta:    req.Delta,
+	})
+	if err != nil {
+		writeError(w, quantityAdjustmentErrorStatus(err), dbErrorCode(err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(wine)
 }
 
 func (h *Handler) UpdateConsumption(w http.ResponseWriter, r *http.Request) {

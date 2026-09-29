@@ -496,7 +496,6 @@ func (d *DB) DeleteMeal(ctx context.Context, id int) error {
 
 var (
 	ErrInvalidColor        = errors.New("invalid color")
-	ErrInvalidQuantity     = errors.New("quantity must be >= 0")
 	ErrAppellationNotFound = errors.New("appellation not found")
 	ErrProducerNotFound    = errors.New("producer not found")
 	ErrWineNotFound        = errors.New("wine not found")
@@ -536,12 +535,12 @@ type Wine struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+// validateWine checks the fields a client can set directly. Quantity is
+// excluded: it's never accepted from Wine create/update requests, only
+// mutated via Consumption creation and quantity_adjustment (ADR-0006).
 func validateWine(w Wine) error {
 	if !validColors[w.Color] {
 		return fmt.Errorf("%q: %w", w.Color, ErrInvalidColor)
-	}
-	if w.Quantity < 0 {
-		return fmt.Errorf("%d: %w", w.Quantity, ErrInvalidQuantity)
 	}
 	return nil
 }
@@ -812,11 +811,13 @@ func (d *DB) UpdateWine(ctx context.Context, id int, w Wine) (*Wine, error) {
 		return nil, err
 	}
 
+	// quantity is deliberately absent: it's never set from a Wine update,
+	// only mutated via Consumption creation and quantity_adjustment.
 	res, err := d.ExecContext(ctx, `
 		UPDATE wine
-		SET millesime = ?, appellation_id = ?, producer_id = ?, color = ?, garde_debut = ?, garde_fin = ?, quantity = ?, updated_at = CURRENT_TIMESTAMP
+		SET millesime = ?, appellation_id = ?, producer_id = ?, color = ?, garde_debut = ?, garde_fin = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, w.Millesime, w.AppellationID, w.ProducerID, w.Color, w.GardeDebut, w.GardeFin, w.Quantity, id)
+	`, w.Millesime, w.AppellationID, w.ProducerID, w.Color, w.GardeDebut, w.GardeFin, id)
 	if err != nil {
 		return nil, fmt.Errorf("updating wine: %w", err)
 	}
@@ -944,6 +945,90 @@ func (d *DB) CreateConsumption(ctx context.Context, c Consumption) (*Consumption
 	}
 
 	return d.consumptionByID(ctx, int(id))
+}
+
+// QuantityAdjustment is a manual stock correction — the signed-delta
+// counterpart to Consumption's implicit -1. Reason is always "manual"; it
+// exists to distinguish this ledger from a future non-manual source without
+// a schema change.
+type QuantityAdjustment struct {
+	ID        int       `json:"id"`
+	ClientID  *string   `json:"client_id"`
+	WineID    int       `json:"wine_id"`
+	Delta     int       `json:"delta"`
+	Reason    string    `json:"reason"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (d *DB) quantityAdjustmentByClientID(ctx context.Context, clientID string) (*QuantityAdjustment, error) {
+	var a QuantityAdjustment
+	err := d.QueryRowContext(ctx, `
+		SELECT id, client_id, wine_id, delta, reason, created_at FROM quantity_adjustment WHERE client_id = ?
+	`, clientID).Scan(&a.ID, &a.ClientID, &a.WineID, &a.Delta, &a.Reason, &a.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("looking up quantity adjustment by client_id: %w", err)
+	}
+	return &a, nil
+}
+
+// ApplyQuantityAdjustment applies a signed manual delta to a Wine's quantity,
+// atomically and idempotently by client_id. Retrying the same client_id
+// returns the Wine as it stands now, without reapplying the delta.
+func (d *DB) ApplyQuantityAdjustment(ctx context.Context, a QuantityAdjustment) (*Wine, error) {
+	if a.ClientID != nil {
+		existing, err := d.quantityAdjustmentByClientID(ctx, *a.ClientID)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			return d.GetWine(ctx, existing.WineID)
+		}
+	}
+
+	tx, err := d.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var quantity int
+	if err := tx.QueryRowContext(ctx, "SELECT quantity FROM wine WHERE id = ?", a.WineID).Scan(&quantity); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("wine id %d: %w", a.WineID, ErrWineNotFound)
+		}
+		return nil, fmt.Errorf("checking wine quantity: %w", err)
+	}
+	if quantity+a.Delta < 0 {
+		return nil, fmt.Errorf("wine id %d: %w", a.WineID, ErrQuantityZero)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO quantity_adjustment (client_id, wine_id, delta, reason, created_at) VALUES (?, ?, ?, 'manual', CURRENT_TIMESTAMP)
+	`, a.ClientID, a.WineID, a.Delta); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") && a.ClientID != nil {
+			// Roll back before falling back to a lookup on d (not tx) —
+			// otherwise this read would block forever on the write lock
+			// still held by our own open, uncommitted transaction.
+			tx.Rollback()
+			if existing, lookupErr := d.quantityAdjustmentByClientID(ctx, *a.ClientID); lookupErr == nil && existing != nil {
+				return d.GetWine(ctx, existing.WineID)
+			}
+		}
+		return nil, fmt.Errorf("creating quantity adjustment: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, "UPDATE wine SET quantity = quantity + ? WHERE id = ?", a.Delta, a.WineID); err != nil {
+		return nil, fmt.Errorf("adjusting wine quantity: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing transaction: %w", err)
+	}
+
+	return d.GetWine(ctx, a.WineID)
 }
 
 type WineSearchResult struct {
