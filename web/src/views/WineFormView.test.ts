@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { ApiError, apiClient } from '../api/client'
+import type { WineDetail } from '../api/types'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
@@ -363,6 +364,28 @@ describe('WineFormView — add', () => {
 })
 
 describe('WineFormView — edit', () => {
+  it('redirects to the synced server id when opening an edit form for an already-synced negative id', async () => {
+    await db.wines.put(existingWine as WineDetail)
+    await db.idRemap.put({ localId: -123, serverId: 5 })
+    mockGet()
+
+    const { wrapper, router } = await mountAt('/wines/-123/edit')
+
+    expect(router.currentRoute.value.fullPath).toBe('/wines/5/edit')
+    expect(
+      (wrapper.get('[data-testid="wine-producer-input"]').element as HTMLInputElement).value,
+    ).toBe('Les Garillères')
+
+    vi.mocked(apiClient.put).mockImplementation((path: string) => {
+      if (path === '/wines/5') return Promise.resolve({ id: 5 })
+      throw new Error(`unexpected path: ${path}`)
+    })
+    await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(apiClient.put).toHaveBeenCalledWith('/wines/5', expect.anything())
+  })
+
   it('retries the failed load when the retry action is clicked', async () => {
     vi.mocked(apiClient.get).mockImplementation((path: string) => {
       if (path === '/wines/5') return Promise.reject(new Error('server exploded'))

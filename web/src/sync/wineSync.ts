@@ -11,8 +11,15 @@ const wineHandler: OutboxHandler = async (item) => {
   try {
     if (item.action === 'create') {
       const created = await apiClient.post<Wine>('/wines', item.payload)
-      await db.wines.delete(item.targetId as number)
-      await db.wines.put({ ...created, suggested_meals: [], consumption_history: [] })
+      const localId = item.targetId as number
+      // Wrapped in one transaction so a reader can never observe the moment
+      // between the old record disappearing and the remap breadcrumb
+      // existing to redirect it.
+      await db.transaction('rw', db.wines, db.idRemap, async () => {
+        await db.wines.delete(localId)
+        await db.wines.put({ ...created, suggested_meals: [], consumption_history: [] })
+        await db.idRemap.put({ localId, serverId: created.id })
+      })
       return
     }
     await apiClient.put<Wine>(`/wines/${item.targetId}`, item.payload)

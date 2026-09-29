@@ -109,6 +109,7 @@ describe('pushWines', () => {
     expect(await db.wines.get(-1)).toBeUndefined()
     expect(await db.wines.get(42)).toMatchObject({ id: 42 })
     expect(await db.outbox.count()).toBe(0)
+    expect(await db.idRemap.get(-1)).toEqual({ localId: -1, serverId: 42 })
   })
 
   it('sends an update for an already-synced wine by its server id', async () => {
@@ -119,6 +120,7 @@ describe('pushWines', () => {
 
     expect(apiClient.put).toHaveBeenCalledWith('/wines/5', { millesime: 2019 })
     expect(await db.outbox.count()).toBe(0)
+    expect(await db.idRemap.count()).toBe(0)
   })
 })
 

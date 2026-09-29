@@ -127,7 +127,17 @@ watch(
 function retry() {
   loadAppellations()
   loadProducers()
-  if (editId.value !== null) loadWine(editId.value)
+  if (editId.value !== null) {
+    const requestedId = editId.value
+    loadWine(requestedId).then((resolvedId) => {
+      // A not-yet-synced local id has since synced to a real one — fix up
+      // the address bar (the form itself already loaded/prefilled correctly
+      // via load()'s own remap resolution).
+      if (resolvedId !== requestedId && editId.value === requestedId) {
+        router.replace({ name: 'wine-edit', params: { id: resolvedId } })
+      }
+    })
+  }
 }
 
 onMounted(retry)

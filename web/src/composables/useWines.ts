@@ -61,27 +61,39 @@ export function useWines() {
   const submitting = ref(false)
   const submitError = ref<string | null>(null)
 
-  async function load(id: number) {
+  // Returns the id the wine actually ended up loaded under — a negative id
+  // whose create has since synced resolves to its real server id.
+  async function load(id: number): Promise<number> {
     loading.value = true
     error.value = null
-    const cached = await db.wines.get(id)
+    let resolvedId = id
+    let cached = await db.wines.get(id)
+    // A negative id is local-only. If it's still in the local store, its
+    // create hasn't synced yet and it can never exist at the server (see
+    // the id < 0 branch below). If it's gone, its create may have already
+    // synced and replaced it — check the breadcrumb left behind for that.
+    if (!cached && id < 0) {
+      const remap = await db.idRemap.get(id)
+      if (remap) {
+        resolvedId = remap.serverId
+        cached = await db.wines.get(resolvedId)
+      }
+    }
     if (cached) wine.value = cached
-    // A negative id is local-only and hasn't synced yet, so it can never
-    // exist at the server — fetching it would just 404 and race the
-    // background push that's already trying to create it.
-    if (id < 0) {
+    if (resolvedId < 0) {
       loading.value = false
-      return
+      return resolvedId
     }
     try {
       if (navigator.onLine !== false) {
-        wine.value = await pullWine(id)
+        wine.value = await pullWine(resolvedId)
       }
     } catch (e) {
       if (!cached) error.value = friendlyErrorMessage(e)
     } finally {
       loading.value = false
     }
+    return resolvedId
   }
 
   async function recordConsumption(id: number, input: ConsumptionInput) {
@@ -158,17 +170,29 @@ export function useWines() {
     submitting.value = true
     submitError.value = null
     try {
-      const existing = await db.wines.get(id)
+      let targetId = id
+      let existing = await db.wines.get(id)
+      // Defense in depth: the view layer redirects a stale negative id once
+      // it notices load() resolved elsewhere, but if an update is somehow
+      // submitted against a stale id anyway (a tight race), redirect it here
+      // too rather than queuing a PUT against an id that no longer exists.
+      if (!existing && id < 0) {
+        const remap = await db.idRemap.get(id)
+        if (remap) {
+          targetId = remap.serverId
+          existing = await db.wines.get(targetId)
+        }
+      }
       const producer = await resolveProducer(existing, input.producer_id)
-      const merged = buildWineDetail(id, input, producer, {
+      const merged = buildWineDetail(targetId, input, producer, {
         quantity: existing?.quantity ?? 0,
         suggested_meals: existing?.suggested_meals ?? [],
         consumption_history: existing?.consumption_history ?? [],
       })
       await db.wines.put(merged)
 
-      const patchedPendingCreate = id < 0 && (await patchPendingWineCreate(id, input))
-      if (!patchedPendingCreate) await enqueueWineUpdate(id, input)
+      const patchedPendingCreate = targetId < 0 && (await patchPendingWineCreate(targetId, input))
+      if (!patchedPendingCreate) await enqueueWineUpdate(targetId, input)
       pushWinesInBackground()
       return merged
     } catch (e) {

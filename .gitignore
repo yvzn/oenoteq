@@ -2,4 +2,6 @@
 .claude/skills
 .serena
 cellar.db
+cellar.db-shm
+cellar.db-wal
 

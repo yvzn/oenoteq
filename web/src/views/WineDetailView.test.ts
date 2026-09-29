@@ -115,6 +115,20 @@ describe('WineDetailView', () => {
     expect(detail.text()).toContain('Les Garillères')
   })
 
+  it('redirects to the synced server id when the local id it was opened with has since synced', async () => {
+    await db.wines.put(wineDetail as WineDetail)
+    await db.idRemap.put({ localId: -123, serverId: 1 })
+    mockApi()
+
+    const { wrapper, router } = await mountAt('/wines/-123')
+
+    expect(router.currentRoute.value.fullPath).toBe('/wines/1')
+    expect(apiClient.get).toHaveBeenCalledWith('/wines/1')
+    const detail = wrapper.get('[data-testid="wine-detail"]')
+    expect(detail.text()).toContain('Les Garillères')
+    expect(wrapper.get('[data-testid="edit-wine-link"]').attributes('href')).toBe('/wines/1/edit')
+  })
+
   it('shows a loading indicator before the fetches resolve', async () => {
     vi.mocked(apiClient.get).mockReturnValue(new Promise(() => {}))
 

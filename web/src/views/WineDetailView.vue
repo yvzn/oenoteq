@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import type { Consumption } from '../api/types'
 import AppButton from '../components/AppButton.vue'
 import ColorSwatch from '../components/ColorSwatch.vue'
@@ -14,6 +14,7 @@ import { useWines } from '../composables/useWines'
 import { computeGardeStatus } from '../domain/gardeStatus'
 
 const route = useRoute()
+const router = useRouter()
 
 const {
   wine,
@@ -130,6 +131,17 @@ const gardeRangeLabel = computed(() => {
   return `Garde ${garde_debut ?? ''}–${garde_fin ?? ''}`
 })
 
+// If load() resolves a different id than requested (a not-yet-synced local
+// id that has since synced to a real one), fix up the address bar — the
+// content itself is already correct since load() populates `wine` from the
+// resolved record before returning. `replace`, not `push`, so there's no
+// back-button trap.
+function afterLoad(requestedId: number, resolvedId: number) {
+  if (resolvedId !== requestedId && id.value === requestedId) {
+    router.replace({ name: 'wine-detail', params: { id: resolvedId } })
+  }
+}
+
 watch(
   id,
   (next) => {
@@ -141,7 +153,7 @@ watch(
     updateConsumptionError.value = null
     pendingDeleteConsumption.value = null
     deleteConsumptionError.value = null
-    loadWine(next)
+    loadWine(next).then((resolvedId) => afterLoad(next, resolvedId))
   },
   { immediate: true },
 )
@@ -151,7 +163,7 @@ onMounted(() => {
 })
 
 function retry() {
-  loadWine(id.value)
+  loadWine(id.value).then((resolvedId) => afterLoad(id.value, resolvedId))
 }
 </script>
 
