@@ -1,8 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
-import { apiClient } from '../api/client'
+import { ApiError, apiClient } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { db } from '../db/localDb'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import WineDetailView from './WineDetailView.vue'
 import WineFormView from './WineFormView.vue'
@@ -91,6 +92,17 @@ afterEach(() => {
 resetSuccessMessageAfterEach()
 
 describe('WineFormView — add', () => {
+  it('renders the form from cached appellations/producers when the network is fully disabled', async () => {
+    await db.appellations.bulkPut(appellations)
+    await db.producers.bulkPut(producers)
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('Network error: unable to reach the server'))
+
+    const { wrapper } = await mountAt('/wines/new')
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="wine-form"]').exists()).toBe(true)
+  })
+
   it('shows a blank form ready to submit a new wine', async () => {
     mockGet()
 
@@ -215,14 +227,29 @@ describe('WineFormView — add', () => {
     expect(apiClient.post).not.toHaveBeenCalled()
   })
 
-  it('submits a POST and navigates to the new wine detail view on success', async () => {
+  it('saves the wine locally and navigates immediately, without waiting on the network', async () => {
+    mockGet()
+    vi.mocked(apiClient.post).mockReturnValue(new Promise(() => {})) // network never resolves
+
+    const { wrapper, router } = await mountAt('/wines/new')
+    await fillValidForm(wrapper)
+
+    await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(useSuccessMessage().message.value).toMatch(/added/i)
+    // A locally-created wine gets a negative, client-only id until it syncs.
+    expect(router.currentRoute.value.fullPath).toMatch(/^\/wines\/-\d+$/)
+  })
+
+  it('queues the create and syncs it to the backend with a client_id once online', async () => {
     mockGet()
     vi.mocked(apiClient.post).mockImplementation((path: string) => {
-      if (path === '/wines') return Promise.resolve({ id: 9 })
+      if (path === '/wines') return Promise.resolve({ id: 9, updated_at: '2026-01-01T00:00:00Z' })
       throw new Error(`unexpected path: ${path}`)
     })
 
-    const { wrapper, router } = await mountAt('/wines/new')
+    const { wrapper } = await mountAt('/wines/new')
     await fillValidForm(wrapper)
 
     await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
@@ -236,9 +263,26 @@ describe('WineFormView — add', () => {
       garde_debut: 2020,
       garde_fin: 2028,
       initial_quantity: 6,
+      client_id: expect.any(String),
     })
+  })
+
+  it('adds a wine with the network fully disabled, leaving it queued and pending', async () => {
+    mockGet()
+    vi.mocked(apiClient.post).mockRejectedValue(new ApiError(0, 'Network error: unable to reach the server'))
+
+    const { wrapper, router } = await mountAt('/wines/new')
+    await fillValidForm(wrapper)
+
+    await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
+    await flushPromises()
+
     expect(useSuccessMessage().message.value).toMatch(/added/i)
-    expect(router.currentRoute.value.fullPath).toBe('/wines/9')
+    expect(router.currentRoute.value.fullPath).toMatch(/^\/wines\/-\d+$/)
+
+    const outboxItems = await db.outbox.toArray()
+    expect(outboxItems).toHaveLength(1)
+    expect(outboxItems[0]).toMatchObject({ entity: 'wine', action: 'create', status: 'pending' })
   })
 
   it('creates a new appellation inline and selects it', async () => {
@@ -385,7 +429,7 @@ describe('WineFormView — edit', () => {
     expect(router.currentRoute.value.fullPath).toBe('/wines/5')
   })
 
-  it('shows a submit error without navigating when the save fails', async () => {
+  it('navigates on save even when the background sync to the backend fails, leaving the item failed in the outbox', async () => {
     mockGet()
     vi.mocked(apiClient.put).mockRejectedValue(new Error('server exploded'))
 
@@ -393,12 +437,18 @@ describe('WineFormView — edit', () => {
     await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
     await flushPromises()
 
-    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
-    expect(router.currentRoute.value.fullPath).toBe('/wines/5/edit')
+    expect(router.currentRoute.value.fullPath).toBe('/wines/5')
+    const outboxItems = await db.outbox.toArray()
+    expect(outboxItems).toHaveLength(1)
+    expect(outboxItems[0]).toMatchObject({ entity: 'wine', action: 'update', status: 'failed' })
   })
 })
 
+// The local-store write path chains several Dexie/IndexedDB operations
+// (each a macrotask under fake-indexeddb), so a couple of ticks isn't
+// always enough to observe the background sync push settle.
 async function flushPromises() {
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  await new Promise((resolve) => setTimeout(resolve, 0))
+  for (let i = 0; i < 8; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
 }

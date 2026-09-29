@@ -2,7 +2,9 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
+import type { WineDetail } from '../api/types'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { db } from '../db/localDb'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import WineDetailView from './WineDetailView.vue'
 
@@ -85,6 +87,20 @@ afterEach(() => {
 resetSuccessMessageAfterEach()
 
 describe('WineDetailView', () => {
+  it('renders a previously-cached wine from the local store when the network is fully disabled', async () => {
+    await db.wines.put(wineDetail as WineDetail)
+    await db.appellations.bulkPut(appellations)
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('Network error: unable to reach the server'))
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    const detail = wrapper.get('[data-testid="wine-detail"]')
+    expect(detail.text()).toContain('Les Garillères')
+    expect(detail.text()).toContain('Chinon')
+  })
+
+
   it('shows a loading indicator before the fetches resolve', async () => {
     vi.mocked(apiClient.get).mockReturnValue(new Promise(() => {}))
 
@@ -405,7 +421,10 @@ describe('WineDetailView', () => {
   })
 })
 
+// The local-store read path (load() checking Dexie before the network) adds
+// a few extra macrotasks under fake-indexeddb versus a plain fetch mock.
 async function flushPromises() {
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  await new Promise((resolve) => setTimeout(resolve, 0))
+  for (let i = 0; i < 8; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
 }

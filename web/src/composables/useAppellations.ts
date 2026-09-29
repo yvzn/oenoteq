@@ -2,6 +2,8 @@ import { ref } from 'vue'
 import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Appellation } from '../api/types'
+import { db } from '../db/localDb'
+import { cacheAll, cacheOne, uncache } from '../db/referenceCache'
 
 export function useAppellations() {
   const appellations = ref<Appellation[]>([])
@@ -19,8 +21,14 @@ export function useAppellations() {
     error.value = null
     try {
       appellations.value = await apiClient.get<Appellation[]>('/appellations')
+      cacheAll(db.appellations, appellations.value)
     } catch (e) {
-      error.value = friendlyErrorMessage(e)
+      const cached = await db.appellations.toArray()
+      if (cached.length > 0) {
+        appellations.value = cached
+      } else {
+        error.value = friendlyErrorMessage(e)
+      }
     } finally {
       loading.value = false
     }
@@ -32,6 +40,7 @@ export function useAppellations() {
     try {
       const appellation = await apiClient.post<Appellation>('/appellations', { name })
       appellations.value = [...appellations.value, appellation]
+      cacheOne(db.appellations, appellation)
       return appellation
     } catch (e) {
       createError.value = friendlyErrorMessage(e)
@@ -47,6 +56,7 @@ export function useAppellations() {
     try {
       const appellation = await apiClient.put<Appellation>(`/appellations/${id}`, { name })
       appellations.value = appellations.value.map((a) => (a.id === id ? appellation : a))
+      cacheOne(db.appellations, appellation)
       return appellation
     } catch (e) {
       updateError.value = friendlyErrorMessage(e)
@@ -62,6 +72,7 @@ export function useAppellations() {
     try {
       await apiClient.delete(`/appellations/${id}`, undefined)
       appellations.value = appellations.value.filter((a) => a.id !== id)
+      uncache(db.appellations, id)
       return true
     } catch (e) {
       deleteError.value = friendlyErrorMessage(e)

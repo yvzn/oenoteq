@@ -2,6 +2,8 @@ import { ref } from 'vue'
 import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Producer } from '../api/types'
+import { db } from '../db/localDb'
+import { cacheAll, cacheOne, uncache } from '../db/referenceCache'
 
 export function useProducers() {
   const producers = ref<Producer[]>([])
@@ -19,8 +21,14 @@ export function useProducers() {
     error.value = null
     try {
       producers.value = await apiClient.get<Producer[]>('/producers')
+      cacheAll(db.producers, producers.value)
     } catch (e) {
-      error.value = friendlyErrorMessage(e)
+      const cached = await db.producers.toArray()
+      if (cached.length > 0) {
+        producers.value = cached
+      } else {
+        error.value = friendlyErrorMessage(e)
+      }
     } finally {
       loading.value = false
     }
@@ -32,6 +40,7 @@ export function useProducers() {
     try {
       const producer = await apiClient.post<Producer>('/producers', { name })
       producers.value = [...producers.value, producer]
+      cacheOne(db.producers, producer)
       return producer
     } catch (e) {
       createError.value = friendlyErrorMessage(e)
@@ -47,6 +56,7 @@ export function useProducers() {
     try {
       const producer = await apiClient.put<Producer>(`/producers/${id}`, { name })
       producers.value = producers.value.map((p) => (p.id === id ? producer : p))
+      cacheOne(db.producers, producer)
       return producer
     } catch (e) {
       updateError.value = friendlyErrorMessage(e)
@@ -62,6 +72,7 @@ export function useProducers() {
     try {
       await apiClient.delete(`/producers/${id}`, undefined)
       producers.value = producers.value.filter((p) => p.id !== id)
+      uncache(db.producers, id)
       return true
     } catch (e) {
       deleteError.value = friendlyErrorMessage(e)
