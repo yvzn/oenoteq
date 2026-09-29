@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   deriveGardeFin,
   emptyWineFormFields,
+  toWineCreateInput,
   toWineInput,
+  validateInitialQuantity,
   validateWineForm,
   wineToFormFields,
   type WineFormFields,
@@ -68,26 +70,29 @@ describe('validateWineForm', () => {
   it('allows garde_debut equal to garde_fin', () => {
     expect(validateWineForm({ ...validFields, gardeDebut: '2020', gardeFin: '2020' })).toEqual({})
   })
+})
 
-  it('requires a quantity', () => {
-    expect(validateWineForm({ ...validFields, quantity: '' })).toMatchObject({
-      quantity: expect.any(String),
-    })
+describe('validateInitialQuantity', () => {
+  it('allows a quantity of 1 or more', () => {
+    expect(validateInitialQuantity('1')).toBeUndefined()
+    expect(validateInitialQuantity('6')).toBeUndefined()
+  })
+
+  it('rejects an empty quantity', () => {
+    expect(validateInitialQuantity('')).toEqual(expect.any(String))
+  })
+
+  it('rejects a quantity of 0', () => {
+    expect(validateInitialQuantity('0')).toEqual(expect.any(String))
   })
 
   it('rejects a negative quantity', () => {
-    expect(validateWineForm({ ...validFields, quantity: '-1' })).toMatchObject({
-      quantity: expect.any(String),
-    })
-  })
-
-  it('allows a zero quantity', () => {
-    expect(validateWineForm({ ...validFields, quantity: '0' })).toEqual({})
+    expect(validateInitialQuantity('-1')).toEqual(expect.any(String))
   })
 })
 
 describe('toWineInput', () => {
-  it('converts valid form fields into the API payload shape', () => {
+  it('converts valid form fields into the API payload shape, without quantity', () => {
     expect(toWineInput(validFields)).toEqual({
       millesime: 2018,
       appellation_id: 1,
@@ -95,7 +100,6 @@ describe('toWineInput', () => {
       color: 'rouge',
       garde_debut: 2020,
       garde_fin: 2028,
-      quantity: 6,
     })
   })
 
@@ -110,47 +114,58 @@ describe('toWineInput', () => {
   })
 })
 
-describe('wineToFormFields', () => {
-  it('converts an API wine into string form fields', () => {
-    expect(
-      wineToFormFields({
-        millesime: 2018,
-        appellation_id: 1,
-        producer_id: 2,
-        color: 'rouge',
-        garde_debut: 2020,
-        garde_fin: 2028,
-        quantity: 6,
-      }),
-    ).toEqual(validFields)
-  })
-
-  it('converts a null millesime to an empty string', () => {
-    expect(
-      wineToFormFields({
-        millesime: null,
-        appellation_id: 1,
-        producer_id: 2,
-        color: 'rouge',
-        garde_debut: 2020,
-        garde_fin: 2028,
-        quantity: 6,
-      }).millesime,
-    ).toBe('')
-  })
-
-  it('converts null garde_debut/garde_fin to empty strings', () => {
-    const fields = wineToFormFields({
+describe('toWineCreateInput', () => {
+  it('converts valid form fields into the create payload shape, including initial_quantity', () => {
+    expect(toWineCreateInput(validFields)).toEqual({
       millesime: 2018,
       appellation_id: 1,
       producer_id: 2,
       color: 'rouge',
-      garde_debut: null,
-      garde_fin: null,
-      quantity: 6,
+      garde_debut: 2020,
+      garde_fin: 2028,
+      initial_quantity: 6,
     })
+  })
+})
+
+describe('wineToFormFields', () => {
+  const wine = {
+    id: 1,
+    millesime: 2018,
+    appellation_id: 1,
+    producer_id: 2,
+    producer: { id: 2, name: 'Domaine X' },
+    color: 'rouge' as const,
+    garde_debut: 2020,
+    garde_fin: 2028,
+    quantity: 6,
+    updated_at: '2026-01-01T00:00:00Z',
+  }
+
+  it('converts an API wine into string form fields', () => {
+    expect(wineToFormFields(wine)).toEqual({
+      millesime: '2018',
+      appellationId: 1,
+      producerId: 2,
+      color: 'rouge',
+      gardeDebut: '2020',
+      gardeFin: '2028',
+      quantity: emptyWineFormFields.quantity,
+    })
+  })
+
+  it('converts a null millesime to an empty string', () => {
+    expect(wineToFormFields({ ...wine, millesime: null }).millesime).toBe('')
+  })
+
+  it('converts null garde_debut/garde_fin to empty strings', () => {
+    const fields = wineToFormFields({ ...wine, garde_debut: null, garde_fin: null })
     expect(fields.gardeDebut).toBe('')
     expect(fields.gardeFin).toBe('')
+  })
+
+  it('ignores the wine\'s stored quantity, since editing never touches it (ADR-0007)', () => {
+    expect(wineToFormFields({ ...wine, quantity: 0 }).quantity).toBe(emptyWineFormFields.quantity)
   })
 })
 

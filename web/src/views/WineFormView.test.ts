@@ -203,6 +203,18 @@ describe('WineFormView — add', () => {
     expect(apiClient.post).not.toHaveBeenCalled()
   })
 
+  it('rejects a quantity of 0, since initial quantity must be at least 1 (ADR-0007)', async () => {
+    mockGet()
+
+    const { wrapper } = await mountAt('/wines/new')
+    await fillValidForm(wrapper)
+    await wrapper.get('[data-testid="wine-quantity-input"]').setValue('0')
+    await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
+
+    expect(wrapper.find('[data-testid="wine-quantity-error"]').exists()).toBe(true)
+    expect(apiClient.post).not.toHaveBeenCalled()
+  })
+
   it('submits a POST and navigates to the new wine detail view on success', async () => {
     mockGet()
     vi.mocked(apiClient.post).mockImplementation((path: string) => {
@@ -223,7 +235,7 @@ describe('WineFormView — add', () => {
       color: 'rouge',
       garde_debut: 2020,
       garde_fin: 2028,
-      quantity: 6,
+      initial_quantity: 6,
     })
     expect(useSuccessMessage().message.value).toMatch(/added/i)
     expect(router.currentRoute.value.fullPath).toBe('/wines/9')
@@ -337,19 +349,14 @@ describe('WineFormView — edit', () => {
     expect(
       (wrapper.get('[data-testid="wine-appellation-input"]').element as HTMLInputElement).value,
     ).toBe('Chinon')
-    expect((wrapper.get('[data-testid="wine-quantity-input"]').element as HTMLInputElement).value).toBe(
-      '3',
-    )
   })
 
-  it('shows a stored quantity of 0, not the create-mode default', async () => {
-    mockGet({ wine: { ...existingWine, quantity: 0 } })
+  it('has no quantity field, since quantity is create-only (ADR-0007)', async () => {
+    mockGet()
 
     const { wrapper } = await mountAt('/wines/5/edit')
 
-    expect((wrapper.get('[data-testid="wine-quantity-input"]').element as HTMLInputElement).value).toBe(
-      '0',
-    )
+    expect(wrapper.find('[data-testid="wine-quantity-input"]').exists()).toBe(false)
   })
 
   it('submits a PUT and navigates to the wine detail view on success', async () => {
@@ -373,7 +380,6 @@ describe('WineFormView — edit', () => {
       color: 'rouge',
       garde_debut: 2020,
       garde_fin: 2028,
-      quantity: 3,
     })
     expect(useSuccessMessage().message.value).toMatch(/updated/i)
     expect(router.currentRoute.value.fullPath).toBe('/wines/5')

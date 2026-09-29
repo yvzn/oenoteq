@@ -495,20 +495,21 @@ func (d *DB) DeleteMeal(ctx context.Context, id int) error {
 }
 
 var (
-	ErrInvalidColor        = errors.New("invalid color")
-	ErrAppellationNotFound = errors.New("appellation not found")
-	ErrProducerNotFound    = errors.New("producer not found")
-	ErrWineNotFound        = errors.New("wine not found")
-	ErrMealNotFound        = errors.New("meal not found")
-	ErrMealInUse           = errors.New("meal is in use")
-	ErrAppellationInUse    = errors.New("appellation is in use")
-	ErrProducerInUse       = errors.New("producer is in use")
-	ErrDateRequired        = errors.New("date is required")
-	ErrInvalidDate         = errors.New("date must be in YYYY-MM-DD format")
-	ErrInvalidRating       = errors.New("rating must be between 1 and 5")
-	ErrQuantityZero        = errors.New("wine quantity is already 0")
-	ErrConsumptionNotFound = errors.New("consumption not found")
-	ErrInvalidSort         = errors.New("invalid sort")
+	ErrInvalidColor            = errors.New("invalid color")
+	ErrAppellationNotFound     = errors.New("appellation not found")
+	ErrProducerNotFound        = errors.New("producer not found")
+	ErrWineNotFound            = errors.New("wine not found")
+	ErrMealNotFound            = errors.New("meal not found")
+	ErrMealInUse               = errors.New("meal is in use")
+	ErrAppellationInUse        = errors.New("appellation is in use")
+	ErrProducerInUse           = errors.New("producer is in use")
+	ErrDateRequired            = errors.New("date is required")
+	ErrInvalidDate             = errors.New("date must be in YYYY-MM-DD format")
+	ErrInvalidRating           = errors.New("rating must be between 1 and 5")
+	ErrQuantityZero            = errors.New("wine quantity is already 0")
+	ErrConsumptionNotFound     = errors.New("consumption not found")
+	ErrInvalidSort             = errors.New("invalid sort")
+	ErrInitialQuantityRequired = errors.New("initial quantity is required and must be at least 1")
 )
 
 var validColors = map[string]bool{"rouge": true, "blanc": true, "rose": true}
@@ -591,9 +592,16 @@ func (d *DB) wineByClientID(ctx context.Context, clientID string) (*Wine, error)
 	return d.GetWine(ctx, id)
 }
 
-func (d *DB) CreateWine(ctx context.Context, w Wine) (*Wine, error) {
+// CreateWine inserts a Wine and applies initialQuantity (must be >=1) as the
+// first quantity_adjustment (reason "manual") in the same transaction, so a
+// wine is never left stuck at 0 stock reachable only via its own detail page
+// (ADR-0007).
+func (d *DB) CreateWine(ctx context.Context, w Wine, initialQuantity int) (*Wine, error) {
 	if err := validateWine(w); err != nil {
 		return nil, err
+	}
+	if initialQuantity < 1 {
+		return nil, ErrInitialQuantityRequired
 	}
 	if w.ClientID != nil {
 		existing, err := d.wineByClientID(ctx, *w.ClientID)
@@ -611,12 +619,22 @@ func (d *DB) CreateWine(ctx context.Context, w Wine) (*Wine, error) {
 		return nil, err
 	}
 
-	res, err := d.ExecContext(ctx, `
+	tx, err := d.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("beginning transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	res, err := tx.ExecContext(ctx, `
 		INSERT INTO wine (client_id, millesime, appellation_id, producer_id, color, garde_debut, garde_fin, quantity, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-	`, w.ClientID, w.Millesime, w.AppellationID, w.ProducerID, w.Color, w.GardeDebut, w.GardeFin, w.Quantity)
+		VALUES (?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+	`, w.ClientID, w.Millesime, w.AppellationID, w.ProducerID, w.Color, w.GardeDebut, w.GardeFin)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") && w.ClientID != nil {
+			// Roll back before falling back to a lookup on d (not tx) —
+			// otherwise this read would block forever on the write lock
+			// still held by our own open, uncommitted transaction.
+			tx.Rollback()
 			if existing, lookupErr := d.wineByClientID(ctx, *w.ClientID); lookupErr == nil && existing != nil {
 				return existing, nil
 			}
@@ -627,6 +645,20 @@ func (d *DB) CreateWine(ctx context.Context, w Wine) (*Wine, error) {
 	id, err := res.LastInsertId()
 	if err != nil {
 		return nil, fmt.Errorf("getting last insert id: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO quantity_adjustment (client_id, wine_id, delta, reason, created_at) VALUES (NULL, ?, ?, 'manual', CURRENT_TIMESTAMP)
+	`, id, initialQuantity); err != nil {
+		return nil, fmt.Errorf("creating initial quantity adjustment: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx, "UPDATE wine SET quantity = ? WHERE id = ?", initialQuantity, id); err != nil {
+		return nil, fmt.Errorf("applying initial quantity: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("committing transaction: %w", err)
 	}
 
 	return d.GetWine(ctx, int(id))

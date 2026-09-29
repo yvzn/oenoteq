@@ -1,4 +1,4 @@
-import type { Color, WineInput } from '../api/types'
+import type { Color, Wine, WineCreateInput, WineInput } from '../api/types'
 
 export interface WineFormFields {
   millesime: string
@@ -35,11 +35,14 @@ export function validateWineForm(fields: WineFormFields): WineFormErrors {
     errors.gardeFin = 'Garde end year must be on or after garde start year'
   }
 
-  const quantity = parseNumber(fields.quantity)
-  if (quantity === null) errors.quantity = 'Quantity is required'
-  else if (quantity < 0) errors.quantity = 'Quantity must be 0 or greater'
-
   return errors
+}
+
+// Only relevant on create (ADR-0007): editing a Wine never touches quantity.
+export function validateInitialQuantity(quantity: string): string | undefined {
+  const n = parseNumber(quantity)
+  if (n === null || n < 1) return 'Initial quantity must be at least 1'
+  return undefined
 }
 
 export function toWineInput(fields: WineFormFields): WineInput {
@@ -50,11 +53,17 @@ export function toWineInput(fields: WineFormFields): WineInput {
     color: fields.color as Color,
     garde_debut: parseNumber(fields.gardeDebut),
     garde_fin: parseNumber(fields.gardeFin),
-    quantity: parseNumber(fields.quantity) as number,
   }
 }
 
-export function wineToFormFields(wine: WineInput): WineFormFields {
+export function toWineCreateInput(fields: WineFormFields): WineCreateInput {
+  return {
+    ...toWineInput(fields),
+    initial_quantity: parseNumber(fields.quantity) as number,
+  }
+}
+
+export function wineToFormFields(wine: Wine): WineFormFields {
   return {
     millesime: wine.millesime === null ? '' : String(wine.millesime),
     appellationId: wine.appellation_id,
@@ -62,7 +71,7 @@ export function wineToFormFields(wine: WineInput): WineFormFields {
     color: wine.color,
     gardeDebut: wine.garde_debut === null ? '' : String(wine.garde_debut),
     gardeFin: wine.garde_fin === null ? '' : String(wine.garde_fin),
-    quantity: String(wine.quantity),
+    quantity: emptyWineFormFields.quantity,
   }
 }
 

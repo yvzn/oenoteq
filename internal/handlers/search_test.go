@@ -16,11 +16,12 @@ func createSearchTestWine(t *testing.T, harness *test.Harness, appellationID int
 	producerID := createTestProducer(t, harness, uniqueTestProducerName("Test Producer"))
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          color,
-		"garde_debut":    gardeDebut,
-		"garde_fin":      gardeFin,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            color,
+		"garde_debut":      gardeDebut,
+		"garde_fin":        gardeFin,
+		"initial_quantity": 1,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d creating wine, got %d", http.StatusCreated, resp.StatusCode)
@@ -28,8 +29,8 @@ func createSearchTestWine(t *testing.T, harness *test.Harness, appellationID int
 
 	var wine db.Wine
 	harness.JSONResponse(resp, &wine)
-	if quantity != 0 {
-		wine = applyQuantityAdjustment(t, harness, wine.ID, quantity)
+	if delta := quantity - 1; delta != 0 {
+		wine = applyQuantityAdjustment(t, harness, wine.ID, delta)
 	}
 	return wine
 }
@@ -40,9 +41,10 @@ func createSearchTestWineWithOptionalGarde(t *testing.T, harness *test.Harness, 
 	producerID := createTestProducer(t, harness, uniqueTestProducerName("Test Producer"))
 
 	body := map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          color,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            color,
+		"initial_quantity": 1,
 	}
 	if gardeDebut != nil {
 		body["garde_debut"] = *gardeDebut
@@ -58,8 +60,8 @@ func createSearchTestWineWithOptionalGarde(t *testing.T, harness *test.Harness, 
 
 	var wine db.Wine
 	harness.JSONResponse(resp, &wine)
-	if quantity != 0 {
-		wine = applyQuantityAdjustment(t, harness, wine.ID, quantity)
+	if delta := quantity - 1; delta != 0 {
+		wine = applyQuantityAdjustment(t, harness, wine.ID, delta)
 	}
 	return wine
 }
@@ -460,10 +462,11 @@ func createWineWithMillesime(t *testing.T, harness *test.Harness, appellationID,
 	producerID := createTestProducer(t, harness, uniqueTestProducerName("Test Producer"))
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"millesime":      millesime,
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "rouge",
+		"millesime":        millesime,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"initial_quantity": 1,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d creating wine, got %d", http.StatusCreated, resp.StatusCode)
@@ -478,11 +481,12 @@ func createWineForProducer(t *testing.T, harness *test.Harness, producerID, appe
 	t.Helper()
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "rouge",
-		"garde_debut":    year - 2,
-		"garde_fin":      year + 2,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"garde_debut":      year - 2,
+		"garde_fin":        year + 2,
+		"initial_quantity": 1,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d creating wine, got %d", http.StatusCreated, resp.StatusCode)

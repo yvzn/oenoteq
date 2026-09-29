@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] `CreateWine` accepts an `initial_quantity` field; a request with `initial_quantity` missing or `< 1` is rejected
-- [ ] When valid, the Wine insert and its first `quantity_adjustment` (reason `manual`) commit atomically in the same transaction — both land or neither does
-- [ ] Add Wine form's existing quantity stepper (already defaults to 1) sends `initial_quantity`; client-side validation enforces `>= 1`
-- [ ] Edit Wine form no longer shows a quantity field (it was already a no-op there as of ticket 03)
-- [ ] `api.http` Create Wine examples updated to show `initial_quantity`
-- [ ] Handler/db tests: valid create applies the initial quantity atomically; create with `initial_quantity` missing or `< 1` is rejected; existing tests updated to the new contract
-- [ ] Frontend component tests: create flow sends `initial_quantity` and blocks submit below 1; edit form has no quantity field
+- [x] `CreateWine` accepts an `initial_quantity` field; a request with `initial_quantity` missing or `< 1` is rejected
+- [x] When valid, the Wine insert and its first `quantity_adjustment` (reason `manual`) commit atomically in the same transaction — both land or neither does
+- [x] Add Wine form's existing quantity stepper (already defaults to 1) sends `initial_quantity`; client-side validation enforces `>= 1`
+- [x] Edit Wine form no longer shows a quantity field (it was already a no-op there as of ticket 03)
+- [x] `api.http` Create Wine examples updated to show `initial_quantity`
+- [x] Handler/db tests: valid create applies the initial quantity atomically; create with `initial_quantity` missing or `< 1` is rejected; existing tests updated to the new contract
+- [x] Frontend component tests: create flow sends `initial_quantity` and blocks submit below 1; edit form has no quantity field

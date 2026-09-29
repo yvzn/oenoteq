@@ -29,7 +29,10 @@ export interface WineInput {
   color: Color
   garde_debut: number | null
   garde_fin: number | null
-  quantity: number
+}
+
+export interface WineCreateInput extends WineInput {
+  initial_quantity: number
 }
 
 export interface Appellation {

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
-import type { Consumption, Wine, WineDetail, WineInput } from '../api/types'
+import type { Consumption, Wine, WineCreateInput, WineDetail, WineInput } from '../api/types'
 
 export interface ConsumptionInput {
   date: string
@@ -81,7 +81,7 @@ export function useWines() {
     }
   }
 
-  async function create(input: WineInput): Promise<Wine | null> {
+  async function create(input: WineCreateInput): Promise<Wine | null> {
     submitting.value = true
     submitError.value = null
     try {

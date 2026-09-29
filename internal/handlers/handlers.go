@@ -21,28 +21,29 @@ func New(database *db.DB) *Handler {
 // user-facing copy for each of these; new codes must be paired with a mapping
 // there (see web/src/api/errorMessages.ts).
 const (
-	codeInvalidRequest       = "invalid_request"
-	codeInvalidWineID        = "invalid_wine_id"
-	codeInvalidMealID        = "invalid_meal_id"
-	codeInvalidAppellationID = "invalid_appellation_id"
-	codeInvalidProducerID    = "invalid_producer_id"
-	codeInvalidConsumptionID = "invalid_consumption_id"
-	codeAlreadyExists        = "already_exists"
-	codeInvalidColor         = "invalid_color"
-	codeInvalidSort          = "invalid_sort"
-	codeAppellationNotFound  = "appellation_not_found"
-	codeProducerNotFound     = "producer_not_found"
-	codeWineNotFound         = "wine_not_found"
-	codeMealNotFound         = "meal_not_found"
-	codeMealInUse            = "meal_in_use"
-	codeAppellationInUse     = "appellation_in_use"
-	codeProducerInUse        = "producer_in_use"
-	codeDateRequired         = "date_required"
-	codeInvalidDate          = "invalid_date"
-	codeInvalidRating        = "invalid_rating"
-	codeQuantityZero         = "quantity_zero"
-	codeConsumptionNotFound  = "consumption_not_found"
-	codeInternal             = "internal_error"
+	codeInvalidRequest          = "invalid_request"
+	codeInvalidWineID           = "invalid_wine_id"
+	codeInvalidMealID           = "invalid_meal_id"
+	codeInvalidAppellationID    = "invalid_appellation_id"
+	codeInvalidProducerID       = "invalid_producer_id"
+	codeInvalidConsumptionID    = "invalid_consumption_id"
+	codeAlreadyExists           = "already_exists"
+	codeInvalidColor            = "invalid_color"
+	codeInvalidSort             = "invalid_sort"
+	codeAppellationNotFound     = "appellation_not_found"
+	codeProducerNotFound        = "producer_not_found"
+	codeWineNotFound            = "wine_not_found"
+	codeMealNotFound            = "meal_not_found"
+	codeMealInUse               = "meal_in_use"
+	codeAppellationInUse        = "appellation_in_use"
+	codeProducerInUse           = "producer_in_use"
+	codeDateRequired            = "date_required"
+	codeInvalidDate             = "invalid_date"
+	codeInvalidRating           = "invalid_rating"
+	codeQuantityZero            = "quantity_zero"
+	codeConsumptionNotFound     = "consumption_not_found"
+	codeInitialQuantityRequired = "initial_quantity_required"
+	codeInternal                = "internal_error"
 )
 
 // dbErrorCode maps known db sentinel errors to a stable code. Unrecognized
@@ -80,6 +81,8 @@ func dbErrorCode(err error) string {
 		return codeQuantityZero
 	case errors.Is(err, db.ErrConsumptionNotFound):
 		return codeConsumptionNotFound
+	case errors.Is(err, db.ErrInitialQuantityRequired):
+		return codeInitialQuantityRequired
 	default:
 		return codeInternal
 	}
@@ -420,15 +423,17 @@ func (h *Handler) DeleteMeal(w http.ResponseWriter, r *http.Request) {
 // wineRequest deliberately has no quantity field: Wine.quantity is never set
 // directly by a client, only via Consumption creation and quantity
 // adjustments (ADR-0006). Sending "quantity" in a create/update body is
-// simply ignored.
+// simply ignored. InitialQuantity only applies to create (ADR-0007) and is
+// ignored by UpdateWine.
 type wineRequest struct {
-	ClientID      *string `json:"client_id"`
-	Millesime     *int    `json:"millesime"`
-	AppellationID int     `json:"appellation_id"`
-	ProducerID    int     `json:"producer_id"`
-	Color         string  `json:"color"`
-	GardeDebut    *int    `json:"garde_debut"`
-	GardeFin      *int    `json:"garde_fin"`
+	ClientID        *string `json:"client_id"`
+	Millesime       *int    `json:"millesime"`
+	AppellationID   int     `json:"appellation_id"`
+	ProducerID      int     `json:"producer_id"`
+	Color           string  `json:"color"`
+	GardeDebut      *int    `json:"garde_debut"`
+	GardeFin        *int    `json:"garde_fin"`
+	InitialQuantity int     `json:"initial_quantity"`
 }
 
 func (req wineRequest) toWine() db.Wine {
@@ -445,7 +450,7 @@ func (req wineRequest) toWine() db.Wine {
 
 func wineErrorStatus(err error) int {
 	switch {
-	case errors.Is(err, db.ErrInvalidColor), errors.Is(err, db.ErrAppellationNotFound), errors.Is(err, db.ErrProducerNotFound):
+	case errors.Is(err, db.ErrInvalidColor), errors.Is(err, db.ErrAppellationNotFound), errors.Is(err, db.ErrProducerNotFound), errors.Is(err, db.ErrInitialQuantityRequired):
 		return http.StatusBadRequest
 	case errors.Is(err, db.ErrWineNotFound):
 		return http.StatusNotFound
@@ -461,7 +466,7 @@ func (h *Handler) CreateWine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wine, err := h.db.CreateWine(r.Context(), req.toWine())
+	wine, err := h.db.CreateWine(r.Context(), req.toWine(), req.InitialQuantity)
 	if err != nil {
 		writeError(w, wineErrorStatus(err), dbErrorCode(err))
 		return

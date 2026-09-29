@@ -15,7 +15,9 @@ import { useWines } from '../composables/useWines'
 import {
   deriveGardeFin,
   emptyWineFormFields,
+  toWineCreateInput,
   toWineInput,
+  validateInitialQuantity,
   validateWineForm,
   wineToFormFields,
   type WineFormErrors,
@@ -86,7 +88,7 @@ function fillGardeFin() {
 }
 
 function stepQuantity(delta: number) {
-  const next = Math.max(0, (Number(quantity.value) || 0) + delta)
+  const next = Math.max(1, (Number(quantity.value) || 0) + delta)
   quantity.value = String(next)
 }
 
@@ -166,11 +168,16 @@ const formSuccess = useSuccessMessage()
 
 async function submit() {
   const validationErrors = validateWineForm(fields.value)
+  if (!isEdit.value) {
+    const quantityError = validateInitialQuantity(quantity.value)
+    if (quantityError) validationErrors.quantity = quantityError
+  }
   errors.value = validationErrors
   if (Object.keys(validationErrors).length > 0) return
 
-  const input = toWineInput(fields.value)
-  const saved = isEdit.value ? await updateWine(editId.value as number, input) : await createWine(input)
+  const saved = isEdit.value
+    ? await updateWine(editId.value as number, toWineInput(fields.value))
+    : await createWine(toWineCreateInput(fields.value))
 
   if (saved) {
     formSuccess.showAndNavigate(
@@ -314,7 +321,12 @@ async function submit() {
         </FormField>
       </div>
 
-      <FormField label="Quantity" :error="errors.quantity" error-testid="wine-quantity-error">
+      <FormField
+        v-if="!isEdit"
+        label="Initial quantity"
+        :error="errors.quantity"
+        error-testid="wine-quantity-error"
+      >
         <div class="border-line bg-parchment-raised inline-flex w-auto self-start items-stretch overflow-hidden rounded-lg border">
           <button
             type="button"

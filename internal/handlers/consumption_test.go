@@ -15,11 +15,12 @@ func createTestWine(t *testing.T, harness *test.Harness, appellationID, quantity
 	producerID := createTestProducer(t, harness, uniqueTestProducerName("Domaine Test"))
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "rouge",
-		"garde_debut":    2020,
-		"garde_fin":      2028,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"garde_debut":      2020,
+		"garde_fin":        2028,
+		"initial_quantity": 1,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d creating wine, got %d", http.StatusCreated, resp.StatusCode)
@@ -27,8 +28,8 @@ func createTestWine(t *testing.T, harness *test.Harness, appellationID, quantity
 
 	var wine db.Wine
 	harness.JSONResponse(resp, &wine)
-	if quantity != 0 {
-		wine = applyQuantityAdjustment(t, harness, wine.ID, quantity)
+	if delta := quantity - 1; delta != 0 {
+		wine = applyQuantityAdjustment(t, harness, wine.ID, delta)
 	}
 	return wine
 }

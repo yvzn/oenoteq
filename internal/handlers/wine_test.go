@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"testing"
@@ -68,12 +69,13 @@ func TestWineCreateWithMillesime(t *testing.T) {
 
 	millesime := 2018
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"millesime":      millesime,
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "rouge",
-		"garde_debut":    2020,
-		"garde_fin":      2028,
+		"millesime":        millesime,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"garde_debut":      2020,
+		"garde_fin":        2028,
+		"initial_quantity": 3,
 	})
 
 	if resp.StatusCode != http.StatusCreated {
@@ -104,8 +106,57 @@ func TestWineCreateWithMillesime(t *testing.T) {
 	if wine.GardeDebut == nil || *wine.GardeDebut != 2020 || wine.GardeFin == nil || *wine.GardeFin != 2028 {
 		t.Errorf("Expected garde 2020-2028, got %v-%v", wine.GardeDebut, wine.GardeFin)
 	}
-	if wine.Quantity != 0 {
-		t.Errorf("Expected quantity to start at 0, got %d", wine.Quantity)
+	if wine.Quantity != 3 {
+		t.Errorf("Expected quantity to be set to initial_quantity 3, got %d", wine.Quantity)
+	}
+}
+
+func TestWineCreateAppliesInitialQuantity(t *testing.T) {
+	harness, database := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Bourgueil Initial")
+	producerID := createTestProducer(t, harness, "Domaine Initial")
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"initial_quantity": 5,
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+	}
+
+	var wine db.Wine
+	harness.JSONResponse(resp, &wine)
+	if wine.Quantity != 5 {
+		t.Errorf("Expected quantity 5 from initial_quantity, got %d", wine.Quantity)
+	}
+
+	// Confirm the initial quantity landed as a first-class quantity_adjustment
+	// row (reason "manual"), not just as a value baked into the wine insert —
+	// this is what ADR-0007's atomicity guarantee is actually about.
+	var adjustmentCount int
+	if err := database.QueryRowContext(context.Background(),
+		"SELECT COUNT(*) FROM quantity_adjustment WHERE wine_id = ?", wine.ID,
+	).Scan(&adjustmentCount); err != nil {
+		t.Fatalf("Querying quantity_adjustment count: %v", err)
+	}
+	if adjustmentCount != 1 {
+		t.Fatalf("Expected exactly 1 quantity_adjustment row for wine %d, got %d", wine.ID, adjustmentCount)
+	}
+
+	var delta int
+	var reason string
+	if err := database.QueryRowContext(context.Background(),
+		"SELECT delta, reason FROM quantity_adjustment WHERE wine_id = ?", wine.ID,
+	).Scan(&delta, &reason); err != nil {
+		t.Fatalf("Querying quantity_adjustment row: %v", err)
+	}
+	if delta != 5 {
+		t.Errorf("Expected quantity_adjustment delta 5, got %d", delta)
+	}
+	if reason != "manual" {
+		t.Errorf("Expected quantity_adjustment reason 'manual', got %q", reason)
 	}
 }
 
@@ -115,9 +166,11 @@ func TestWineCreateIgnoresQuantityField(t *testing.T) {
 	producerID := createTestProducer(t, harness, "Domaine Ignored")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "rouge",
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"quantity":         9999,
+		"initial_quantity": 2,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
@@ -125,8 +178,45 @@ func TestWineCreateIgnoresQuantityField(t *testing.T) {
 
 	var wine db.Wine
 	harness.JSONResponse(resp, &wine)
-	if wine.Quantity != 0 {
-		t.Errorf("Expected quantity field in create body to have no effect, got %d", wine.Quantity)
+	if wine.Quantity != 2 {
+		t.Errorf("Expected quantity field in create body to have no effect, expected initial_quantity 2, got %d", wine.Quantity)
+	}
+}
+
+func TestWineCreateRejectsMissingInitialQuantity(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Bourgueil Missing Quantity")
+	producerID := createTestProducer(t, harness, "Domaine Missing Quantity")
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id": appellationID,
+		"producer_id":    producerID,
+		"color":          "rouge",
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "initial_quantity_required" {
+		t.Errorf("Expected error code 'initial_quantity_required', got %q", code)
+	}
+}
+
+func TestWineCreateRejectsInitialQuantityBelowOne(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Bourgueil Zero Quantity")
+	producerID := createTestProducer(t, harness, "Domaine Zero Quantity")
+
+	resp := harness.Do("POST", "/wines", map[string]interface{}{
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"initial_quantity": 0,
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	if code := harness.ErrorCode(resp); code != "initial_quantity_required" {
+		t.Errorf("Expected error code 'initial_quantity_required', got %q", code)
 	}
 }
 
@@ -136,12 +226,13 @@ func TestWineCreateIdempotentByClientID(t *testing.T) {
 	producerID := createTestProducer(t, harness, uniqueTestProducerName("Domaine Test"))
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "rouge",
-		"garde_debut":    2020,
-		"garde_fin":      2028,
-		"client_id":      "client-abc",
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"garde_debut":      2020,
+		"garde_fin":        2028,
+		"client_id":        "client-abc",
+		"initial_quantity": 1,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
@@ -150,12 +241,13 @@ func TestWineCreateIdempotentByClientID(t *testing.T) {
 	harness.JSONResponse(resp, &first)
 
 	resp = harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "rouge",
-		"garde_debut":    2020,
-		"garde_fin":      2028,
-		"client_id":      "client-abc",
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"garde_debut":      2020,
+		"garde_fin":        2028,
+		"client_id":        "client-abc",
+		"initial_quantity": 1,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d on retry, got %d", http.StatusCreated, resp.StatusCode)
@@ -167,12 +259,13 @@ func TestWineCreateIdempotentByClientID(t *testing.T) {
 	}
 
 	resp = harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2021,
-		"garde_fin":      2029,
-		"client_id":      "client-def",
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"garde_debut":      2021,
+		"garde_fin":        2029,
+		"client_id":        "client-def",
+		"initial_quantity": 1,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
@@ -197,11 +290,12 @@ func TestWineCreateWithoutMillesime(t *testing.T) {
 	producerID := createTestProducer(t, harness, "Maison X")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2022,
-		"garde_fin":      2030,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"garde_debut":      2022,
+		"garde_fin":        2030,
+		"initial_quantity": 1,
 	})
 
 	if resp.StatusCode != http.StatusCreated {
@@ -222,9 +316,10 @@ func TestWineCreateWithoutGarde(t *testing.T) {
 	producerID := createTestProducer(t, harness, "Domaine C")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"initial_quantity": 1,
 	})
 
 	if resp.StatusCode != http.StatusCreated {
@@ -248,10 +343,11 @@ func TestWineCreateWithOnlyGardeDebut(t *testing.T) {
 	producerID := createTestProducer(t, harness, "Domaine D")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2025,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"garde_debut":      2025,
+		"initial_quantity": 1,
 	})
 
 	if resp.StatusCode != http.StatusCreated {
@@ -273,11 +369,12 @@ func TestWineCreateRejectsUnknownAppellation(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": 9999,
-		"producer_id":    0,
-		"color":          "rouge",
-		"garde_debut":    2022,
-		"garde_fin":      2030,
+		"appellation_id":   9999,
+		"producer_id":      0,
+		"color":            "rouge",
+		"garde_debut":      2022,
+		"garde_fin":        2030,
+		"initial_quantity": 1,
 	})
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -316,11 +413,12 @@ func TestWineEditFields(t *testing.T) {
 	otherProducerID := createTestProducer(t, harness, "Domaine B")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2021,
-		"garde_fin":      2029,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"garde_debut":      2021,
+		"garde_fin":        2029,
+		"initial_quantity": 1,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -378,13 +476,13 @@ func TestWineEditIgnoresQuantityField(t *testing.T) {
 	producerID := createTestProducer(t, harness, "Domaine Ignored Edit")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"initial_quantity": 4,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
-	applyQuantityAdjustment(t, harness, created.ID, 4)
 
 	resp = harness.Do("PUT", "/wines/"+strconv.Itoa(created.ID), map[string]interface{}{
 		"appellation_id": appellationID,
@@ -409,11 +507,12 @@ func TestWineEditRejectsUnknownAppellation(t *testing.T) {
 	producerID := createTestProducer(t, harness, "Domaine A")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2021,
-		"garde_fin":      2029,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"garde_debut":      2021,
+		"garde_fin":        2029,
+		"initial_quantity": 1,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -440,11 +539,12 @@ func TestWineEditRejectsInvalidColor(t *testing.T) {
 	producerID := createTestProducer(t, harness, "Domaine A")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2021,
-		"garde_fin":      2029,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"garde_debut":      2021,
+		"garde_fin":        2029,
+		"initial_quantity": 1,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -493,22 +593,27 @@ func TestWineListIncludesZeroQuantity(t *testing.T) {
 	otherProducerID := createTestProducer(t, harness, "Domaine B")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2021,
-		"garde_fin":      2029,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"garde_debut":      2021,
+		"garde_fin":        2029,
+		"initial_quantity": 1,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
 	}
+	var depleted db.Wine
+	harness.JSONResponse(resp, &depleted)
+	applyQuantityAdjustment(t, harness, depleted.ID, -1)
 
 	resp = harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    otherProducerID,
-		"color":          "rouge",
-		"garde_debut":    2021,
-		"garde_fin":      2029,
+		"appellation_id":   appellationID,
+		"producer_id":      otherProducerID,
+		"color":            "rouge",
+		"garde_debut":      2021,
+		"garde_fin":        2029,
+		"initial_quantity": 1,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
@@ -546,11 +651,12 @@ func TestWineGetDetail(t *testing.T) {
 	producerID := createTestProducer(t, harness, "Domaine C")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2022,
-		"garde_fin":      2027,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"garde_debut":      2022,
+		"garde_fin":        2027,
+		"initial_quantity": 1,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -605,11 +711,12 @@ func TestWineDetailIncludesSuggestedMeals(t *testing.T) {
 	})
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2022,
-		"garde_fin":      2027,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"garde_debut":      2022,
+		"garde_fin":        2027,
+		"initial_quantity": 1,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -636,11 +743,12 @@ func TestWineDetailEmptySuggestedMealsWhenNoPairing(t *testing.T) {
 	producerID := createTestProducer(t, harness, "Domaine D")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "rouge",
-		"garde_debut":    2020,
-		"garde_fin":      2026,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"garde_debut":      2020,
+		"garde_fin":        2026,
+		"initial_quantity": 1,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)
@@ -668,11 +776,12 @@ func TestWineDetailReflectsMealPairingEdits(t *testing.T) {
 	mealA := createTestMeal(t, harness, "Charcuterie")
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "rouge",
-		"garde_debut":    2021,
-		"garde_fin":      2025,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "rouge",
+		"garde_debut":      2021,
+		"garde_fin":        2025,
+		"initial_quantity": 1,
 	})
 	var created db.Wine
 	harness.JSONResponse(resp, &created)

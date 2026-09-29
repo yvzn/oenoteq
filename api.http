@@ -102,7 +102,7 @@ DELETE {{baseUrl}}/meals/1
 
 
 
-### Create Wine (quantity is not settable here — it starts at 0 and only changes via Consumption or a quantity adjustment, ADR-0006)
+### Create Wine (initial_quantity is required, must be >=1, and is applied atomically with creation as the first quantity_adjustment, ADR-0007; quantity itself is not settable here after that — it only changes via Consumption or a quantity adjustment, ADR-0006)
 POST {{baseUrl}}/wines
 Content-Type: application/json
 
@@ -112,7 +112,8 @@ Content-Type: application/json
   "producer_id": 1,
   "color": "rouge",
   "garde_debut": 2020,
-  "garde_fin": 2028
+  "garde_fin": 2028,
+  "initial_quantity": 6
 }
 
 ### Create Wine without a Garde window (both bounds optional, independently)
@@ -123,7 +124,8 @@ Content-Type: application/json
   "millesime": 2022,
   "appellation_id": 1,
   "producer_id": 1,
-  "color": "blanc"
+  "color": "blanc",
+  "initial_quantity": 1
 }
 
 ### Create Wine with client_id (idempotent — retried POST with the same client_id returns the existing row instead of duplicating)
@@ -137,6 +139,7 @@ Content-Type: application/json
   "color": "rouge",
   "garde_debut": 2021,
   "garde_fin": 2029,
+  "initial_quantity": 3,
   "client_id": "a1b2c3d4-0000-0000-0000-000000000004"
 }
 

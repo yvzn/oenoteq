@@ -24,6 +24,7 @@ const MESSAGES_BY_CODE: Record<string, string> = {
   invalid_date: 'Enter the date as YYYY-MM-DD.',
   invalid_rating: 'Rating must be between 1 and 5.',
   quantity_zero: "There's nothing left to log for this wine — update the quantity first.",
+  initial_quantity_required: 'Enter an initial quantity of at least 1.',
   consumption_not_found: "That consumption entry doesn't exist anymore. Refresh the page and try again.",
   internal_error: 'Something went wrong on our end. Please try again.',
 }

@@ -130,13 +130,14 @@ func TestAppellationDeleteBlockedWhenReferencedByWine(t *testing.T) {
 	producerID := createTestProducer(t, harness, uniqueTestProducerName("Domaine Test"))
 
 	resp := harness.Do("POST", "/wines", map[string]interface{}{
-		"millesime":      2018,
-		"appellation_id": appellationID,
-		"producer_id":    producerID,
-		"color":          "blanc",
-		"garde_debut":    2020,
-		"garde_fin":      2028,
-		"quantity":       6,
+		"millesime":        2018,
+		"appellation_id":   appellationID,
+		"producer_id":      producerID,
+		"color":            "blanc",
+		"garde_debut":      2020,
+		"garde_fin":        2028,
+		"quantity":         6,
+		"initial_quantity": 1,
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
