@@ -5,7 +5,7 @@ Personal, single-user app to track wines owned, their drinking window, and which
 ## Language
 
 **Wine**:
-The tracked entity: millesime + appellation + producer + color + garde + quantity on hand. No per-bottle identity — "bottle" is just the unit quantity is counted in, not a separate record. Stays in the cellar as a record even once quantity reaches 0, since Consumption history references it.
+The tracked entity: millesime + appellation + producer + color + garde + quantity on hand. No per-bottle identity — "bottle" is just the unit quantity is counted in, not a separate record. Quantity is always at least 1 when a Wine is first added — it only reaches 0 afterward, through Consumption or a manual correction. Stays in the cellar as a record even once quantity reaches 0, since Consumption history references it.
 _Avoid_: Bottle (as an entity)
 
 **Producer**:
