@@ -25,10 +25,25 @@ func Open(path string) (*DB, error) {
 	// holds a write lock fails immediately (SQLITE_BUSY) instead of waiting
 	// for it to clear — WAL lets readers and a writer proceed concurrently,
 	// and busy_timeout is the backstop for the remaining writer-vs-writer case.
-	sqlDB, err := sql.Open("sqlite", "file:"+path+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)")
+	// synchronous=NORMAL is safe under WAL (still fsyncs on checkpoint) and
+	// only risks losing the last commit on an OS crash/power loss, which is
+	// an acceptable trade for a single-user home-LAN box (ADR-0002).
+	// foreign_keys is off by default in SQLite — turn it on so a dangling
+	// reference (e.g. a wine pointing at a deleted appellation) is rejected
+	// instead of silently persisted.
+	sqlDB, err := sql.Open("sqlite", "file:"+path+
+		"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)")
 	if err != nil {
 		return nil, fmt.Errorf("opening sqlite: %w", err)
 	}
+
+	// SQLite only ever has one writer anyway, and a ":memory:" database (used
+	// by tests) isn't shared across connections in database/sql — a second
+	// pooled connection would silently see a blank, un-migrated database.
+	// One connection total sidesteps that risk; the lost read/write
+	// concurrency WAL would otherwise give doesn't matter at this app's
+	// single-user scale.
+	sqlDB.SetMaxOpenConns(1)
 
 	if err := sqlDB.Ping(); err != nil {
 		return nil, fmt.Errorf("ping: %w", err)
