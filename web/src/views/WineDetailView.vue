@@ -30,6 +30,9 @@ const {
   deleteConsumption,
   deletingConsumption,
   deleteConsumptionError,
+  adjustQuantity,
+  adjustingQuantity,
+  adjustQuantityError,
 } = useWines()
 const {
   appellations,
@@ -86,6 +89,17 @@ async function submitEdit(consumptionId: number) {
   if (ok) {
     editingConsumptionId.value = null
     consumptionSuccess.show('Consumption updated.')
+  }
+}
+
+const quantityDelta = ref('')
+
+async function submitQuantityAdjustment() {
+  const delta = Number(quantityDelta.value)
+  const ok = await adjustQuantity(id.value, delta)
+  if (ok) {
+    quantityDelta.value = ''
+    consumptionSuccess.show('Quantity adjusted.')
   }
 }
 
@@ -153,6 +167,8 @@ watch(
     updateConsumptionError.value = null
     pendingDeleteConsumption.value = null
     deleteConsumptionError.value = null
+    quantityDelta.value = ''
+    adjustQuantityError.value = null
     loadWine(next).then((resolvedId) => afterLoad(next, resolvedId))
   },
   { immediate: true },
@@ -205,6 +221,28 @@ function retry() {
         <span class="text-ink-soft tabular-nums">×{{ wine.quantity }}</span>
         <GardeStatusBadge v-if="gardeStatus" :status="gardeStatus" class="ml-1" />
       </div>
+
+      <form
+        data-testid="quantity-adjustment-form"
+        class="mb-[26px] ml-[19px] flex flex-wrap items-end gap-3"
+        @submit.prevent="submitQuantityAdjustment"
+      >
+        <FormField label="Adjust quantity (e.g. -1 or 3)">
+          <input
+            v-model="quantityDelta"
+            data-testid="quantity-adjustment-delta-input"
+            type="number"
+            required
+            class="w-24"
+          />
+        </FormField>
+        <AppButton type="submit" variant="ghost" :disabled="adjustingQuantity" data-testid="quantity-adjustment-submit">
+          Adjust
+        </AppButton>
+      </form>
+      <StatusLine v-if="adjustQuantityError" tone="error" class="mb-[26px] ml-[19px]">
+        {{ adjustQuantityError }}
+      </StatusLine>
 
       <div class="border-line border-t pt-[26px] pb-[26px]">
         <section>

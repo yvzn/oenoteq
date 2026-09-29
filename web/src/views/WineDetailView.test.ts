@@ -13,6 +13,12 @@ vi.mock('../api/client', async () => {
   return { ...actual, apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }
 })
 
+// A request that never settles, for asserting the UI updates locally without
+// waiting on the network.
+function neverResolves<T>(): Promise<T> {
+  return new Promise<T>(() => {})
+}
+
 function fillConsumptionForm(
   wrapper: ReturnType<typeof mount>,
   { date, rating, notes }: { date: string; rating?: string; notes?: string },
@@ -130,7 +136,7 @@ describe('WineDetailView', () => {
   })
 
   it('shows a loading indicator before the fetches resolve', async () => {
-    vi.mocked(apiClient.get).mockReturnValue(new Promise(() => {}))
+    vi.mocked(apiClient.get).mockReturnValue(neverResolves())
 
     const { wrapper } = await mountAt('/wines/1', { flush: false })
 
@@ -226,30 +232,25 @@ describe('WineDetailView', () => {
     expect(wrapper.find('[data-testid="wine-detail"]').exists()).toBe(true)
   })
 
-  it('records a consumption and refreshes quantity and history on success', async () => {
-    let consumptionRecorded = false
-    vi.mocked(apiClient.get).mockImplementation((path: string) => {
-      if (path === '/appellations') return Promise.resolve(appellations)
-      if (path === '/wines/1') {
-        return Promise.resolve(
-          consumptionRecorded
-            ? {
-                ...wineDetail,
-                quantity: 2,
-                consumption_history: [
-                  ...wineDetail.consumption_history,
-                  { id: 3, wine_id: 1, date: '2026-03-01', rating: 5, notes: 'Superb' },
-                ],
-              }
-            : wineDetail,
-        )
-      }
-      throw new Error(`unexpected path: ${path}`)
-    })
-    vi.mocked(apiClient.post).mockImplementation(() => {
-      consumptionRecorded = true
-      return Promise.resolve({ id: 3, wine_id: 1, date: '2026-03-01', rating: 5, notes: 'Superb' })
-    })
+  it('records a consumption locally and updates quantity/history immediately, without waiting on the network', async () => {
+    mockApi()
+    vi.mocked(apiClient.post).mockReturnValue(neverResolves())
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    fillConsumptionForm(wrapper, { date: '2026-03-01', rating: '5', notes: 'Superb' })
+    await wrapper.get('[data-testid="consumption-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    const detail = wrapper.get('[data-testid="wine-detail"]')
+    expect(detail.text()).toContain('×2')
+    expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(3)
+    expect(useSuccessMessage().message.value).toMatch(/recorded/i)
+  })
+
+  it('queues the consumption create and syncs it to the backend with a client_id once online', async () => {
+    mockApi()
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 3, wine_id: 1, date: '2026-03-01', rating: 5, notes: 'Superb' })
 
     const { wrapper } = await mountAt('/wines/1')
 
@@ -261,12 +262,9 @@ describe('WineDetailView', () => {
       date: '2026-03-01',
       rating: 5,
       notes: 'Superb',
+      client_id: expect.any(String),
     })
-
-    const detail = wrapper.get('[data-testid="wine-detail"]')
-    expect(detail.text()).toContain('×2')
-    expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(3)
-    expect(useSuccessMessage().message.value).toMatch(/recorded/i)
+    expect(await db.outbox.count()).toBe(0)
   })
 
   it('clears a stale consumption success message when navigating to a different wine', async () => {
@@ -290,29 +288,6 @@ describe('WineDetailView', () => {
     await flushPromises()
 
     expect(useSuccessMessage().message.value).toBeNull()
-  })
-
-  it('clears a stale consumption error when navigating to a different wine', async () => {
-    const wineTwo = { ...wineDetail, id: 2, producer: { id: 2, name: 'Domaine Autre' } }
-    vi.mocked(apiClient.get).mockImplementation((path: string) => {
-      if (path === '/appellations') return Promise.resolve(appellations)
-      if (path === '/wines/1') return Promise.resolve(wineDetail)
-      if (path === '/wines/2') return Promise.resolve(wineTwo)
-      throw new Error(`unexpected path: ${path}`)
-    })
-    vi.mocked(apiClient.post).mockRejectedValue(new Error('server exploded'))
-
-    const { wrapper, router } = await mountAt('/wines/1')
-
-    fillConsumptionForm(wrapper, { date: '2026-03-01' })
-    await wrapper.get('[data-testid="consumption-form"]').trigger('submit.prevent')
-    await flushPromises()
-    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
-
-    await router.push('/wines/2')
-    await flushPromises()
-
-    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
 
   it('edits a consumption entry inline and refreshes the history on success', async () => {
@@ -437,6 +412,29 @@ describe('WineDetailView', () => {
     expect(useSuccessMessage().message.value).toMatch(/deleted/i)
   })
 
+  it('cancels a not-yet-synced consumption before it syncs, without calling the API', async () => {
+    mockApi()
+    vi.mocked(apiClient.post).mockReturnValue(neverResolves())
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    fillConsumptionForm(wrapper, { date: '2026-03-01', rating: '5', notes: 'Superb' })
+    await wrapper.get('[data-testid="consumption-form"]').trigger('submit.prevent')
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(3)
+    expect(wrapper.get('[data-testid="wine-detail"]').text()).toContain('×2')
+
+    const entries = wrapper.findAll('[data-testid="consumption-entry"]')
+    await entries[2]!.get('[data-testid="consumption-delete-button"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(apiClient.delete).not.toHaveBeenCalled()
+    expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(2)
+    expect(wrapper.get('[data-testid="wine-detail"]').text()).toContain('×3')
+    expect(await db.outbox.where('entity').equals('consumption').count()).toBe(0)
+  })
+
   it('blocks the consumption form when quantity is already zero', async () => {
     mockApi({ wine: { ...wineDetail, quantity: 0 } })
 
@@ -447,12 +445,58 @@ describe('WineDetailView', () => {
       /no bottles left/i,
     )
   })
+
+  it('adjusts quantity locally and immediately, without waiting on the network', async () => {
+    mockApi()
+    vi.mocked(apiClient.post).mockReturnValue(neverResolves())
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('3')
+    await wrapper.get('[data-testid="quantity-adjustment-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="wine-detail"]').text()).toContain('×6')
+    expect(useSuccessMessage().message.value).toMatch(/adjusted/i)
+  })
+
+  it('queues the manual quantity adjustment and syncs it with a client_id once online', async () => {
+    mockApi()
+    vi.mocked(apiClient.post).mockResolvedValue({ ...wineDetail, quantity: 6 })
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('3')
+    await wrapper.get('[data-testid="quantity-adjustment-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledWith('/wines/1/quantity-adjustments', {
+      delta: 3,
+      client_id: expect.any(String),
+    })
+    expect(await db.outbox.count()).toBe(0)
+  })
+
+  it('rejects a manual quantity adjustment that would take quantity below zero', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('-10')
+    await wrapper.get('[data-testid="quantity-adjustment-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="wine-detail"]').text()).toContain('×3')
+    expect(wrapper.text()).toMatch(/nothing left/i)
+    expect(apiClient.post).not.toHaveBeenCalled()
+  })
 })
 
-// The local-store read path (load() checking Dexie before the network) adds
-// a few extra macrotasks under fake-indexeddb versus a plain fetch mock.
+// The local-store read/write path (load()/pushChangesInBackground chaining
+// pushWines then pushConsumptions) adds several extra macrotasks under
+// fake-indexeddb versus a plain fetch mock.
 async function flushPromises() {
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 16; i++) {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }

@@ -1,7 +1,12 @@
+import { pushConsumptions } from './consumptionSync'
 import { pullWines, pushWines } from './wineSync'
 
-async function syncWines(): Promise<void> {
+async function syncAll(): Promise<void> {
+  // Wine creates first: a queued consumption or quantity adjustment against
+  // a wine created offline can't resolve that wine's real id until its own
+  // create has synced.
   await pushWines()
+  await pushConsumptions()
   await pullWines()
 }
 
@@ -9,7 +14,7 @@ async function syncWines(): Promise<void> {
 // regains connectivity, so a queued change syncs without user action.
 export function startSync(): void {
   window.addEventListener('online', () => {
-    syncWines().catch(() => {})
+    syncAll().catch(() => {})
   })
-  if (navigator.onLine) syncWines().catch(() => {})
+  if (navigator.onLine) syncAll().catch(() => {})
 }
