@@ -4,7 +4,7 @@
 
 **Blocked by:** 02, 04
 
-**Status:** ready-for-agent
+**Status:** implemented — manual SW verification (last checkbox) still to do by user; uses `registerType: 'prompt'` + gated `updateSW`, since autoUpdate can't be gated
 
 - [ ] Service worker registered with `autoUpdate`-style behavior: a new version detected on app open applies without any user-facing prompt
 - [ ] If the outbox has pending or failed items when a new version is detected, the update is deferred (not applied) until the outbox drains to empty
