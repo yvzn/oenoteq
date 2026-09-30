@@ -105,6 +105,14 @@ describe('ProducerFormView — add', () => {
     expect(outboxItems).toHaveLength(1)
     expect(outboxItems[0]).toMatchObject({ entity: 'producer', action: 'create', status: 'failed' })
   })
+
+  it('navigates to the producer list when cancel is clicked', async () => {
+    const { wrapper, router } = await mountAt('/producers/new')
+    await wrapper.get('[data-testid="producer-form-cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/producers')
+  })
 })
 
 describe('ProducerFormView — edit', () => {
@@ -164,6 +172,16 @@ describe('ProducerFormView — edit', () => {
     const outboxItems = await db.outbox.toArray()
     expect(outboxItems).toHaveLength(1)
     expect(outboxItems[0]).toMatchObject({ entity: 'producer', action: 'update', status: 'pending' })
+  })
+
+  it('navigates to the producer list when cancel is clicked', async () => {
+    mockGet()
+
+    const { wrapper, router } = await mountAt('/producers/2/edit')
+    await wrapper.get('[data-testid="producer-form-cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/producers')
   })
 })
 

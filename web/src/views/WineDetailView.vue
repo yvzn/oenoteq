@@ -3,10 +3,12 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Consumption } from '../api/types'
 import AppButton from '../components/AppButton.vue'
+import AppDialog from '../components/AppDialog.vue'
 import ColorSwatch from '../components/ColorSwatch.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import FormField from '../components/FormField.vue'
 import GardeStatusBadge from '../components/GardeStatusBadge.vue'
+import NumberStepper from '../components/NumberStepper.vue'
 import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
@@ -93,12 +95,21 @@ async function submitEdit(consumptionId: number) {
 }
 
 const quantityDelta = ref('')
+const quantityDialogOpen = ref(false)
+
+const quantityPreview = computed(() => {
+  if (!wine.value) return ''
+  const delta = Number(quantityDelta.value)
+  if (!delta) return `Currently ×${wine.value.quantity}`
+  return `Currently ×${wine.value.quantity}, would become ×${wine.value.quantity + delta}`
+})
 
 async function submitQuantityAdjustment() {
   const delta = Number(quantityDelta.value)
   const ok = await adjustQuantity(id.value, delta)
   if (ok) {
     quantityDelta.value = ''
+    quantityDialogOpen.value = false
     consumptionSuccess.show('Quantity adjusted.')
   }
 }
@@ -168,6 +179,7 @@ watch(
     pendingDeleteConsumption.value = null
     deleteConsumptionError.value = null
     quantityDelta.value = ''
+    quantityDialogOpen.value = false
     adjustQuantityError.value = null
     loadWine(next).then((resolvedId) => afterLoad(next, resolvedId))
   },
@@ -218,31 +230,17 @@ function retry() {
           <span>{{ gardeRangeLabel }}</span>
           <span class="text-muted/40">·</span>
         </template>
-        <span class="text-ink-soft tabular-nums">×{{ wine.quantity }}</span>
-        <GardeStatusBadge v-if="gardeStatus" :status="gardeStatus" class="ml-1" />
+        <GardeStatusBadge v-if="gardeStatus" :status="gardeStatus" />
+        <span class="text-muted/40">·</span>
+        <button
+          type="button"
+          data-testid="quantity-adjustment-trigger"
+          class="text-ink-soft -m-1 cursor-pointer p-1 tabular-nums"
+          @click="quantityDialogOpen = true"
+        >
+          ×{{ wine.quantity }}
+        </button>
       </div>
-
-      <form
-        data-testid="quantity-adjustment-form"
-        class="mb-[26px] ml-[19px] flex flex-wrap items-end gap-3"
-        @submit.prevent="submitQuantityAdjustment"
-      >
-        <FormField label="Adjust quantity (e.g. -1 or 3)">
-          <input
-            v-model="quantityDelta"
-            data-testid="quantity-adjustment-delta-input"
-            type="number"
-            required
-            class="w-24"
-          />
-        </FormField>
-        <AppButton type="submit" variant="ghost" :disabled="adjustingQuantity" data-testid="quantity-adjustment-submit">
-          Adjust
-        </AppButton>
-      </form>
-      <StatusLine v-if="adjustQuantityError" tone="error" class="mb-[26px] ml-[19px]">
-        {{ adjustQuantityError }}
-      </StatusLine>
 
       <div class="border-line border-t pt-[26px] pb-[26px]">
         <section>
@@ -294,25 +292,25 @@ function retry() {
                   <input v-model="editDate" data-testid="consumption-edit-date-input" type="date" required class="w-full" />
                 </FormField>
                 <FormField label="Rating (1–5)">
-                  <input
+                  <NumberStepper
                     v-model="editRating"
-                    data-testid="consumption-edit-rating-input"
-                    type="number"
-                    min="1"
-                    max="5"
-                    class="w-20"
+                    :min="1"
+                    :max="5"
+                    input-testid="consumption-edit-rating-input"
+                    decrement-testid="consumption-edit-rating-decrement"
+                    increment-testid="consumption-edit-rating-increment"
                   />
                 </FormField>
                 <FormField label="Notes">
                   <textarea v-model="editNotes" data-testid="consumption-edit-notes-input" class="w-full"></textarea>
                 </FormField>
                 <StatusLine v-if="updateConsumptionError" tone="error">{{ updateConsumptionError }}</StatusLine>
-                <div class="flex gap-2">
-                  <AppButton type="submit" :disabled="updatingConsumption" data-testid="consumption-edit-save">
-                    Save
-                  </AppButton>
+                <div class="flex justify-between">
                   <AppButton type="button" variant="ghost" data-testid="consumption-edit-cancel" @click="cancelEdit">
                     Cancel
+                  </AppButton>
+                  <AppButton type="submit" :disabled="updatingConsumption" data-testid="consumption-edit-save">
+                    Save
                   </AppButton>
                 </div>
               </form>
@@ -363,13 +361,13 @@ function retry() {
             <input v-model="consumptionDate" data-testid="consumption-date-input" type="date" required class="w-full" />
           </FormField>
           <FormField label="Rating (1–5)">
-            <input
+            <NumberStepper
               v-model="consumptionRating"
-              data-testid="consumption-rating-input"
-              type="number"
-              min="1"
-              max="5"
-              class="w-20"
+              :min="1"
+              :max="5"
+              input-testid="consumption-rating-input"
+              decrement-testid="consumption-rating-decrement"
+              increment-testid="consumption-rating-increment"
             />
           </FormField>
           <FormField label="Notes">
@@ -390,5 +388,38 @@ function retry() {
       @confirm="confirmDeleteConsumption"
       @cancel="cancelDeleteConsumption"
     />
+
+    <AppDialog :open="quantityDialogOpen" @cancel="quantityDialogOpen = false">
+      <template v-if="wine">
+      <h2 class="font-display text-ink mb-4 text-[16px] font-semibold">Adjust quantity</h2>
+      <form
+        data-testid="quantity-adjustment-form"
+        class="flex flex-col gap-4"
+        @submit.prevent="submitQuantityAdjustment"
+      >
+        <FormField label="Change quantity by">
+          <NumberStepper
+            v-model="quantityDelta"
+            full-width
+            required
+            placeholder="e.g. -1 or +3"
+            input-testid="quantity-adjustment-delta-input"
+            decrement-testid="quantity-adjustment-decrement"
+            increment-testid="quantity-adjustment-increment"
+          />
+        </FormField>
+        <p data-testid="quantity-adjustment-preview" class="text-muted text-[14.5px]">{{ quantityPreview }}</p>
+        <StatusLine v-if="adjustQuantityError" tone="error">{{ adjustQuantityError }}</StatusLine>
+        <div class="flex justify-between">
+          <AppButton type="button" variant="ghost" data-testid="quantity-adjustment-cancel" @click="quantityDialogOpen = false">
+            Cancel
+          </AppButton>
+          <AppButton type="submit" variant="primary" :disabled="adjustingQuantity" data-testid="quantity-adjustment-submit">
+            Adjust
+          </AppButton>
+        </div>
+      </form>
+      </template>
+    </AppDialog>
   </section>
 </template>

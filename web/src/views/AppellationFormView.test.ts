@@ -105,6 +105,14 @@ describe('AppellationFormView — add', () => {
     expect(outboxItems).toHaveLength(1)
     expect(outboxItems[0]).toMatchObject({ entity: 'appellation', action: 'create', status: 'failed' })
   })
+
+  it('navigates to the appellation list when cancel is clicked', async () => {
+    const { wrapper, router } = await mountAt('/appellations/new')
+    await wrapper.get('[data-testid="appellation-form-cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/appellations')
+  })
 })
 
 describe('AppellationFormView — edit', () => {
@@ -164,6 +172,16 @@ describe('AppellationFormView — edit', () => {
     const outboxItems = await db.outbox.toArray()
     expect(outboxItems).toHaveLength(1)
     expect(outboxItems[0]).toMatchObject({ entity: 'appellation', action: 'update', status: 'pending' })
+  })
+
+  it('navigates to the appellation list when cancel is clicked', async () => {
+    mockGet()
+
+    const { wrapper, router } = await mountAt('/appellations/2/edit')
+    await wrapper.get('[data-testid="appellation-form-cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/appellations')
   })
 })
 

@@ -6,6 +6,7 @@ import AppButton from '../components/AppButton.vue'
 import AutocompleteField from '../components/AutocompleteField.vue'
 import ColorSwatch from '../components/ColorSwatch.vue'
 import FormField from '../components/FormField.vue'
+import NumberStepper from '../components/NumberStepper.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
@@ -85,11 +86,6 @@ const errors = ref<WineFormErrors>({})
 
 function fillGardeFin() {
   gardeFin.value = deriveGardeFin(gardeDebut.value, gardeFin.value)
-}
-
-function stepQuantity(delta: number) {
-  const next = Math.max(1, (Number(quantity.value) || 0) + delta)
-  quantity.value = String(next)
 }
 
 const showNewAppellation = ref(false)
@@ -175,6 +171,10 @@ async function submitNewProducer() {
 }
 
 const formSuccess = useSuccessMessage()
+
+function cancel() {
+  router.push(isEdit.value ? { name: 'wine-detail', params: { id: editId.value } } : { name: 'cellar' })
+}
 
 async function submit() {
   const validationErrors = validateWineForm(fields.value)
@@ -337,40 +337,35 @@ async function submit() {
         :error="errors.quantity"
         error-testid="wine-quantity-error"
       >
-        <div class="border-line bg-parchment-raised inline-flex w-auto self-start items-stretch overflow-hidden rounded-lg border">
-          <button
-            type="button"
-            class="text-ink-soft hover:bg-parchment focus-visible:ring-bordeaux w-10 cursor-pointer rounded-l-lg text-lg font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
-            @click="stepQuantity(-1)"
-          >
-            −
-          </button>
-          <input
-            v-model="quantity"
-            data-testid="wine-quantity-input"
-            type="number"
-            class="border-line w-16 rounded-none border-x bg-transparent text-center"
-          />
-          <button
-            type="button"
-            class="text-ink-soft hover:bg-parchment focus-visible:ring-bordeaux w-10 cursor-pointer rounded-r-lg text-lg font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
-            @click="stepQuantity(1)"
-          >
-            +
-          </button>
-        </div>
+        <NumberStepper
+          v-model="quantity"
+          :min="1"
+          input-testid="wine-quantity-input"
+          decrement-testid="wine-quantity-decrement"
+          increment-testid="wine-quantity-increment"
+        />
       </FormField>
 
       <StatusLine v-if="submitError" tone="error">{{ submitError }}</StatusLine>
 
-      <AppButton
-        type="submit"
-        data-testid="wine-form-submit"
-        :disabled="submitting"
-        class="self-start"
-      >
-        {{ isEdit ? 'Save changes' : 'Add wine' }}
-      </AppButton>
+      <div class="flex justify-between">
+        <AppButton
+          type="button"
+          variant="ghost"
+          data-testid="wine-form-cancel"
+          :disabled="submitting"
+          @click="cancel"
+        >
+          Cancel
+        </AppButton>
+        <AppButton
+          type="submit"
+          data-testid="wine-form-submit"
+          :disabled="submitting"
+        >
+          {{ isEdit ? 'Save changes' : 'Add wine' }}
+        </AppButton>
+      </div>
     </form>
    </div>
   </section>

@@ -39,7 +39,7 @@ function onDialogClick(event: MouseEvent) {
     @click="onDialogClick"
   >
     <p class="text-ink text-sm">{{ message }}</p>
-    <div class="mt-4 flex justify-end gap-2">
+    <div class="mt-4 flex justify-between">
       <AppButton type="button" variant="ghost" data-testid="confirm-dialog-cancel" @click="emit('cancel')">
         {{ cancelLabel }}
       </AppButton>

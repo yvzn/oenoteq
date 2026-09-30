@@ -56,6 +56,10 @@ onMounted(retry)
 
 const formSuccess = useSuccessMessage()
 
+function cancel() {
+  router.push({ name: 'producers' })
+}
+
 async function submit() {
   const trimmed = name.value.trim()
   if (trimmed === '') {
@@ -102,14 +106,24 @@ async function submit() {
 
       <StatusLine v-if="submitError" tone="error">{{ submitError }}</StatusLine>
 
-      <AppButton
-        type="submit"
-        data-testid="producer-form-submit"
-        :disabled="submitting"
-        class="self-start"
-      >
-        {{ isEdit ? 'Save changes' : 'Add producer' }}
-      </AppButton>
+      <div class="flex justify-between">
+        <AppButton
+          type="button"
+          variant="ghost"
+          data-testid="producer-form-cancel"
+          :disabled="submitting"
+          @click="cancel"
+        >
+          Cancel
+        </AppButton>
+        <AppButton
+          type="submit"
+          data-testid="producer-form-submit"
+          :disabled="submitting"
+        >
+          {{ isEdit ? 'Save changes' : 'Add producer' }}
+        </AppButton>
+      </div>
     </form>
    </div>
   </section>

@@ -53,6 +53,7 @@ function makeRouter(): Router {
     createRouter({
       history: createMemoryHistory(),
       routes: [
+        { path: '/', name: 'cellar', component: { template: '<div />' } },
         { path: '/wines/new', name: 'wine-new', component: WineFormView },
         { path: '/wines/:id', name: 'wine-detail', component: WineDetailView },
         { path: '/wines/:id/edit', name: 'wine-edit', component: WineFormView },
@@ -431,6 +432,16 @@ describe('WineFormView — add', () => {
     })
     expect(apiClient.post).not.toHaveBeenCalledWith('/wines', expect.anything())
   })
+
+  it('navigates to the cellar list when cancel is clicked', async () => {
+    mockGet()
+
+    const { wrapper, router } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="wine-form-cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/')
+  })
 })
 
 describe('WineFormView — edit', () => {
@@ -534,6 +545,16 @@ describe('WineFormView — edit', () => {
     const outboxItems = await db.outbox.toArray()
     expect(outboxItems).toHaveLength(1)
     expect(outboxItems[0]).toMatchObject({ entity: 'wine', action: 'update', status: 'failed' })
+  })
+
+  it('navigates to the wine detail view when cancel is clicked', async () => {
+    mockGet()
+
+    const { wrapper, router } = await mountAt('/wines/5/edit')
+    await wrapper.get('[data-testid="wine-form-cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/wines/5')
   })
 })
 

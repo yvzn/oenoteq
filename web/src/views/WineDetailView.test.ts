@@ -19,6 +19,10 @@ function neverResolves<T>(): Promise<T> {
   return new Promise<T>(() => {})
 }
 
+async function openQuantityDialog(wrapper: ReturnType<typeof mount>) {
+  await wrapper.get('[data-testid="quantity-adjustment-trigger"]').trigger('click')
+}
+
 function fillConsumptionForm(
   wrapper: ReturnType<typeof mount>,
   { date, rating, notes }: { date: string; rating?: string; notes?: string },
@@ -452,6 +456,7 @@ describe('WineDetailView', () => {
 
     const { wrapper } = await mountAt('/wines/1')
 
+    await openQuantityDialog(wrapper)
     await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('3')
     await wrapper.get('[data-testid="quantity-adjustment-form"]').trigger('submit.prevent')
     await flushPromises()
@@ -466,6 +471,7 @@ describe('WineDetailView', () => {
 
     const { wrapper } = await mountAt('/wines/1')
 
+    await openQuantityDialog(wrapper)
     await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('3')
     await wrapper.get('[data-testid="quantity-adjustment-form"]').trigger('submit.prevent')
     await flushPromises()
@@ -477,17 +483,73 @@ describe('WineDetailView', () => {
     expect(await db.outbox.count()).toBe(0)
   })
 
+  it('previews the resulting quantity as the delta changes, falling back to the current quantity when it is empty or zero', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    await openQuantityDialog(wrapper)
+    expect(wrapper.get('[data-testid="quantity-adjustment-preview"]').text()).toBe('Currently ×3')
+
+    await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('2')
+    expect(wrapper.get('[data-testid="quantity-adjustment-preview"]').text()).toBe('Currently ×3, would become ×5')
+
+    await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('0')
+    expect(wrapper.get('[data-testid="quantity-adjustment-preview"]').text()).toBe('Currently ×3')
+  })
+
   it('rejects a manual quantity adjustment that would take quantity below zero', async () => {
     mockApi()
 
     const { wrapper } = await mountAt('/wines/1')
 
+    await openQuantityDialog(wrapper)
     await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('-10')
     await wrapper.get('[data-testid="quantity-adjustment-form"]').trigger('submit.prevent')
     await flushPromises()
 
     expect(wrapper.get('[data-testid="wine-detail"]').text()).toContain('×3')
     expect(wrapper.text()).toMatch(/nothing left/i)
+    expect(apiClient.post).not.toHaveBeenCalled()
+  })
+
+  it('keeps the quantity-adjustment dialog closed until the quantity is clicked', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    const dialog = wrapper.get('[data-testid="app-dialog"]').element as HTMLDialogElement
+    expect(dialog.open).toBe(false)
+
+    await openQuantityDialog(wrapper)
+    expect(dialog.open).toBe(true)
+  })
+
+  it('closes the quantity-adjustment dialog after a successful adjustment', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+    const dialog = wrapper.get('[data-testid="app-dialog"]').element as HTMLDialogElement
+
+    await openQuantityDialog(wrapper)
+    await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('3')
+    await wrapper.get('[data-testid="quantity-adjustment-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(dialog.open).toBe(false)
+  })
+
+  it('closes the quantity-adjustment dialog when Cancel is clicked, without submitting', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+    const dialog = wrapper.get('[data-testid="app-dialog"]').element as HTMLDialogElement
+
+    await openQuantityDialog(wrapper)
+    await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('3')
+    await wrapper.get('[data-testid="quantity-adjustment-cancel"]').trigger('click')
+
+    expect(dialog.open).toBe(false)
     expect(apiClient.post).not.toHaveBeenCalled()
   })
 })

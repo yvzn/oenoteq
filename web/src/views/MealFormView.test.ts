@@ -105,6 +105,14 @@ describe('MealFormView — add', () => {
     expect(outboxItems).toHaveLength(1)
     expect(outboxItems[0]).toMatchObject({ entity: 'meal', action: 'create', status: 'failed' })
   })
+
+  it('navigates to the meal list when cancel is clicked', async () => {
+    const { wrapper, router } = await mountAt('/meals/new')
+    await wrapper.get('[data-testid="meal-form-cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/meals')
+  })
 })
 
 describe('MealFormView — edit', () => {
@@ -164,6 +172,16 @@ describe('MealFormView — edit', () => {
     const outboxItems = await db.outbox.toArray()
     expect(outboxItems).toHaveLength(1)
     expect(outboxItems[0]).toMatchObject({ entity: 'meal', action: 'update', status: 'pending' })
+  })
+
+  it('navigates to the meal list when cancel is clicked', async () => {
+    mockGet()
+
+    const { wrapper, router } = await mountAt('/meals/2/edit')
+    await wrapper.get('[data-testid="meal-form-cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/meals')
   })
 })
 
