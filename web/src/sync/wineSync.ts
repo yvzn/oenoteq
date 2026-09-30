@@ -1,16 +1,31 @@
 import { ApiError, apiClient } from '../api/client'
 import type { Producer, Wine, WineCreateInput, WineDetail, WineInput } from '../api/types'
 import { db } from '../db/localDb'
+import { resolveSyncedId } from './idRemap'
 import { enqueue, replay, RetryableOutboxError, type OutboxHandler } from './outbox'
 
 export interface WineCreatePayload extends WineCreateInput {
   client_id: string
 }
 
+// A Wine's appellation/producer may themselves have been created offline
+// (inline, mid-form) and not synced yet — resolve their negative local ids
+// to real server ids before this payload goes out.
+async function resolveReferencedIds<T extends { appellation_id: number; producer_id: number }>(
+  payload: T,
+): Promise<T> {
+  return {
+    ...payload,
+    appellation_id: await resolveSyncedId(payload.appellation_id),
+    producer_id: await resolveSyncedId(payload.producer_id),
+  }
+}
+
 const wineHandler: OutboxHandler = async (item) => {
   try {
     if (item.action === 'create') {
-      const created = await apiClient.post<Wine>('/wines', item.payload)
+      const payload = await resolveReferencedIds(item.payload as WineCreatePayload)
+      const created = await apiClient.post<Wine>('/wines', payload)
       const localId = item.targetId as number
       // Wrapped in one transaction so a reader can never observe the moment
       // between the old record disappearing and the remap breadcrumb
@@ -22,7 +37,8 @@ const wineHandler: OutboxHandler = async (item) => {
       })
       return
     }
-    await apiClient.put<Wine>(`/wines/${item.targetId}`, item.payload)
+    const payload = await resolveReferencedIds(item.payload as WineInput)
+    await apiClient.put<Wine>(`/wines/${item.targetId}`, payload)
   } catch (e) {
     // status 0 means the request never reached the server (offline/unreachable
     // home PC per ADR-0002) — that's not a rejection of this item, just try

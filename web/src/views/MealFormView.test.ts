@@ -1,8 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
-import { apiClient } from '../api/client'
+import { ApiError, apiClient } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { db } from '../db/localDb'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import MealFormView from './MealFormView.vue'
 import MealListView from './MealListView.vue'
@@ -82,12 +83,15 @@ describe('MealFormView — add', () => {
     await wrapper.get('[data-testid="meal-form"]').trigger('submit.prevent')
     await flushPromises()
 
-    expect(apiClient.post).toHaveBeenCalledWith('/meals', { name: 'Roast Chicken' })
+    expect(apiClient.post).toHaveBeenCalledWith('/meals', {
+      name: 'Roast Chicken',
+      client_id: expect.any(String),
+    })
     expect(useSuccessMessage().message.value).toMatch(/added/i)
     expect(router.currentRoute.value.fullPath).toBe('/meals')
   })
 
-  it('shows a submit error without navigating when a duplicate name is rejected', async () => {
+  it('saves and navigates even when the background sync to the backend is rejected, leaving the item failed in the outbox', async () => {
     vi.mocked(apiClient.post).mockRejectedValue(new Error('already_exists'))
 
     const { wrapper, router } = await mountAt('/meals/new')
@@ -95,8 +99,11 @@ describe('MealFormView — add', () => {
     await wrapper.get('[data-testid="meal-form"]').trigger('submit.prevent')
     await flushPromises()
 
-    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
-    expect(router.currentRoute.value.fullPath).toBe('/meals/new')
+    expect(useSuccessMessage().message.value).toMatch(/added/i)
+    expect(router.currentRoute.value.fullPath).toBe('/meals')
+    const outboxItems = await db.outbox.toArray()
+    expect(outboxItems).toHaveLength(1)
+    expect(outboxItems[0]).toMatchObject({ entity: 'meal', action: 'create', status: 'failed' })
   })
 })
 
@@ -142,9 +149,29 @@ describe('MealFormView — edit', () => {
     expect(useSuccessMessage().message.value).toMatch(/updated/i)
     expect(router.currentRoute.value.fullPath).toBe('/meals')
   })
+
+  it('saves and navigates even with the network fully disabled, leaving the edit queued and pending', async () => {
+    mockGet()
+    vi.mocked(apiClient.put).mockRejectedValue(new ApiError(0, 'Network error: unable to reach the server'))
+
+    const { wrapper, router } = await mountAt('/meals/2/edit')
+    await wrapper.get('[data-testid="meal-name-input"]').setValue('Grilled Salmon')
+    await wrapper.get('[data-testid="meal-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(useSuccessMessage().message.value).toMatch(/updated/i)
+    expect(router.currentRoute.value.fullPath).toBe('/meals')
+    const outboxItems = await db.outbox.toArray()
+    expect(outboxItems).toHaveLength(1)
+    expect(outboxItems[0]).toMatchObject({ entity: 'meal', action: 'update', status: 'pending' })
+  })
 })
 
+// The local-store read/write path chains several Dexie/IndexedDB
+// operations (each a macrotask under fake-indexeddb), so a couple of
+// ticks isn't always enough to observe it settle.
 async function flushPromises() {
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  await new Promise((resolve) => setTimeout(resolve, 0))
+  for (let i = 0; i < 30; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
 }

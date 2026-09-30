@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { db } from '../db/localDb'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import MealPairingView from './MealPairingView.vue'
 
@@ -246,7 +247,10 @@ describe('MealPairingView', () => {
     await nameInput.trigger('keydown', { key: 'Enter' })
     await flushPromises()
 
-    expect(apiClient.post).toHaveBeenCalledWith('/meals', { name: 'Tartiflette' })
+    expect(apiClient.post).toHaveBeenCalledWith('/meals', {
+      name: 'Tartiflette',
+      client_id: expect.any(String),
+    })
   })
 
   it('creates a new meal inline and pairs it immediately when no match exists', async () => {
@@ -268,7 +272,10 @@ describe('MealPairingView', () => {
     await flushPromises()
     await flushPromises()
 
-    expect(apiClient.post).toHaveBeenCalledWith('/meals', { name: 'Tartiflette' })
+    expect(apiClient.post).toHaveBeenCalledWith('/meals', {
+      name: 'Tartiflette',
+      client_id: expect.any(String),
+    })
     expect(apiClient.post).toHaveBeenCalledWith('/meal-pairings', {
       appellation_id: 1,
       color: 'rouge',
@@ -280,16 +287,11 @@ describe('MealPairingView', () => {
     expect(useSuccessMessage().message.value).toMatch(/added/i)
   })
 
-  it('surfaces a pairing error if the auto-pair fails after a successful create, and lets the user retry without re-creating the meal', async () => {
+  it('creates and pairs a new meal immediately even when the network rejects the pairing, leaving it queued in the outbox', async () => {
     mockApi()
-    let pairingAttempts = 0
     vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
       if (path === '/meals') return Promise.resolve({ id: 3, ...(body as object) })
-      if (path === '/meal-pairings') {
-        pairingAttempts += 1
-        if (pairingAttempts === 1) return Promise.reject(new Error('pairing exploded'))
-        return Promise.resolve({ appellation_id: 1, color: 'rouge', meal_id: 3 })
-      }
+      if (path === '/meal-pairings') return Promise.reject(new Error('pairing exploded'))
       throw new Error(`unexpected path: ${path}`)
     })
 
@@ -301,23 +303,18 @@ describe('MealPairingView', () => {
     await wrapper.get('[data-testid="new-meal-submit"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
-    expect(useSuccessMessage().message.value).toBeNull()
-    expect(wrapper.find('[data-testid="new-meal-name-input"]').exists()).toBe(false)
-    expect(
-      (wrapper.get('[data-testid="add-meal-autocomplete-input"]').element as HTMLInputElement).value,
-    ).toBe('Tartiflette')
-
-    mockApi({ pairedMeals: [...pairedMeals, { id: 3, name: 'Tartiflette' }] })
-    await wrapper.get('[data-testid="add-meal-button"]').trigger('click')
-    await flushPromises()
-
-    const mealCreateCalls = vi.mocked(apiClient.post).mock.calls.filter(([path]) => path === '/meals')
-    expect(mealCreateCalls).toHaveLength(1)
     expect(useSuccessMessage().message.value).toMatch(/added/i)
+    expect(wrapper.find('[data-testid="new-meal-name-input"]').exists()).toBe(false)
+    const items = wrapper.findAll('[data-testid="paired-meal"]')
+    expect(items.some((i) => i.text().includes('Tartiflette'))).toBe(true)
+
+    const outboxItems = await db.outbox.toArray()
+    expect(outboxItems).toMatchObject([
+      { entity: 'meal_pairing', status: 'failed' },
+    ])
   })
 
-  it('does not attempt to pair when the create step fails', async () => {
+  it('still queues the pairing (referencing the not-yet-synced meal) even when the meal create itself is rejected', async () => {
     mockApi()
     vi.mocked(apiClient.post).mockImplementation((path: string) => {
       if (path === '/meals') return Promise.reject(new Error('create exploded'))
@@ -332,12 +329,21 @@ describe('MealPairingView', () => {
     await wrapper.get('[data-testid="new-meal-submit"]').trigger('click')
     await flushPromises()
 
-    expect(apiClient.post).toHaveBeenCalledTimes(1)
-    expect(wrapper.find('[data-testid="new-meal-error"]').exists()).toBe(true)
+    expect(useSuccessMessage().message.value).toMatch(/added/i)
+    const outboxItems = await db.outbox.toArray()
+    expect(outboxItems).toMatchObject([
+      { entity: 'meal', action: 'create', status: 'failed' },
+      { entity: 'meal_pairing', status: 'pending' },
+    ])
+    expect(apiClient.post).not.toHaveBeenCalledWith('/meal-pairings', expect.anything())
   })
 })
 
+// The local-store read/write path chains several Dexie/IndexedDB
+// operations (each a macrotask under fake-indexeddb), so a couple of
+// ticks isn't always enough to observe it settle.
 async function flushPromises() {
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  await new Promise((resolve) => setTimeout(resolve, 0))
+  for (let i = 0; i < 30; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
 }

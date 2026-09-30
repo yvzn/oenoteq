@@ -113,14 +113,66 @@ describe('pushWines', () => {
   })
 
   it('sends an update for an already-synced wine by its server id', async () => {
-    await enqueueWineUpdate(5, { millesime: 2019 } as never)
+    const input = {
+      millesime: 2019,
+      appellation_id: 1,
+      producer_id: 1,
+      color: 'rouge' as const,
+      garde_debut: 2020,
+      garde_fin: 2028,
+    }
+    await enqueueWineUpdate(5, input)
     vi.mocked(apiClient.put).mockResolvedValue({ ...wine, millesime: 2019 })
 
     await pushWines()
 
-    expect(apiClient.put).toHaveBeenCalledWith('/wines/5', { millesime: 2019 })
+    expect(apiClient.put).toHaveBeenCalledWith('/wines/5', input)
     expect(await db.outbox.count()).toBe(0)
     expect(await db.idRemap.count()).toBe(0)
+  })
+
+  it('resolves not-yet-synced appellation/producer local ids before pushing a create', async () => {
+    await db.wines.put({ ...wine, id: -1, suggested_meals: [], consumption_history: [] })
+    await db.idRemap.put({ localId: -10, serverId: 7 })
+    await db.idRemap.put({ localId: -20, serverId: 8 })
+    await enqueueWineCreate(-1, {
+      millesime: 2018,
+      appellation_id: -10,
+      producer_id: -20,
+      color: 'rouge',
+      garde_debut: 2020,
+      garde_fin: 2028,
+      initial_quantity: 3,
+      client_id: 'abc',
+    })
+    vi.mocked(apiClient.post).mockResolvedValue({ ...wine, id: 42 })
+
+    await pushWines()
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/wines',
+      expect.objectContaining({ appellation_id: 7, producer_id: 8 }),
+    )
+  })
+
+  it('leaves a create pending (not failed) when a referenced appellation/producer has not synced yet', async () => {
+    await db.wines.put({ ...wine, id: -1, suggested_meals: [], consumption_history: [] })
+    await enqueueWineCreate(-1, {
+      millesime: 2018,
+      appellation_id: -10,
+      producer_id: 1,
+      color: 'rouge',
+      garde_debut: 2020,
+      garde_fin: 2028,
+      initial_quantity: 3,
+      client_id: 'abc',
+    })
+
+    await pushWines()
+
+    expect(apiClient.post).not.toHaveBeenCalled()
+    const [item] = await db.outbox.toArray()
+    expect(item).toMatchObject({ status: 'pending' })
   })
 })
 

@@ -1,8 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
-import { apiClient } from '../api/client'
+import { ApiError, apiClient } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { db } from '../db/localDb'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import ProducerFormView from './ProducerFormView.vue'
 import ProducerListView from './ProducerListView.vue'
@@ -82,12 +83,15 @@ describe('ProducerFormView — add', () => {
     await wrapper.get('[data-testid="producer-form"]').trigger('submit.prevent')
     await flushPromises()
 
-    expect(apiClient.post).toHaveBeenCalledWith('/producers', { name: 'Domaine Nouveau' })
+    expect(apiClient.post).toHaveBeenCalledWith('/producers', {
+      name: 'Domaine Nouveau',
+      client_id: expect.any(String),
+    })
     expect(useSuccessMessage().message.value).toMatch(/added/i)
     expect(router.currentRoute.value.fullPath).toBe('/producers')
   })
 
-  it('shows a submit error without navigating when a duplicate name is rejected', async () => {
+  it('saves and navigates even when the background sync to the backend is rejected, leaving the item failed in the outbox', async () => {
     vi.mocked(apiClient.post).mockRejectedValue(new Error('already_exists'))
 
     const { wrapper, router } = await mountAt('/producers/new')
@@ -95,8 +99,11 @@ describe('ProducerFormView — add', () => {
     await wrapper.get('[data-testid="producer-form"]').trigger('submit.prevent')
     await flushPromises()
 
-    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
-    expect(router.currentRoute.value.fullPath).toBe('/producers/new')
+    expect(useSuccessMessage().message.value).toMatch(/added/i)
+    expect(router.currentRoute.value.fullPath).toBe('/producers')
+    const outboxItems = await db.outbox.toArray()
+    expect(outboxItems).toHaveLength(1)
+    expect(outboxItems[0]).toMatchObject({ entity: 'producer', action: 'create', status: 'failed' })
   })
 })
 
@@ -142,9 +149,29 @@ describe('ProducerFormView — edit', () => {
     expect(useSuccessMessage().message.value).toMatch(/updated/i)
     expect(router.currentRoute.value.fullPath).toBe('/producers')
   })
+
+  it('saves and navigates even with the network fully disabled, leaving the edit queued and pending', async () => {
+    mockGet()
+    vi.mocked(apiClient.put).mockRejectedValue(new ApiError(0, 'Network error: unable to reach the server'))
+
+    const { wrapper, router } = await mountAt('/producers/2/edit')
+    await wrapper.get('[data-testid="producer-name-input"]').setValue('Chateau Renamed')
+    await wrapper.get('[data-testid="producer-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(useSuccessMessage().message.value).toMatch(/updated/i)
+    expect(router.currentRoute.value.fullPath).toBe('/producers')
+    const outboxItems = await db.outbox.toArray()
+    expect(outboxItems).toHaveLength(1)
+    expect(outboxItems[0]).toMatchObject({ entity: 'producer', action: 'update', status: 'pending' })
+  })
 })
 
+// The local-store read/write path chains several Dexie/IndexedDB
+// operations (each a macrotask under fake-indexeddb), so a couple of
+// ticks isn't always enough to observe it settle.
 async function flushPromises() {
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  await new Promise((resolve) => setTimeout(resolve, 0))
+  for (let i = 0; i < 30; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
 }

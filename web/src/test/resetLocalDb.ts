@@ -11,5 +11,7 @@ afterEach(async () => {
     db.appellations.clear(),
     db.outbox.clear(),
     db.idRemap.clear(),
+    db.meals.clear(),
+    db.mealPairings.clear(),
   ])
 })

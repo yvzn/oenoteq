@@ -3,37 +3,21 @@ import { ApiError, apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Consumption, Producer, Wine, WineCreateInput, WineDetail, WineInput } from '../api/types'
 import { db } from '../db/localDb'
+import { nextLocalId } from '../db/localId'
+import { pushChangesInBackground } from '../sync'
 import {
   cancelPendingConsumptionCreate,
   enqueueConsumptionCreate,
   enqueueConsumptionUpdate,
   enqueueQuantityAdjustment,
   patchPendingConsumptionCreate,
-  pushConsumptions,
 } from '../sync/consumptionSync'
-import { enqueueWineCreate, enqueueWineUpdate, patchPendingWineCreate, pullWine, pushWines } from '../sync/wineSync'
+import { enqueueWineCreate, enqueueWineUpdate, patchPendingWineCreate, pullWine } from '../sync/wineSync'
 
 export interface ConsumptionInput {
   date: string
   rating: number | null
   notes: string | null
-}
-
-let localIdSeq = 0
-// Offline-created wines get a negative, client-only id until the create
-// syncs and the record is replaced by the server-assigned one.
-function nextLocalId(): number {
-  localIdSeq += 1
-  return -(Date.now() * 1000 + localIdSeq)
-}
-
-function pushChangesInBackground(): void {
-  if (navigator.onLine === false) return
-  // Wine first: a queued consumption/quantity-adjustment against a wine
-  // created offline can't resolve that wine's real id until its create syncs.
-  pushWines()
-    .then(() => pushConsumptions())
-    .catch(() => {})
 }
 
 function buildWineDetail(

@@ -3,7 +3,14 @@ import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Producer } from '../api/types'
 import { db } from '../db/localDb'
-import { cacheAll, cacheOne, uncache } from '../db/referenceCache'
+import { nextLocalId } from '../db/localId'
+import { pushChangesInBackground } from '../sync'
+import {
+  enqueueProducerCreate,
+  enqueueProducerUpdate,
+  patchPendingProducerCreate,
+  pullProducers,
+} from '../sync/producerSync'
 
 export function useProducers() {
   const producers = ref<Producer[]>([])
@@ -20,8 +27,8 @@ export function useProducers() {
     loading.value = true
     error.value = null
     try {
-      producers.value = await apiClient.get<Producer[]>('/producers')
-      cacheAll(db.producers, producers.value)
+      if (navigator.onLine !== false) await pullProducers()
+      producers.value = await db.producers.toArray()
     } catch (e) {
       const cached = await db.producers.toArray()
       if (cached.length > 0) {
@@ -38,10 +45,13 @@ export function useProducers() {
     creating.value = true
     createError.value = null
     try {
-      const producer = await apiClient.post<Producer>('/producers', { name })
-      producers.value = [...producers.value, producer]
-      cacheOne(db.producers, producer)
-      return producer
+      const localId = nextLocalId()
+      const record: Producer = { id: localId, name }
+      await db.producers.put(record)
+      producers.value = [...producers.value, record]
+      await enqueueProducerCreate(localId, { name, client_id: crypto.randomUUID() })
+      pushChangesInBackground()
+      return record
     } catch (e) {
       createError.value = friendlyErrorMessage(e)
       return null
@@ -54,10 +64,14 @@ export function useProducers() {
     updating.value = true
     updateError.value = null
     try {
-      const producer = await apiClient.put<Producer>(`/producers/${id}`, { name })
-      producers.value = producers.value.map((p) => (p.id === id ? producer : p))
-      cacheOne(db.producers, producer)
-      return producer
+      const record: Producer = { id, name }
+      await db.producers.put(record)
+      producers.value = producers.value.map((p) => (p.id === id ? record : p))
+
+      const patchedPendingCreate = id < 0 && (await patchPendingProducerCreate(id, { name }))
+      if (!patchedPendingCreate) await enqueueProducerUpdate(id, { name })
+      pushChangesInBackground()
+      return record
     } catch (e) {
       updateError.value = friendlyErrorMessage(e)
       return null
@@ -72,7 +86,7 @@ export function useProducers() {
     try {
       await apiClient.delete(`/producers/${id}`, undefined)
       producers.value = producers.value.filter((p) => p.id !== id)
-      uncache(db.producers, id)
+      await db.producers.delete(id)
       return true
     } catch (e) {
       deleteError.value = friendlyErrorMessage(e)

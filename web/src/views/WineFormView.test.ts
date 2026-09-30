@@ -5,6 +5,7 @@ import { ApiError, apiClient } from '../api/client'
 import type { WineDetail } from '../api/types'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
+import { pushChangesInBackground } from '../sync'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import WineDetailView from './WineDetailView.vue'
 import WineFormView from './WineFormView.vue'
@@ -299,7 +300,10 @@ describe('WineFormView — add', () => {
     await wrapper.get('[data-testid="new-appellation-submit"]').trigger('click')
     await flushPromises()
 
-    expect(apiClient.post).toHaveBeenCalledWith('/appellations', { name: 'Bourgueil' })
+    expect(apiClient.post).toHaveBeenCalledWith('/appellations', {
+      name: 'Bourgueil',
+      client_id: expect.any(String),
+    })
     expect(
       (wrapper.get('[data-testid="wine-appellation-input"]').element as HTMLInputElement).value,
     ).toBe('Bourgueil')
@@ -320,8 +324,68 @@ describe('WineFormView — add', () => {
     await nameInput.trigger('keydown', { key: 'Enter' })
     await flushPromises()
 
-    expect(apiClient.post).toHaveBeenCalledWith('/appellations', { name: 'Bourgueil' })
+    expect(apiClient.post).toHaveBeenCalledWith('/appellations', {
+      name: 'Bourgueil',
+      client_id: expect.any(String),
+    })
     expect(apiClient.post).not.toHaveBeenCalledWith('/wines', expect.anything())
+  })
+
+  it('creates a new appellation inline and selects it immediately, with the network fully disabled', async () => {
+    mockGet()
+    vi.mocked(apiClient.post).mockRejectedValue(new ApiError(0, 'Network error: unable to reach the server'))
+
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="new-appellation-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="new-appellation-name-input"]').setValue('Bourgueil')
+    await wrapper.get('[data-testid="new-appellation-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(
+      (wrapper.get('[data-testid="wine-appellation-input"]').element as HTMLInputElement).value,
+    ).toBe('Bourgueil')
+    const outboxItems = await db.outbox.toArray()
+    expect(outboxItems).toHaveLength(1)
+    expect(outboxItems[0]).toMatchObject({ entity: 'appellation', action: 'create', status: 'pending' })
+  })
+
+  it('resolves the real appellation id once a Wine created against an offline inline appellation syncs', async () => {
+    mockGet()
+    vi.mocked(apiClient.post).mockImplementation((path: string) => {
+      if (path === '/appellations') return Promise.reject(new ApiError(0, 'Network error: unable to reach the server'))
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="new-appellation-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="new-appellation-name-input"]').setValue('Bourgueil')
+    await wrapper.get('[data-testid="new-appellation-submit"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="wine-producer-input"]').setValue('Les Garillères')
+    await wrapper.findAll('[data-testid="wine-producer-option"]')[0]!.trigger('mousedown')
+    await wrapper.get('[data-testid="wine-color-input"]').setValue('rouge')
+    await wrapper.get('[data-testid="wine-quantity-input"]').setValue('6')
+    await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    // Both the appellation and the wine that references it are still
+    // queued — the wine's own create hasn't been attempted yet since its
+    // referenced appellation hasn't synced.
+    expect(apiClient.post).not.toHaveBeenCalledWith('/wines', expect.anything())
+
+    // Reconnect: the appellation syncs first, then the wine's own create
+    // resolves its appellation_id to the real, server-assigned id.
+    vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
+      if (path === '/appellations') return Promise.resolve({ id: 99, name: 'Bourgueil' })
+      if (path === '/wines') return Promise.resolve({ id: 42, ...(body as object) })
+      throw new Error(`unexpected path: ${path}`)
+    })
+    pushChangesInBackground()
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledWith('/wines', expect.objectContaining({ appellation_id: 99 }))
+    expect(await db.outbox.count()).toBe(0)
   })
 
   it('creates a new producer inline and selects it', async () => {
@@ -337,7 +401,10 @@ describe('WineFormView — add', () => {
     await wrapper.get('[data-testid="new-producer-submit"]').trigger('click')
     await flushPromises()
 
-    expect(apiClient.post).toHaveBeenCalledWith('/producers', { name: 'Domaine Nouveau' })
+    expect(apiClient.post).toHaveBeenCalledWith('/producers', {
+      name: 'Domaine Nouveau',
+      client_id: expect.any(String),
+    })
     expect(
       (wrapper.get('[data-testid="wine-producer-input"]').element as HTMLInputElement).value,
     ).toBe('Domaine Nouveau')
@@ -358,7 +425,10 @@ describe('WineFormView — add', () => {
     await nameInput.trigger('keydown', { key: 'Enter' })
     await flushPromises()
 
-    expect(apiClient.post).toHaveBeenCalledWith('/producers', { name: 'Domaine Nouveau' })
+    expect(apiClient.post).toHaveBeenCalledWith('/producers', {
+      name: 'Domaine Nouveau',
+      client_id: expect.any(String),
+    })
     expect(apiClient.post).not.toHaveBeenCalledWith('/wines', expect.anything())
   })
 })
@@ -471,7 +541,7 @@ describe('WineFormView — edit', () => {
 // (each a macrotask under fake-indexeddb), so a couple of ticks isn't
 // always enough to observe the background sync push settle.
 async function flushPromises() {
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 30; i++) {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }

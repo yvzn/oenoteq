@@ -2,6 +2,19 @@ import { ref } from 'vue'
 import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Color, Meal } from '../api/types'
+import { db } from '../db/localDb'
+import { pushChangesInBackground } from '../sync'
+import { enqueueMealPairingAdd, pullMealPairings } from '../sync/mealPairingSync'
+
+async function readLocalPairing(appellationId: number, color: Color): Promise<Meal[]> {
+  const records = await db.mealPairings
+    .where('appellationId')
+    .equals(appellationId)
+    .filter((r) => r.color === color)
+    .toArray()
+  const meals = await Promise.all(records.map((r) => db.meals.get(r.mealId)))
+  return meals.filter((m): m is Meal => m !== undefined)
+}
 
 export function useMealPairings() {
   const meals = ref<Meal[]>([])
@@ -14,11 +27,18 @@ export function useMealPairings() {
     loading.value = true
     error.value = null
     try {
-      meals.value = await apiClient.get<Meal[]>(
-        `/meal-pairings?appellation_id=${appellationId}&color=${color}`,
-      )
+      if (navigator.onLine !== false) {
+        meals.value = await pullMealPairings(appellationId, color)
+      } else {
+        meals.value = await readLocalPairing(appellationId, color)
+      }
     } catch (e) {
-      error.value = friendlyErrorMessage(e)
+      const cached = await readLocalPairing(appellationId, color)
+      if (cached.length > 0) {
+        meals.value = cached
+      } else {
+        error.value = friendlyErrorMessage(e)
+      }
     } finally {
       loading.value = false
     }
@@ -28,8 +48,11 @@ export function useMealPairings() {
     mutating.value = true
     mutateError.value = null
     try {
-      await apiClient.post('/meal-pairings', { appellation_id: appellationId, color, meal_id: mealId })
-      await load(appellationId, color)
+      const meal = await db.meals.get(mealId)
+      await db.mealPairings.put({ appellationId, color, mealId })
+      if (meal) meals.value = [...meals.value, meal]
+      await enqueueMealPairingAdd({ appellationId, color, mealId })
+      pushChangesInBackground()
     } catch (e) {
       mutateError.value = friendlyErrorMessage(e)
     } finally {
@@ -37,12 +60,15 @@ export function useMealPairings() {
     }
   }
 
+  // Removal stays synchronous and online-only, unchanged from today — no
+  // outbox queueing.
   async function remove(appellationId: number, color: Color, mealId: number) {
     mutating.value = true
     mutateError.value = null
     try {
       await apiClient.delete('/meal-pairings', { appellation_id: appellationId, color, meal_id: mealId })
-      await load(appellationId, color)
+      await db.mealPairings.delete([appellationId, color, mealId])
+      meals.value = meals.value.filter((m) => m.id !== mealId)
     } catch (e) {
       mutateError.value = friendlyErrorMessage(e)
     } finally {

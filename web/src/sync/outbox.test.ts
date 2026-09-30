@@ -83,4 +83,21 @@ describe('outbox', () => {
 
     expect(handler).toHaveBeenCalledTimes(1)
   })
+
+  // Two local writes in quick succession each trigger their own background
+  // replay pass; without claiming an item before handling it, both passes
+  // would see it as still `pending` and post it twice.
+  it('only lets one of two overlapping replay passes handle the same pending item', async () => {
+    const db = makeDb()
+    await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: 1, payload: { name: 'x' } })
+    let resolveHandler!: () => void
+    const handler: OutboxHandler = vi.fn().mockReturnValue(new Promise<void>((r) => (resolveHandler = r)))
+
+    const firstPass = replay(db.outbox, { wine: handler })
+    const secondPass = replay(db.outbox, { wine: handler })
+    resolveHandler()
+    await Promise.all([firstPass, secondPass])
+
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
 })

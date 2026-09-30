@@ -273,7 +273,11 @@ describe('CellarListView', () => {
   })
 })
 
+// The local-store read/write path chains several Dexie/IndexedDB
+// operations (each a macrotask under fake-indexeddb), so a couple of
+// ticks isn't always enough to observe it settle.
 async function flushPromises() {
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  await new Promise((resolve) => setTimeout(resolve, 0))
+  for (let i = 0; i < 30; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
 }
