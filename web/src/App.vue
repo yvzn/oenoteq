@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppHeader from './components/AppHeader.vue'
+import OfflineBanner from './components/OfflineBanner.vue'
 import SuccessToast from './components/SuccessToast.vue'
 </script>
 
@@ -7,6 +8,7 @@ import SuccessToast from './components/SuccessToast.vue'
   <div class="border-line/70 mx-auto min-h-screen max-w-[920px] border-x bg-parchment pb-12 lg:pb-24">
     <AppHeader />
     <SuccessToast />
+    <OfflineBanner />
     <main>
       <router-view />
     </main>

@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { enqueue, replay, RetryableOutboxError, type OutboxHandler, type OutboxItem } from './outbox'
+import { discard, enqueue, isQueued, replay, retry, RetryableOutboxError, type OutboxHandler, type OutboxItem } from './outbox'
 
 class TestDb extends Dexie {
   outbox!: Table<OutboxItem, number>
@@ -99,5 +99,36 @@ describe('outbox', () => {
     await Promise.all([firstPass, secondPass])
 
     expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('resets a failed item back to pending and clears its error', async () => {
+    const db = makeDb()
+    const id = await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: 1, payload: { name: 'x' } })
+    await db.outbox.update(id, { status: 'failed', error: 'producer_not_found' })
+
+    await retry(db.outbox, id)
+
+    const item = await db.outbox.get(id)
+    expect(item).toMatchObject({ status: 'pending', error: null })
+  })
+
+  it('discards an item permanently', async () => {
+    const db = makeDb()
+    const id = await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: 1, payload: { name: 'x' } })
+
+    await discard(db.outbox, id)
+
+    expect(await db.outbox.get(id)).toBeUndefined()
+  })
+
+  describe('isQueued', () => {
+    it('is true when a matching entity+targetId is still in the outbox', async () => {
+      const db = makeDb()
+      await enqueue(db.outbox, { entity: 'producer', action: 'create', targetId: -1, payload: { name: 'x' } })
+
+      expect(await isQueued(db.outbox, 'producer', -1)).toBe(true)
+      expect(await isQueued(db.outbox, 'producer', -2)).toBe(false)
+      expect(await isQueued(db.outbox, 'wine', -1)).toBe(false)
+    })
   })
 })

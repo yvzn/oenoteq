@@ -5,6 +5,7 @@ import AppButton from '../components/AppButton.vue'
 import FormField from '../components/FormField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
+import SyncPendingBadge from '../components/SyncPendingBadge.vue'
 import { useMeals } from '../composables/useMeals'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 
@@ -82,6 +83,7 @@ async function submit() {
   <section class="px-6 py-6">
    <div class="mx-auto max-w-2xl">
     <PageHeader :title="isEdit ? 'Rename meal' : 'Add meal'" />
+    <SyncPendingBadge v-if="isEdit" entity="meal" :target-id="editId as number" class="mt-3" />
 
     <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
     <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">

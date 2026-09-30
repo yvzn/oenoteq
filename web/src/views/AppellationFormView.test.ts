@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { ApiError, apiClient } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
+import { enqueue } from '../sync/outbox'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import AppellationFormView from './AppellationFormView.vue'
 import AppellationListView from './AppellationListView.vue'
@@ -182,6 +183,23 @@ describe('AppellationFormView — edit', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/appellations')
+  })
+
+  it('shows a "not yet synced" badge while this appellation still has a queued edit in the outbox', async () => {
+    mockGet()
+    await enqueue(db.outbox, { entity: 'appellation', action: 'update', targetId: 2, payload: { name: 'x' } })
+
+    const { wrapper } = await mountAt('/appellations/2/edit')
+
+    expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(true)
+  })
+
+  it('hides the "not yet synced" badge once nothing is queued for this appellation', async () => {
+    mockGet()
+
+    const { wrapper } = await mountAt('/appellations/2/edit')
+
+    expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(false)
   })
 })
 

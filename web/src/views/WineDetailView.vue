@@ -10,6 +10,7 @@ import FormField from '../components/FormField.vue'
 import GardeStatusBadge from '../components/GardeStatusBadge.vue'
 import NumberStepper from '../components/NumberStepper.vue'
 import StatusLine from '../components/StatusLine.vue'
+import SyncPendingBadge from '../components/SyncPendingBadge.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { useWines } from '../composables/useWines'
@@ -211,6 +212,7 @@ function retry() {
           <h1 class="font-display text-ink text-[38px] leading-tight font-semibold tracking-tight">
             {{ wine.producer.name }}
           </h1>
+          <SyncPendingBadge entity="wine" :target-id="wine.id" />
         </div>
         <div class="flex items-center gap-4 pt-2">
           <AppButton :to="{ name: 'wine-edit', params: { id: wine.id } }" variant="secondary" data-testid="edit-wine-link">

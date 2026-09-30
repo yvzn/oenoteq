@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { useSyncStatus } from '../composables/useSyncStatus'
 
 const route = useRoute()
+const { hasPending } = useSyncStatus()
 
 const manageRouteNames = [
   'manage',
@@ -25,21 +27,31 @@ const isManage = computed(() => manageRouteNames.includes(route.name as string))
       <p class="text-muted text-[11px] tracking-widest uppercase">Oenoteq</p>
       <h1 class="font-display text-ink mt-0.5 text-base leading-none">Wine Cellar Tracker</h1>
     </a>
-    <nav class="mt-4 flex gap-6 text-sm">
+    <div class="mt-4 flex items-center justify-between gap-4">
+      <nav class="flex gap-6 text-sm">
+        <RouterLink
+          to="/"
+          class="text-muted hover:text-ink border-b-2 pb-1"
+          :class="isCellar ? 'text-bordeaux border-bordeaux font-medium' : 'border-transparent'"
+        >
+          Cellar
+        </RouterLink>
+        <RouterLink
+          to="/manage"
+          class="text-muted hover:text-ink border-b-2 pb-1"
+          :class="isManage ? 'text-bordeaux border-bordeaux font-medium' : 'border-transparent'"
+        >
+          Manage
+        </RouterLink>
+      </nav>
       <RouterLink
-        to="/"
-        class="text-muted hover:text-ink border-b-2 pb-1"
-        :class="isCellar ? 'text-bordeaux border-bordeaux font-medium' : 'border-transparent'"
+        v-if="hasPending"
+        :to="{ name: 'sync-status' }"
+        data-testid="sync-status-indicator"
+        class="text-muted hover:text-ink text-sm"
       >
-        Cellar
+        <span aria-hidden="true">⏳</span> Sync
       </RouterLink>
-      <RouterLink
-        to="/manage"
-        class="text-muted hover:text-ink border-b-2 pb-1"
-        :class="isManage ? 'text-bordeaux border-bordeaux font-medium' : 'border-transparent'"
-      >
-        Manage
-      </RouterLink>
-    </nav>
+    </div>
   </header>
 </template>

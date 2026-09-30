@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { ApiError, apiClient } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
+import { enqueue } from '../sync/outbox'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import ProducerFormView from './ProducerFormView.vue'
 import ProducerListView from './ProducerListView.vue'
@@ -182,6 +183,23 @@ describe('ProducerFormView — edit', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/producers')
+  })
+
+  it('shows a "not yet synced" badge while this producer still has a queued edit in the outbox', async () => {
+    mockGet()
+    await enqueue(db.outbox, { entity: 'producer', action: 'update', targetId: 2, payload: { name: 'x' } })
+
+    const { wrapper } = await mountAt('/producers/2/edit')
+
+    expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(true)
+  })
+
+  it('hides the "not yet synced" badge once nothing is queued for this producer', async () => {
+    mockGet()
+
+    const { wrapper } = await mountAt('/producers/2/edit')
+
+    expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(false)
   })
 })
 

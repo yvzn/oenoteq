@@ -1,4 +1,14 @@
 import type { Table } from 'dexie'
+import { ref } from 'vue'
+
+// Bumped on every mutation of the outbox table (enqueue, replay outcome,
+// manual retry/discard) so UI surfaces (header indicator, sync-status page,
+// per-entity badges) can recompute from the table without polling it.
+export const outboxVersion = ref(0)
+
+function bump(): void {
+  outboxVersion.value++
+}
 
 export interface OutboxItem<TPayload = unknown> {
   id?: number
@@ -23,7 +33,39 @@ export async function enqueue(
   table: Table<OutboxItem, number>,
   item: Pick<OutboxItem, 'entity' | 'action' | 'targetId' | 'payload'>,
 ): Promise<number> {
-  return table.add({ ...item, status: 'pending', error: null, createdAt: new Date().toISOString() })
+  const id = await table.add({ ...item, status: 'pending', error: null, createdAt: new Date().toISOString() })
+  bump()
+  return id
+}
+
+// Resets a failed item back to `pending` so the next replay pass (triggered
+// by the caller) picks it up again.
+export async function retry(table: Table<OutboxItem, number>, id: number): Promise<void> {
+  await table.update(id, { status: 'pending', error: null })
+  bump()
+}
+
+// Drops a failed item for good — it never reached the server, so there's
+// nothing to undo remotely.
+export async function discard(table: Table<OutboxItem, number>, id: number): Promise<void> {
+  await table.delete(id)
+  bump()
+}
+
+// Whether some create/update for this entity+targetId is still sitting in
+// the outbox (pending, in-flight, or failed) — i.e. not yet confirmed by the
+// server.
+export async function isQueued(
+  table: Table<OutboxItem, number>,
+  entity: string,
+  targetId: number | string,
+): Promise<boolean> {
+  const count = await table
+    .where('entity')
+    .equals(entity)
+    .filter((item) => item.targetId === targetId)
+    .count()
+  return count > 0
 }
 
 // Two independent local writes (e.g. creating a Meal, then immediately
@@ -59,15 +101,18 @@ export async function replay(
     try {
       await handler(item)
       await table.delete(item.id!)
+      bump()
     } catch (e) {
       if (e instanceof RetryableOutboxError) {
         await table.update(item.id!, { status: 'pending' })
+        bump()
         return
       }
       await table.update(item.id!, {
         status: 'failed',
         error: e instanceof Error ? e.message : 'Sync failed',
       })
+      bump()
     }
   }
 }

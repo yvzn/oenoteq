@@ -5,6 +5,7 @@ import { apiClient } from '../api/client'
 import type { WineDetail } from '../api/types'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
+import { enqueue } from '../sync/outbox'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import WineDetailView from './WineDetailView.vue'
 
@@ -123,6 +124,29 @@ describe('WineDetailView', () => {
     expect(apiClient.get).not.toHaveBeenCalledWith('/wines/-123')
     const detail = wrapper.get('[data-testid="wine-detail"]')
     expect(detail.text()).toContain('Les Garillères')
+  })
+
+  it('shows a "not yet synced" badge while this wine still has a queued create in the outbox', async () => {
+    const localOnly = { ...wineDetail, id: -123 } as WineDetail
+    await db.wines.put(localOnly)
+    await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: -123, payload: {} })
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/appellations') return Promise.resolve(appellations)
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/wines/-123')
+
+    expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(true)
+  })
+
+  it('hides the "not yet synced" badge once the wine has synced', async () => {
+    await db.wines.put(wineDetail as WineDetail)
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(false)
   })
 
   it('redirects to the synced server id when the local id it was opened with has since synced', async () => {

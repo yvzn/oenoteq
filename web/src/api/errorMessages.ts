@@ -31,8 +31,15 @@ const MESSAGES_BY_CODE: Record<string, string> = {
 
 const GENERIC_MESSAGE = 'Something went wrong. Please try again.'
 
+// Same mapping, taking the bare backend code directly rather than an
+// ApiError — used for outbox items, whose stored error is already just that
+// code string (see sync/outbox.ts's replay()).
+export function friendlyMessageForCode(code: string): string {
+  return MESSAGES_BY_CODE[code] ?? GENERIC_MESSAGE
+}
+
 export function friendlyErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return GENERIC_MESSAGE
   if (error.status === 0) return error.message
-  return MESSAGES_BY_CODE[error.message] ?? GENERIC_MESSAGE
+  return friendlyMessageForCode(error.message)
 }

@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { ApiError, apiClient } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
+import { enqueue } from '../sync/outbox'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import MealFormView from './MealFormView.vue'
 import MealListView from './MealListView.vue'
@@ -182,6 +183,23 @@ describe('MealFormView — edit', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/meals')
+  })
+
+  it('shows a "not yet synced" badge while this meal still has a queued edit in the outbox', async () => {
+    mockGet()
+    await enqueue(db.outbox, { entity: 'meal', action: 'update', targetId: 2, payload: { name: 'x' } })
+
+    const { wrapper } = await mountAt('/meals/2/edit')
+
+    expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(true)
+  })
+
+  it('hides the "not yet synced" badge once nothing is queued for this meal', async () => {
+    mockGet()
+
+    const { wrapper } = await mountAt('/meals/2/edit')
+
+    expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(false)
   })
 })
 
