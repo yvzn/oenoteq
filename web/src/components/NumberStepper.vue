@@ -34,7 +34,7 @@ function stepBy(delta: number) {
     <button
       type="button"
       :data-testid="decrementTestid"
-      class="text-ink-soft hover:bg-parchment focus-visible:ring-bordeaux w-12 shrink-0 cursor-pointer rounded-l-lg text-lg font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
+      class="text-ink-soft focus-visible:ring-bordeaux w-12 shrink-0 cursor-pointer rounded-l-lg text-lg font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
       @click="stepBy(-step)"
     >
       −
@@ -55,7 +55,7 @@ function stepBy(delta: number) {
     <button
       type="button"
       :data-testid="incrementTestid"
-      class="text-ink-soft hover:bg-parchment focus-visible:ring-bordeaux w-12 shrink-0 cursor-pointer rounded-r-lg text-lg font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
+      class="text-ink-soft focus-visible:ring-bordeaux w-12 shrink-0 cursor-pointer rounded-r-lg text-lg font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
       @click="stepBy(step)"
     >
       +
