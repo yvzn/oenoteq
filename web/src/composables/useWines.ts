@@ -5,6 +5,7 @@ import type { Consumption, Producer, Wine, WineCreateInput, WineDetail, WineInpu
 import { db } from '../db/localDb'
 import { nextLocalId } from '../db/localId'
 import { pushChangesInBackground } from '../sync'
+import { resolveIdIfSynced } from '../sync/idRemap'
 import {
   cancelPendingConsumptionCreate,
   enqueueConsumptionCreate,
@@ -36,6 +37,19 @@ function buildWineDetail(
     garde_debut: input.garde_debut,
     garde_fin: input.garde_fin,
     ...extras,
+  }
+}
+
+// The form may still hold the local id of a Producer/Appellation created
+// inline whose create has since synced (and swapped to a server id) — store
+// and queue the wine against the id that actually exists now.
+async function resolveReferences<T extends { appellation_id: number; producer_id: number }>(
+  input: T,
+): Promise<T> {
+  return {
+    ...input,
+    appellation_id: await resolveIdIfSynced(input.appellation_id),
+    producer_id: await resolveIdIfSynced(input.producer_id),
   }
 }
 
@@ -224,10 +238,11 @@ export function useWines() {
     }
   }
 
-  async function create(input: WineCreateInput): Promise<Wine | null> {
+  async function create(rawInput: WineCreateInput): Promise<Wine | null> {
     submitting.value = true
     submitError.value = null
     try {
+      const input = await resolveReferences(rawInput)
       const producer = await resolveProducer(undefined, input.producer_id)
       const localId = nextLocalId()
       const record = buildWineDetail(localId, input, producer, {
@@ -247,10 +262,11 @@ export function useWines() {
     }
   }
 
-  async function update(id: number, input: WineInput): Promise<Wine | null> {
+  async function update(id: number, rawInput: WineInput): Promise<Wine | null> {
     submitting.value = true
     submitError.value = null
     try {
+      const input = await resolveReferences(rawInput)
       // Defense in depth: the view layer redirects a stale negative id once
       // it notices load() resolved elsewhere, but if an update is somehow
       // submitted against a stale id anyway (a tight race), redirect it here

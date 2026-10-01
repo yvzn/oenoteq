@@ -76,6 +76,55 @@ describe('useWines — update', () => {
     expect(outboxItems[0]).toMatchObject({ action: 'update', targetId: 42 })
   })
 
+  it('stores and queues the server ids when the form still holds local ids whose creates have since synced', async () => {
+    await db.wines.put(wine)
+    await db.producers.put({ id: 7, name: 'Domaine Nouveau' })
+    await db.idRemap.bulkPut([
+      { localId: -11, serverId: 7 },
+      { localId: -22, serverId: 9 },
+    ])
+    const input: WineInput = {
+      millesime: 2019,
+      appellation_id: -22,
+      producer_id: -11,
+      color: 'rouge',
+      garde_debut: 2020,
+      garde_fin: 2028,
+    }
+
+    const { update } = useWines()
+    await update(42, input)
+
+    expect(await db.wines.get(42)).toMatchObject({
+      appellation_id: 9,
+      producer_id: 7,
+      producer: { id: 7, name: 'Domaine Nouveau' },
+    })
+    const outboxItems = await db.outbox.toArray()
+    expect(outboxItems[0]?.payload).toMatchObject({ appellation_id: 9, producer_id: 7 })
+  })
+
+  it('keeps a local id that has not synced yet', async () => {
+    await db.wines.put(wine)
+    await db.producers.put({ id: -11, name: 'Pending Producer' })
+    const input: WineInput = {
+      millesime: 2019,
+      appellation_id: 1,
+      producer_id: -11,
+      color: 'rouge',
+      garde_debut: 2020,
+      garde_fin: 2028,
+    }
+
+    const { update } = useWines()
+    await update(42, input)
+
+    expect(await db.wines.get(42)).toMatchObject({
+      producer_id: -11,
+      producer: { id: -11, name: 'Pending Producer' },
+    })
+  })
+
   it('still folds an edit into a still-pending create when genuinely unsynced', async () => {
     const localOnly = { ...wine, id: -123 }
     await db.wines.put(localOnly)

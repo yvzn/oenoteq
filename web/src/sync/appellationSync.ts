@@ -16,9 +16,14 @@ const appellationHandler: OutboxHandler = async (item) => {
     if (item.action === 'create') {
       const created = await apiClient.post<Appellation>('/appellations', item.payload)
       const localId = item.targetId as number
-      await db.transaction('rw', db.appellations, db.idRemap, async () => {
+      await db.transaction('rw', db.appellations, db.wines, db.idRemap, async () => {
         await db.appellations.delete(localId)
         await db.appellations.put(created)
+        // Wines saved against the local id would otherwise be left pointing
+        // at an appellation that no longer exists locally.
+        await db.wines
+          .filter((wine) => wine.appellation_id === localId)
+          .modify({ appellation_id: created.id })
         await db.idRemap.put({ localId, serverId: created.id })
       })
       return

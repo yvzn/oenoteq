@@ -7,6 +7,14 @@ import { RetryableOutboxError } from './outbox'
 // (`idRemap`) left behind by that push. Missing breadcrumb means that create
 // itself hasn't synced yet either, which is just as transient as a network
 // error, so it's retried the same way rather than failed permanently.
+// Non-throwing sibling for callers holding a possibly stale id (e.g. a form
+// that selected an entity before its create synced): swaps in the server id
+// when the create has since synced, otherwise keeps the local id.
+export async function resolveIdIfSynced(id: number): Promise<number> {
+  if (id >= 0) return id
+  return (await db.idRemap.get(id))?.serverId ?? id
+}
+
 export async function resolveSyncedId(id: number): Promise<number> {
   if (id >= 0) return id
   const remap = await db.idRemap.get(id)

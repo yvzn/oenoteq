@@ -20,6 +20,33 @@ afterEach(() => {
   vi.mocked(apiClient.put).mockReset()
 })
 
+describe('pushProducers — create', () => {
+  it('re-points wines saved against the local id at the synced producer', async () => {
+    await db.producers.put({ id: -5, name: 'Nouveau' })
+    const base = {
+      millesime: 2018,
+      appellation_id: 1,
+      color: 'rouge' as const,
+      garde_debut: 2020,
+      garde_fin: 2028,
+      quantity: 1,
+      suggested_meals: [],
+      consumption_history: [],
+    }
+    await db.wines.bulkPut([
+      { ...base, id: 1, producer_id: -5, producer: { id: -5, name: '' } },
+      { ...base, id: 2, producer_id: 3, producer: { id: 3, name: 'Other' } },
+    ])
+    await enqueueProducerCreate(-5, { name: 'Nouveau', client_id: 'c1' })
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 50, name: 'Nouveau' })
+
+    await pushProducers()
+
+    expect(await db.wines.get(1)).toMatchObject({ producer_id: 50, producer: { id: 50, name: 'Nouveau' } })
+    expect(await db.wines.get(2)).toMatchObject({ producer_id: 3, producer: { id: 3, name: 'Other' } })
+  })
+})
+
 describe('pullProducers', () => {
   it('upserts server producers into the local store', async () => {
     vi.mocked(apiClient.get).mockResolvedValue([{ id: 1, name: 'Domaine du Closel' }])

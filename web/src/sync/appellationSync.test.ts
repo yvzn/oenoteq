@@ -77,6 +77,34 @@ describe('pushAppellations', () => {
   })
 })
 
+describe('pushAppellations — wine references', () => {
+  it('re-points wines saved against the local id at the synced appellation', async () => {
+    await db.appellations.put({ id: -5, name: 'Nouvelle' })
+    const base = {
+      millesime: 2018,
+      producer_id: 1,
+      producer: { id: 1, name: 'P' },
+      color: 'rouge' as const,
+      garde_debut: 2020,
+      garde_fin: 2028,
+      quantity: 1,
+      suggested_meals: [],
+      consumption_history: [],
+    }
+    await db.wines.bulkPut([
+      { ...base, id: 1, appellation_id: -5 },
+      { ...base, id: 2, appellation_id: 3 },
+    ])
+    await enqueueAppellationCreate(-5, { name: 'Nouvelle', client_id: 'c1' })
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 50, name: 'Nouvelle' })
+
+    await pushAppellations()
+
+    expect((await db.wines.get(1))?.appellation_id).toBe(50)
+    expect((await db.wines.get(2))?.appellation_id).toBe(3)
+  })
+})
+
 describe('patchPendingAppellationCreate', () => {
   it('folds an edit of a not-yet-synced appellation into its still-pending create payload', async () => {
     await enqueueAppellationCreate(-1, { name: 'Original', client_id: 'abc' })

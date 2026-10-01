@@ -16,9 +16,14 @@ const producerHandler: OutboxHandler = async (item) => {
     if (item.action === 'create') {
       const created = await apiClient.post<Producer>('/producers', item.payload)
       const localId = item.targetId as number
-      await db.transaction('rw', db.producers, db.idRemap, async () => {
+      await db.transaction('rw', db.producers, db.wines, db.idRemap, async () => {
         await db.producers.delete(localId)
         await db.producers.put(created)
+        // Wines saved against the local id would otherwise be left pointing
+        // at (and embedding) a producer that no longer exists locally.
+        await db.wines
+          .filter((wine) => wine.producer_id === localId)
+          .modify({ producer_id: created.id, producer: created })
         await db.idRemap.put({ localId, serverId: created.id })
       })
       return
