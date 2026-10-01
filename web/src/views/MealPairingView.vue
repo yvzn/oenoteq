@@ -5,6 +5,7 @@ import type { Color } from '../api/types'
 import AppButton from '../components/AppButton.vue'
 import AutocompleteField from '../components/AutocompleteField.vue'
 import ColorSwatch from '../components/ColorSwatch.vue'
+import CreateFeedback from '../components/CreateFeedback.vue'
 import FormField from '../components/FormField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
@@ -48,10 +49,9 @@ const appellationId = ref<number | null>(parseId(route.query.appellation_id))
 const color = ref<Color | ''>(parseColor(route.query.color) ?? '')
 
 const selectedMealId = ref<number | null>(null)
-const showNewMeal = ref(false)
-const newMealName = ref('')
 
 const pairingSuccess = useSuccessMessage()
+const createdMeal = ref<{ id: number; name: string } | null>(null)
 
 const selectionReady = computed(() => appellationId.value !== null && color.value !== '')
 
@@ -63,6 +63,7 @@ const hasLoadError = computed(() => loadError.value !== '')
 
 watch([appellationId, color], ([nextAppellationId, nextColor]) => {
   pairingSuccess.clear()
+  createdMeal.value = null
   if (nextAppellationId !== null && nextColor !== '') {
     loadPairings(nextAppellationId, nextColor as Color)
   }
@@ -99,20 +100,13 @@ function submitOnEnter(event: KeyboardEvent, action: () => void) {
   action()
 }
 
-function toggleNewMeal() {
-  showNewMeal.value = !showNewMeal.value
-  newMealName.value = ''
-}
-
-async function submitNewMeal() {
+async function submitNewMeal(name: string) {
   if (!selectionReady.value) return
-  const name = newMealName.value.trim()
-  if (name === '') return
+  createdMeal.value = null
   const created = await createMeal(name)
   if (!created) return
+  createdMeal.value = { id: created.id, name: created.name }
   await addPairing(appellationId.value as number, color.value as Color, created.id)
-  showNewMeal.value = false
-  newMealName.value = ''
   if (mutateError.value) {
     selectedMealId.value = created.id
   } else {
@@ -201,8 +195,11 @@ async function submitNewMeal() {
               testid="add-meal-autocomplete"
               :items="meals"
               :model-value="selectedMealId"
-              placeholder="Add a meal"
+              placeholder="Add or create a meal"
+              creatable
+              :busy="creatingMeal || mutating"
               @update:model-value="(v) => (selectedMealId = v)"
+              @create="submitNewMeal"
             />
             <AppButton
               type="button"
@@ -215,41 +212,14 @@ async function submitNewMeal() {
             </AppButton>
           </form>
 
-          <AppButton
-            type="button"
-            variant="ghost"
-            data-testid="new-meal-toggle"
-            class="mt-3"
-            @click="toggleNewMeal"
-          >
-            {{ showNewMeal ? 'Cancel' : "Can't find it? Create new meal" }}
-          </AppButton>
-          <form
-            v-if="showNewMeal"
-            class="mt-2 flex items-center gap-2"
-            @submit.prevent="submitNewMeal"
-            @keydown="(e) => submitOnEnter(e, submitNewMeal)"
-          >
-            <input
-              v-model="newMealName"
-              data-testid="new-meal-name-input"
-              type="text"
-              placeholder="New meal name"
-              class="min-w-0 flex-1 text-sm"
-            />
-            <AppButton
-              type="button"
-              data-testid="new-meal-submit"
-              :disabled="creatingMeal"
-              class="text-xs"
-              @click="submitNewMeal"
-            >
-              Create
-            </AppButton>
-          </form>
-          <StatusLine v-if="mealCreateError" tone="error" data-testid="new-meal-error" class="mt-1 text-xs">
-            {{ mealCreateError }}
-          </StatusLine>
+          <CreateFeedback
+            testid="new-meal"
+            entity="meal"
+            error-testid="new-meal-error"
+            :creating="creatingMeal"
+            :created="createdMeal"
+            :error="mealCreateError"
+          />
           <StatusLine v-if="mutateError" tone="error" class="mt-1 text-xs">{{ mutateError }}</StatusLine>
         </section>
       </template>

@@ -11,9 +11,14 @@ const props = defineProps<{
   modelValue: number | null
   placeholder?: string
   testid: string
+  creatable?: boolean
+  busy?: boolean
 }>()
 
-const emit = defineEmits<{ 'update:modelValue': [value: number | null] }>()
+const emit = defineEmits<{
+  'update:modelValue': [value: number | null]
+  create: [name: string]
+}>()
 
 function selectedName(): string {
   return props.items.find((i) => i.id === props.modelValue)?.name ?? ''
@@ -21,6 +26,8 @@ function selectedName(): string {
 
 const query = ref(selectedName())
 const open = ref(false)
+const root = ref<HTMLElement | null>(null)
+const inputEl = ref<HTMLInputElement | null>(null)
 const highlightedIndex = ref(-1)
 
 watch(
@@ -36,7 +43,17 @@ const matches = computed(() => {
   return props.items.filter((i) => i.name.toLowerCase().includes(q))
 })
 
-watch(matches, resetHighlight)
+const createCandidate = computed(() => {
+  if (!props.creatable) return false
+  const q = query.value.trim().toLowerCase()
+  if (q === '') return false
+  return !props.items.some((i) => i.name.trim().toLowerCase() === q)
+})
+
+const optionCount = computed(() => matches.value.length + (createCandidate.value ? 1 : 0))
+const createIndex = computed(() => matches.value.length)
+
+watch([matches, createCandidate], resetHighlight)
 
 const optionId = (index: number) => `${props.testid}-option-${index}`
 const activeDescendant = computed(() =>
@@ -53,6 +70,13 @@ function onInput() {
   if (query.value.trim() === '') emit('update:modelValue', null)
 }
 
+function requestCreate() {
+  if (!createCandidate.value || props.busy) return
+  emit('create', query.value.trim())
+  open.value = false
+  resetHighlight()
+}
+
 function select(item: Item) {
   emit('update:modelValue', item.id)
   query.value = item.name
@@ -66,16 +90,22 @@ function moveHighlight(delta: 1 | -1, openedAt: number) {
     highlightedIndex.value = openedAt
     return
   }
-  if (matches.value.length === 0) return
-  const length = matches.value.length
+  if (optionCount.value === 0) return
+  const length = optionCount.value
   highlightedIndex.value = (highlightedIndex.value + delta + length) % length
 }
 
 const onArrowDown = () => moveHighlight(1, 0)
-const onArrowUp = () => moveHighlight(-1, matches.value.length - 1)
+const onArrowUp = () => moveHighlight(-1, optionCount.value - 1)
 
 function onEnter(event: KeyboardEvent) {
   if (!open.value) return
+  const onlyCreateOption = matches.value.length === 0 && highlightedIndex.value === -1
+  if (createCandidate.value && (highlightedIndex.value === createIndex.value || onlyCreateOption)) {
+    event.preventDefault()
+    requestCreate()
+    return
+  }
   const item = matches.value[highlightedIndex.value]
   if (!item) return
   event.preventDefault()
@@ -89,15 +119,36 @@ function onEscape() {
   query.value = selectedName()
 }
 
-function onBlur() {
+// Close only when focus leaves the whole widget, so Tab from the input can
+// land on the Create option without the list unmounting underneath it.
+function onFocusOut(event: FocusEvent) {
+  if (root.value?.contains(event.relatedTarget as Node | null)) return
   open.value = false
   resetHighlight()
+}
+
+function onCreateOptionKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    inputEl.value?.focus()
+    onEscape()
+    return
+  }
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  const hadFocus = document.activeElement === event.currentTarget
+  requestCreate()
+  if (hadFocus) {
+    inputEl.value?.focus()
+    open.value = false
+  }
 }
 </script>
 
 <template>
-  <div class="relative" :data-testid="testid">
+  <div ref="root" class="relative" :data-testid="testid" @focusout="onFocusOut">
     <input
+      ref="inputEl"
       v-model="query"
       type="text"
       role="combobox"
@@ -111,14 +162,13 @@ function onBlur() {
       autocomplete="off"
       @focus="open = true"
       @input="onInput"
-      @blur="onBlur"
       @keydown.down="onArrowDown"
       @keydown.up="onArrowUp"
       @keydown.enter="onEnter"
       @keydown.esc="onEscape"
     />
     <ul
-      v-if="open && matches.length > 0"
+      v-if="open && optionCount > 0"
       :id="`${testid}-options`"
       role="listbox"
       :data-testid="`${testid}-options`"
@@ -136,6 +186,25 @@ function onBlur() {
         @mousedown.prevent="select(item)"
       >
         {{ item.name }}
+      </li>
+      <li
+        v-if="createCandidate"
+        :id="optionId(createIndex)"
+        role="option"
+        :aria-selected="highlightedIndex === createIndex"
+        :aria-disabled="busy"
+        :data-testid="`${testid}-create-option`"
+        tabindex="0"
+        class="text-bordeaux border-line focus-visible:bg-gold-soft cursor-pointer px-2.5 py-1.5 font-medium outline-none"
+        :class="[
+          matches.length > 0 ? 'border-t' : '',
+          highlightedIndex === createIndex ? 'bg-gold-soft' : 'hover:bg-parchment',
+          busy ? 'opacity-50' : '',
+        ]"
+        @mousedown.prevent="requestCreate"
+        @keydown="onCreateOptionKeydown"
+      >
+        ＋ Create "{{ query.trim() }}"
       </li>
     </ul>
   </div>

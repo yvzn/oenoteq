@@ -144,4 +144,130 @@ describe('AutocompleteField', () => {
     expect((input.element as HTMLInputElement).value).toBe('Chinon')
     expect(wrapper.find('[data-testid="appellation-filter-options"]').exists()).toBe(false)
   })
+
+  describe('creatable', () => {
+    const mountCreatable = (extra: Record<string, unknown> = {}, attach = false) =>
+      mount(AutocompleteField, {
+        props: { items, modelValue: null, testid: 'appellation-filter', creatable: true, ...extra },
+        attachTo: attach ? document.body : undefined,
+      })
+    const createOption = (w: ReturnType<typeof mountCreatable>) =>
+      w.find('[data-testid="appellation-filter-create-option"]')
+
+    it('offers a create option for text that matches no item', async () => {
+      const wrapper = mountCreatable()
+      await wrapper.get('[data-testid="appellation-filter-input"]').setValue('  Vouvray ')
+
+      expect(createOption(wrapper).exists()).toBe(true)
+      expect(createOption(wrapper).text()).toContain('Create "Vouvray"')
+    })
+
+    it('keeps the create option below partial matches', async () => {
+      const wrapper = mountCreatable()
+      await wrapper.get('[data-testid="appellation-filter-input"]').setValue('sa')
+
+      expect(wrapper.findAll('[data-testid="appellation-filter-option"]')).toHaveLength(2)
+      expect(createOption(wrapper).exists()).toBe(true)
+    })
+
+    it('hides the create option on an exact match, ignoring case', async () => {
+      const wrapper = mountCreatable()
+      await wrapper.get('[data-testid="appellation-filter-input"]').setValue('sancerre')
+
+      expect(createOption(wrapper).exists()).toBe(false)
+    })
+
+    it('hides the create option when the input is empty', async () => {
+      const wrapper = mountCreatable()
+      await wrapper.get('[data-testid="appellation-filter-input"]').trigger('focus')
+
+      expect(createOption(wrapper).exists()).toBe(false)
+    })
+
+    it('never shows a create option when not creatable', async () => {
+      const wrapper = mountCreatable({ creatable: false })
+      await wrapper.get('[data-testid="appellation-filter-input"]').setValue('Vouvray')
+
+      expect(createOption(wrapper).exists()).toBe(false)
+    })
+
+    it('emits create with the trimmed name on click, without changing the selection', async () => {
+      const wrapper = mountCreatable()
+      await wrapper.get('[data-testid="appellation-filter-input"]').setValue(' Vouvray ')
+      await createOption(wrapper).trigger('mousedown')
+
+      expect(wrapper.emitted('create')).toEqual([['Vouvray']])
+      expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    })
+
+    it('reaches the create option with the arrow keys and creates on Enter', async () => {
+      const wrapper = mountCreatable()
+      const input = wrapper.get('[data-testid="appellation-filter-input"]')
+      await input.setValue('sa')
+      await input.trigger('keydown', { key: 'ArrowDown' })
+      await input.trigger('keydown', { key: 'ArrowDown' })
+      await input.trigger('keydown', { key: 'ArrowDown' })
+
+      expect(createOption(wrapper).attributes('aria-selected')).toBe('true')
+      expect(input.attributes('aria-activedescendant')).toBe(createOption(wrapper).attributes('id'))
+
+      await input.trigger('keydown', { key: 'Enter' })
+      expect(wrapper.emitted('create')).toEqual([['sa']])
+    })
+
+    it('creates on Enter when the create option is the only option', async () => {
+      const wrapper = mountCreatable()
+      const input = wrapper.get('[data-testid="appellation-filter-input"]')
+      await input.setValue('Vouvray')
+      await input.trigger('keydown', { key: 'Enter' })
+
+      expect(wrapper.emitted('create')).toEqual([['Vouvray']])
+    })
+
+    it('makes the create option a tab stop that survives focus leaving the input', async () => {
+      const wrapper = mountCreatable({}, true)
+      const input = wrapper.get('[data-testid="appellation-filter-input"]')
+      ;(input.element as HTMLInputElement).focus()
+      await input.setValue('Vouvray')
+
+      const option = createOption(wrapper)
+      expect(option.attributes('tabindex')).toBe('0')
+
+      ;(option.element as HTMLElement).focus()
+      await input.trigger('focusout', { relatedTarget: option.element })
+      expect(createOption(wrapper).exists()).toBe(true)
+
+      await option.trigger('keydown', { key: 'Enter' })
+      expect(wrapper.emitted('create')).toEqual([['Vouvray']])
+      expect(document.activeElement).toBe(input.element)
+      wrapper.unmount()
+    })
+
+    it('creates with Space on the focused create option', async () => {
+      const wrapper = mountCreatable({}, true)
+      await wrapper.get('[data-testid="appellation-filter-input"]').setValue('Vouvray')
+      await createOption(wrapper).trigger('keydown', { key: ' ' })
+
+      expect(wrapper.emitted('create')).toEqual([['Vouvray']])
+      wrapper.unmount()
+    })
+
+    it('closes the list when focus leaves the widget entirely', async () => {
+      const wrapper = mountCreatable({}, true)
+      const input = wrapper.get('[data-testid="appellation-filter-input"]')
+      await input.setValue('Vouvray')
+      await input.trigger('focusout', { relatedTarget: null })
+
+      expect(createOption(wrapper).exists()).toBe(false)
+      wrapper.unmount()
+    })
+
+    it('does not emit create while busy', async () => {
+      const wrapper = mountCreatable({ busy: true })
+      await wrapper.get('[data-testid="appellation-filter-input"]').setValue('Vouvray')
+      await createOption(wrapper).trigger('mousedown')
+
+      expect(wrapper.emitted('create')).toBeUndefined()
+    })
+  })
 })

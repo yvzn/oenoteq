@@ -5,6 +5,7 @@ import type { Color } from '../api/types'
 import AppButton from '../components/AppButton.vue'
 import AutocompleteField from '../components/AutocompleteField.vue'
 import ColorSwatch from '../components/ColorSwatch.vue'
+import CreateFeedback from '../components/CreateFeedback.vue'
 import FormField from '../components/FormField.vue'
 import NumberStepper from '../components/NumberStepper.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -88,12 +89,6 @@ function fillGardeFin() {
   gardeFin.value = deriveGardeFin(gardeDebut.value, gardeFin.value)
 }
 
-const showNewAppellation = ref(false)
-const newAppellationName = ref('')
-
-const showNewProducer = ref(false)
-const newProducerName = ref('')
-
 const loading = computed(
   () => appellationsLoading.value || producersLoading.value || (isEdit.value && wineLoading.value),
 )
@@ -138,36 +133,39 @@ function retry() {
 
 onMounted(retry)
 
-function toggleNewAppellation() {
-  showNewAppellation.value = !showNewAppellation.value
-  newAppellationName.value = ''
+interface CreatedEntity {
+  id: number
+  name: string
 }
 
-async function submitNewAppellation() {
-  const name = newAppellationName.value.trim()
-  if (name === '') return
+const createdAppellation = ref<CreatedEntity | null>(null)
+const createdProducer = ref<CreatedEntity | null>(null)
+
+// The confirmation only describes the entity that is still selected, and a
+// "required" error no longer applies once a value is chosen (picked or created).
+watch(appellationId, (id) => {
+  if (createdAppellation.value && createdAppellation.value.id !== id) createdAppellation.value = null
+  if (id !== null) delete errors.value.appellationId
+})
+watch(producerId, (id) => {
+  if (createdProducer.value && createdProducer.value.id !== id) createdProducer.value = null
+  if (id !== null) delete errors.value.producerId
+})
+
+async function submitNewAppellation(name: string) {
+  createdAppellation.value = null
   const created = await createAppellation(name)
-  if (created) {
-    appellationId.value = created.id
-    showNewAppellation.value = false
-    newAppellationName.value = ''
-  }
+  if (!created) return
+  appellationId.value = created.id
+  createdAppellation.value = { id: created.id, name: created.name }
 }
 
-function toggleNewProducer() {
-  showNewProducer.value = !showNewProducer.value
-  newProducerName.value = ''
-}
-
-async function submitNewProducer() {
-  const name = newProducerName.value.trim()
-  if (name === '') return
+async function submitNewProducer(name: string) {
+  createdProducer.value = null
   const created = await createProducer(name)
-  if (created) {
-    producerId.value = created.id
-    showNewProducer.value = false
-    newProducerName.value = ''
-  }
+  if (!created) return
+  producerId.value = created.id
+  createdProducer.value = { id: created.id, name: created.name }
 }
 
 const formSuccess = useSuccessMessage()
@@ -238,40 +236,19 @@ async function submit() {
           testid="wine-appellation"
           :items="appellations"
           :model-value="appellationId"
-          placeholder="Pick an appellation"
+          placeholder="Pick or create an appellation"
+          creatable
+          :busy="creatingAppellation"
           @update:model-value="(v) => (appellationId = v)"
+          @create="submitNewAppellation"
         />
-        <AppButton
-          type="button"
-          variant="ghost"
-          data-testid="new-appellation-toggle"
-          class="mt-1.5 self-start text-xs"
-          @click="toggleNewAppellation"
-        >
-          {{ showNewAppellation ? 'Cancel' : "Can't find it? Create new appellation" }}
-        </AppButton>
-        <div v-if="showNewAppellation" class="mt-2 flex items-center gap-2">
-          <input
-            v-model="newAppellationName"
-            data-testid="new-appellation-name-input"
-            type="text"
-            placeholder="New appellation name"
-            class="min-w-0 flex-1 text-sm"
-            @keydown.enter.prevent="submitNewAppellation"
-          />
-          <AppButton
-            type="button"
-            data-testid="new-appellation-submit"
-            :disabled="creatingAppellation"
-            class="text-xs"
-            @click="submitNewAppellation"
-          >
-            Create
-          </AppButton>
-        </div>
-        <p v-if="appellationCreateError" data-testid="new-appellation-error" class="text-danger text-xs">
-          {{ appellationCreateError }}
-        </p>
+        <CreateFeedback
+          testid="new-appellation"
+          entity="appellation"
+          :creating="creatingAppellation"
+          :created="createdAppellation"
+          :error="appellationCreateError"
+        />
       </FormField>
 
       <FormField label="Producer" :error="errors.producerId" error-testid="wine-producer-error">
@@ -279,40 +256,19 @@ async function submit() {
           testid="wine-producer"
           :items="producers"
           :model-value="producerId"
-          placeholder="Pick a producer"
+          placeholder="Pick or create a producer"
+          creatable
+          :busy="creatingProducer"
           @update:model-value="(v) => (producerId = v)"
+          @create="submitNewProducer"
         />
-        <AppButton
-          type="button"
-          variant="ghost"
-          data-testid="new-producer-toggle"
-          class="mt-1.5 self-start text-xs"
-          @click="toggleNewProducer"
-        >
-          {{ showNewProducer ? 'Cancel' : "Can't find it? Create new producer" }}
-        </AppButton>
-        <div v-if="showNewProducer" class="mt-2 flex items-center gap-2">
-          <input
-            v-model="newProducerName"
-            data-testid="new-producer-name-input"
-            type="text"
-            placeholder="New producer name"
-            class="min-w-0 flex-1 text-sm"
-            @keydown.enter.prevent="submitNewProducer"
-          />
-          <AppButton
-            type="button"
-            data-testid="new-producer-submit"
-            :disabled="creatingProducer"
-            class="text-xs"
-            @click="submitNewProducer"
-          >
-            Create
-          </AppButton>
-        </div>
-        <p v-if="producerCreateError" data-testid="new-producer-error" class="text-danger text-xs">
-          {{ producerCreateError }}
-        </p>
+        <CreateFeedback
+          testid="new-producer"
+          entity="producer"
+          :creating="creatingProducer"
+          :created="createdProducer"
+          :error="producerCreateError"
+        />
       </FormField>
 
       <div class="grid grid-cols-2 gap-4">

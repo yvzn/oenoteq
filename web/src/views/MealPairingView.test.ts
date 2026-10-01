@@ -55,6 +55,11 @@ async function mountAt(initialPath: string) {
   return { wrapper, router }
 }
 
+async function createNewMeal(wrapper: ReturnType<typeof mount>, name: string) {
+  await wrapper.get('[data-testid="add-meal-autocomplete-input"]').setValue(name)
+  await wrapper.get('[data-testid="add-meal-autocomplete-create-option"]').trigger('mousedown')
+}
+
 async function selectAppellationAndColor(wrapper: ReturnType<typeof mount>) {
   await wrapper.get('[data-testid="meal-pairing-appellation-input"]').setValue('Chinon')
   await wrapper.findAll('[data-testid="meal-pairing-appellation-option"]')[0]!.trigger('mousedown')
@@ -231,7 +236,7 @@ describe('MealPairingView', () => {
     })
   })
 
-  it('submits the create-meal form on Enter in the new meal name input', async () => {
+  it('creates a new meal on Enter in the add-meal combobox', async () => {
     mockApi()
     vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
       if (path === '/meals') return Promise.resolve({ id: 3, ...(body as object) })
@@ -241,10 +246,9 @@ describe('MealPairingView', () => {
     const { wrapper } = await mountAt('/meal-pairings')
     await selectAppellationAndColor(wrapper)
 
-    await wrapper.get('[data-testid="new-meal-toggle"]').trigger('click')
-    const nameInput = wrapper.get('[data-testid="new-meal-name-input"]')
-    await nameInput.setValue('Tartiflette')
-    await nameInput.trigger('keydown', { key: 'Enter' })
+    const input = wrapper.get('[data-testid="add-meal-autocomplete-input"]')
+    await input.setValue('Tartiflette')
+    await input.trigger('keydown', { key: 'Enter' })
     await flushPromises()
 
     expect(apiClient.post).toHaveBeenCalledWith('/meals', {
@@ -266,9 +270,7 @@ describe('MealPairingView', () => {
 
     mockApi({ pairedMeals: [...pairedMeals, { id: 3, name: 'Tartiflette' }] })
 
-    await wrapper.get('[data-testid="new-meal-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="new-meal-name-input"]').setValue('Tartiflette')
-    await wrapper.get('[data-testid="new-meal-submit"]').trigger('click')
+    await createNewMeal(wrapper, 'Tartiflette')
     await flushPromises()
     await flushPromises()
 
@@ -283,7 +285,7 @@ describe('MealPairingView', () => {
     })
     const items = wrapper.findAll('[data-testid="paired-meal"]')
     expect(items.some((i) => i.text().includes('Tartiflette'))).toBe(true)
-    expect(wrapper.find('[data-testid="new-meal-name-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="add-meal-autocomplete-create-option"]').exists()).toBe(false)
     expect(useSuccessMessage().message.value).toMatch(/added/i)
   })
 
@@ -298,13 +300,11 @@ describe('MealPairingView', () => {
     const { wrapper } = await mountAt('/meal-pairings')
     await selectAppellationAndColor(wrapper)
 
-    await wrapper.get('[data-testid="new-meal-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="new-meal-name-input"]').setValue('Tartiflette')
-    await wrapper.get('[data-testid="new-meal-submit"]').trigger('click')
+    await createNewMeal(wrapper, 'Tartiflette')
     await flushPromises()
 
     expect(useSuccessMessage().message.value).toMatch(/added/i)
-    expect(wrapper.find('[data-testid="new-meal-name-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="add-meal-autocomplete-create-option"]').exists()).toBe(false)
     const items = wrapper.findAll('[data-testid="paired-meal"]')
     expect(items.some((i) => i.text().includes('Tartiflette'))).toBe(true)
 
@@ -324,9 +324,7 @@ describe('MealPairingView', () => {
     const { wrapper } = await mountAt('/meal-pairings')
     await selectAppellationAndColor(wrapper)
 
-    await wrapper.get('[data-testid="new-meal-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="new-meal-name-input"]').setValue('Tartiflette')
-    await wrapper.get('[data-testid="new-meal-submit"]').trigger('click')
+    await createNewMeal(wrapper, 'Tartiflette')
     await flushPromises()
 
     expect(useSuccessMessage().message.value).toMatch(/added/i)

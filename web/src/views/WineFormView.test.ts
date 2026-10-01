@@ -48,6 +48,15 @@ function mockGet(overrides: Record<string, unknown> = {}) {
   })
 }
 
+async function createInline(
+  wrapper: ReturnType<typeof mount>,
+  testid: string,
+  name: string,
+) {
+  await wrapper.get(`[data-testid="${testid}-input"]`).setValue(name)
+  await wrapper.get(`[data-testid="${testid}-create-option"]`).trigger('mousedown')
+}
+
 function makeRouter(): Router {
   return withAutoClear(
     createRouter({
@@ -296,9 +305,7 @@ describe('WineFormView — add', () => {
     })
 
     const { wrapper } = await mountAt('/wines/new')
-    await wrapper.get('[data-testid="new-appellation-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="new-appellation-name-input"]').setValue('Bourgueil')
-    await wrapper.get('[data-testid="new-appellation-submit"]').trigger('click')
+    await createInline(wrapper, 'wine-appellation', 'Bourgueil')
     await flushPromises()
 
     expect(apiClient.post).toHaveBeenCalledWith('/appellations', {
@@ -308,10 +315,11 @@ describe('WineFormView — add', () => {
     expect(
       (wrapper.get('[data-testid="wine-appellation-input"]').element as HTMLInputElement).value,
     ).toBe('Bourgueil')
-    expect(wrapper.find('[data-testid="new-appellation-name-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="wine-appellation-create-option"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="new-appellation-created"]').text()).toContain('Created "Bourgueil"')
   })
 
-  it('creates a new appellation on Enter in its name input, without submitting the wine form', async () => {
+  it('creates a new appellation on Enter in the combobox, without submitting the wine form', async () => {
     mockGet()
     vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
       if (path === '/appellations') return Promise.resolve({ id: 3, ...(body as object) })
@@ -319,10 +327,9 @@ describe('WineFormView — add', () => {
     })
 
     const { wrapper } = await mountAt('/wines/new')
-    await wrapper.get('[data-testid="new-appellation-toggle"]').trigger('click')
-    const nameInput = wrapper.get('[data-testid="new-appellation-name-input"]')
-    await nameInput.setValue('Bourgueil')
-    await nameInput.trigger('keydown', { key: 'Enter' })
+    const input = wrapper.get('[data-testid="wine-appellation-input"]')
+    await input.setValue('Bourgueil')
+    await input.trigger('keydown', { key: 'Enter' })
     await flushPromises()
 
     expect(apiClient.post).toHaveBeenCalledWith('/appellations', {
@@ -337,9 +344,7 @@ describe('WineFormView — add', () => {
     vi.mocked(apiClient.post).mockRejectedValue(new ApiError(0, 'Network error: unable to reach the server'))
 
     const { wrapper } = await mountAt('/wines/new')
-    await wrapper.get('[data-testid="new-appellation-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="new-appellation-name-input"]').setValue('Bourgueil')
-    await wrapper.get('[data-testid="new-appellation-submit"]').trigger('click')
+    await createInline(wrapper, 'wine-appellation', 'Bourgueil')
     await flushPromises()
 
     expect(
@@ -348,6 +353,60 @@ describe('WineFormView — add', () => {
     const outboxItems = await db.outbox.toArray()
     expect(outboxItems).toHaveLength(1)
     expect(outboxItems[0]).toMatchObject({ entity: 'appellation', action: 'create', status: 'pending' })
+    expect(wrapper.get('[data-testid="new-appellation-created"]').text()).toContain('not synced yet')
+  })
+
+  it('clears the required error on a field once a value is created inline', async () => {
+    mockGet()
+    vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
+      if (path === '/producers') return Promise.resolve({ id: 3, ...(body as object) })
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="wine-producer-error"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="wine-appellation-error"]').exists()).toBe(true)
+
+    await createInline(wrapper, 'wine-producer', 'Domaine Nouveau')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="wine-producer-error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="wine-appellation-error"]').exists()).toBe(true)
+  })
+
+  it('clears the required error on a field once an existing value is picked', async () => {
+    mockGet()
+
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="wine-producer-input"]').setValue('Domaine')
+    await wrapper.findAll('[data-testid="wine-producer-option"]')[0]!.trigger('mousedown')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="wine-producer-error"]').exists()).toBe(false)
+  })
+
+  it('drops the creation confirmation once another appellation is selected', async () => {
+    mockGet()
+    vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
+      if (path === '/appellations') return Promise.resolve({ id: 3, ...(body as object) })
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/wines/new')
+    await createInline(wrapper, 'wine-appellation', 'Bourgueil')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="new-appellation-created"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="wine-appellation-input"]').setValue('Chinon')
+    await wrapper.findAll('[data-testid="wine-appellation-option"]')[0]!.trigger('mousedown')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="new-appellation-created"]').exists()).toBe(false)
   })
 
   it('resolves the real appellation id once a Wine created against an offline inline appellation syncs', async () => {
@@ -358,9 +417,7 @@ describe('WineFormView — add', () => {
     })
 
     const { wrapper } = await mountAt('/wines/new')
-    await wrapper.get('[data-testid="new-appellation-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="new-appellation-name-input"]').setValue('Bourgueil')
-    await wrapper.get('[data-testid="new-appellation-submit"]').trigger('click')
+    await createInline(wrapper, 'wine-appellation', 'Bourgueil')
     await flushPromises()
 
     await wrapper.get('[data-testid="wine-producer-input"]').setValue('Les Garillères')
@@ -397,9 +454,7 @@ describe('WineFormView — add', () => {
     })
 
     const { wrapper } = await mountAt('/wines/new')
-    await wrapper.get('[data-testid="new-producer-toggle"]').trigger('click')
-    await wrapper.get('[data-testid="new-producer-name-input"]').setValue('Domaine Nouveau')
-    await wrapper.get('[data-testid="new-producer-submit"]').trigger('click')
+    await createInline(wrapper, 'wine-producer', 'Domaine Nouveau')
     await flushPromises()
 
     expect(apiClient.post).toHaveBeenCalledWith('/producers', {
@@ -409,10 +464,10 @@ describe('WineFormView — add', () => {
     expect(
       (wrapper.get('[data-testid="wine-producer-input"]').element as HTMLInputElement).value,
     ).toBe('Domaine Nouveau')
-    expect(wrapper.find('[data-testid="new-producer-name-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="wine-producer-create-option"]').exists()).toBe(false)
   })
 
-  it('creates a new producer on Enter in its name input, without submitting the wine form', async () => {
+  it('creates a new producer on Enter in the combobox, without submitting the wine form', async () => {
     mockGet()
     vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
       if (path === '/producers') return Promise.resolve({ id: 3, ...(body as object) })
@@ -420,10 +475,9 @@ describe('WineFormView — add', () => {
     })
 
     const { wrapper } = await mountAt('/wines/new')
-    await wrapper.get('[data-testid="new-producer-toggle"]').trigger('click')
-    const nameInput = wrapper.get('[data-testid="new-producer-name-input"]')
-    await nameInput.setValue('Domaine Nouveau')
-    await nameInput.trigger('keydown', { key: 'Enter' })
+    const input = wrapper.get('[data-testid="wine-producer-input"]')
+    await input.setValue('Domaine Nouveau')
+    await input.trigger('keydown', { key: 'Enter' })
     await flushPromises()
 
     expect(apiClient.post).toHaveBeenCalledWith('/producers', {
