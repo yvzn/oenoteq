@@ -44,7 +44,9 @@ litestream restore -config docker/litestream.yml -timestamp 2026-10-07T15:00:00Z
 litestream restore -config docker/litestream.yml -generation <id> -index <n> -o /tmp/pitr.db "$DB_PATH"
 ```
 
-To roll production back: stop the app (scale to 0), delete the `LITESTREAM_AZURE_PATH` prefix from the container (or point it at a new prefix), upload nothing, then start with the restored file placed at `DB_PATH` (a fresh replica generation is created from it). Verify the restored file first with `sqlite3 /tmp/pitr.db "select count(*) from wines"`.
+To roll production back, never delete the existing prefix (it holds the other restore points). Restore the wanted state to a file as above, then verify it with `sqlite3 /tmp/pitr.db "select count(*) from wine"`. Then either re-upload that file to a **new** `LITESTREAM_AZURE_PATH` (run a throwaway container with the file at `DB_PATH` and Litestream pointed at the new prefix, let it replicate) and switch the app's `LITESTREAM_AZURE_PATH` to it, or keep the old prefix and restore with `-timestamp` into a new prefix the same way.
+
+Note: the config sets `endpoint` to an empty string when `LITESTREAM_AZURE_ENDPOINT` is unset, relying on Litestream falling back to `https://<account>.blob.core.windows.net`. Verified only against Azurite; confirm on real Azure in the infra ticket (04). Auth is account-key only (Litestream 0.3.x `abs`); managed identity is not supported by this version.
 
 ## Local test with Azurite
 
