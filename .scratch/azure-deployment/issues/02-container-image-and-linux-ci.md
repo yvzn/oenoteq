@@ -4,9 +4,9 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** implemented (image built and run locally; CI push to GHCR verified on first tag)
 
-- [ ] `docker build` produces an image that serves the embedded SPA and API on `PORT`
-- [ ] Image runs as non-root and holds no secrets
-- [ ] CI builds `linux/amd64` on tag push and pushes to GHCR (`ghcr.io/yvzn/...`)
-- [ ] Existing Windows exe release workflow unchanged and still green
+- [x] `docker build` produces an image that serves the embedded SPA and API on `PORT`
+- [x] Image runs as non-root and holds no secrets
+- [x] CI builds `linux/amd64` on tag push and pushes to GHCR (`ghcr.io/yvzn/oenoteq`)
+- [x] Existing Windows exe release workflow unchanged and still green

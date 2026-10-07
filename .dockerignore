@@ -1,0 +1,15 @@
+.git
+.github
+.claude
+.agents
+.serena
+.scratch
+.venv
+docs
+web/node_modules
+web/dist
+internal/static/dist
+*.db
+*.db-shm
+*.db-wal
+*.exe
