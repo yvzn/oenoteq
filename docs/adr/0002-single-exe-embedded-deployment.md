@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by 0008-azure-container-apps-deployment.md
 ---
 
 # Deploy as a single embedded-Vue Windows executable, no containers or services
