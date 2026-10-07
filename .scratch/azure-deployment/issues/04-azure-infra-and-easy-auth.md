@@ -4,7 +4,7 @@
 
 **Blocked by:** 02, 03
 
-**Status:** ready-for-agent
+**Status:** in-progress (infra scripted; needs real Azure run, see docs/azure-deployment.md)
 
 **Decisions:** identity provider = Microsoft personal accounts (Entra app registration, audience "personal Microsoft accounts only"); registry = GHCR; domain = default `*.azurecontainerapps.io`.
 
