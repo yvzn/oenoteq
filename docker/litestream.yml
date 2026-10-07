@@ -1,0 +1,10 @@
+# Used only when LITESTREAM_AZURE_ACCOUNT_NAME is set (see entrypoint.sh).
+dbs:
+  - path: ${DB_PATH}
+    replicas:
+      - type: abs
+        account-name: ${LITESTREAM_AZURE_ACCOUNT_NAME}
+        account-key: ${LITESTREAM_AZURE_ACCOUNT_KEY}
+        bucket: ${LITESTREAM_AZURE_CONTAINER}
+        path: ${LITESTREAM_AZURE_PATH}
+        endpoint: ${LITESTREAM_AZURE_ENDPOINT}

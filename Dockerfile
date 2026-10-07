@@ -18,10 +18,15 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/cellar 
 # Empty data dir, owned by the nonroot user, to hold the SQLite file.
 RUN mkdir /out/data && chown 65532:65532 /out/data
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM litestream/litestream:0.3.13 AS litestream
+
+FROM alpine:3.20
+COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/litestream
 COPY --from=build /out/cellar /cellar
 COPY --from=build --chown=65532:65532 /out/data /data
+COPY docker/litestream.yml /etc/litestream.yml
+COPY --chmod=755 docker/entrypoint.sh /entrypoint.sh
 ENV PORT=8080 DB_PATH=/data/cellar.db
 EXPOSE 8080
 USER 65532:65532
-ENTRYPOINT ["/cellar"]
+ENTRYPOINT ["/entrypoint.sh"]

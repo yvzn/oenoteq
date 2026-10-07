@@ -4,10 +4,10 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] On empty disk, entrypoint restores latest replica; on first ever start with no replica it starts empty
-- [ ] While running, WAL changes replicate to Blob within seconds
-- [ ] Kill container, start new one: data written before the kill is present (verified manually, ideally with Azurite)
-- [ ] Without Litestream env vars the app starts exactly as before
-- [ ] Restore procedure and point-in-time recovery steps documented in `docs/`
+- [x] On empty disk, entrypoint restores latest replica; on first ever start with no replica it starts empty
+- [x] While running, WAL changes replicate to Blob within seconds
+- [x] Kill container, start new one: data written before the kill is present (verified manually, ideally with Azurite)
+- [x] Without Litestream env vars the app starts exactly as before
+- [x] Restore procedure and point-in-time recovery steps documented in `docs/`
