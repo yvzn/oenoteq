@@ -3,8 +3,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 // DefaultDBPath resolves cellar.db beside the running executable, so the
@@ -24,4 +26,16 @@ func DBPath() (string, error) {
 		return path, nil
 	}
 	return DefaultDBPath()
+}
+
+// Port returns the listen address, ":8080" unless overridden by PORT.
+func Port() (string, error) {
+	if port := os.Getenv("PORT"); port != "" {
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
+			return "", fmt.Errorf("invalid PORT %q: must be a number between 1 and 65535", port)
+		}
+		return ":" + strconv.Itoa(n), nil
+	}
+	return ":8080", nil
 }

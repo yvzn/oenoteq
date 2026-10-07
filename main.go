@@ -29,6 +29,11 @@ func run() error {
 		return fmt.Errorf("resolving DB path: %w", err)
 	}
 
+	addr, err := config.Port()
+	if err != nil {
+		return err
+	}
+
 	database, err := db.Open(dbPath)
 	if err != nil {
 		return fmt.Errorf("opening database: %w", err)
@@ -49,7 +54,7 @@ func run() error {
 	h.Register(router, staticHandler)
 
 	server := &http.Server{
-		Addr:         ":8080",
+		Addr:         addr,
 		Handler:      logMiddleware(router),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,

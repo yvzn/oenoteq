@@ -51,3 +51,39 @@ func TestDBPath_FallsBackToDefaultWhenEnvUnset(t *testing.T) {
 		t.Fatalf("DBPath() = %q, want %q", got, want)
 	}
 }
+
+func TestPort_DefaultsTo8080(t *testing.T) {
+	t.Setenv("PORT", "")
+
+	got, err := Port()
+	if err != nil {
+		t.Fatalf("Port() error = %v", err)
+	}
+	if got != ":8080" {
+		t.Fatalf("Port() = %q, want %q", got, ":8080")
+	}
+}
+
+func TestPort_UsesEnvOverrideWhenSet(t *testing.T) {
+	t.Setenv("PORT", "9000")
+
+	got, err := Port()
+	if err != nil {
+		t.Fatalf("Port() error = %v", err)
+	}
+	if got != ":9000" {
+		t.Fatalf("Port() = %q, want %q", got, ":9000")
+	}
+}
+
+func TestPort_RejectsInvalidValues(t *testing.T) {
+	for _, value := range []string{"abc", "0", "65536", "-1", "80 80"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("PORT", value)
+
+			if got, err := Port(); err == nil {
+				t.Fatalf("Port() = %q, want error", got)
+			}
+		})
+	}
+}
