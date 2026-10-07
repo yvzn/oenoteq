@@ -41,32 +41,30 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Normalise image name
+        run: echo "IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
       - name: Roll out new revision
         run: |
-          IMAGE="$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')"
-          # Single revision mode: traffic moves only once the new revision is ready,
-          # otherwise the previous revision keeps serving.
+          # Single revision mode: traffic moves only once the new revision passes its
+          # startup/readiness probes (GET /health, infra/main.bicep); until then the
+          # previous revision keeps serving.
           az containerapp update -g "$RG" -n "$APP" --image "$IMAGE" -o none
 
-      - name: Wait for the new revision to be healthy
+      - name: Wait for the new revision to be ready
         run: |
-          IMAGE="$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')"
-          for i in $(seq 1 30); do
-            REV="$(az containerapp show -g "$RG" -n "$APP" --query properties.latestRevisionName -o tsv)"
+          for _ in $(seq 1 60); do
+            LATEST="$(az containerapp show -g "$RG" -n "$APP" --query properties.latestRevisionName -o tsv)"
             READY="$(az containerapp show -g "$RG" -n "$APP" --query properties.latestReadyRevisionName -o tsv)"
-            ACTIVE="$(az containerapp revision show -g "$RG" -n "$APP" --revision "$REV" \
-              --query '[properties.provisioningState, properties.healthState, properties.runningState]' -o tsv | tr '\n' ' ')"
-            echo "latest=$REV ready=$READY state: $ACTIVE"
-            case "$ACTIVE" in
-              *Failed*|*Unhealthy*) break ;;
-            esac
-            if [ "$REV" = "$READY" ] && [ "$ACTIVE" != "${ACTIVE#Provisioned Healthy}" ]; then
-              SERVING="$(az containerapp show -g "$RG" -n "$APP" \
-                --query "properties.template.containers[0].image" -o tsv)"
-              [ "$SERVING" = "$IMAGE" ] && { echo "Deployed $IMAGE as $REV"; exit 0; }
+            REV_IMAGE="$(az containerapp revision show -g "$RG" -n "$APP" --revision "$LATEST"               --query 'properties.template.containers[0].image' -o tsv)"
+            REV_STATE="$(az containerapp revision show -g "$RG" -n "$APP" --revision "$LATEST"               --query 'properties.provisioningState' -o tsv)"
+            echo "latest=$LATEST ($REV_IMAGE, $REV_STATE) ready=$READY"
+            if [ "$REV_IMAGE" = "$IMAGE" ]; then
+              [ "$REV_STATE" = "Failed" ] && break
+              [ "$LATEST" = "$READY" ] && { echo "Deployed $IMAGE as $LATEST"; exit 0; }
             fi
             sleep 10
           done
-          echo "::error::Revision did not become healthy; previous revision keeps serving. Logs:"
+          echo "::error::Revision not ready; previous revision keeps serving. Recent logs:"
           az containerapp logs show -g "$RG" -n "$APP" --tail 50 || true
           exit 1

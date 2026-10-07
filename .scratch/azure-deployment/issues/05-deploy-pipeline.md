@@ -4,7 +4,7 @@
 
 **Blocked by:** 04 (Azure infra and Easy Auth)
 
-**Status:** done
+**Status:** needs-real-azure-verification
 
 - [ ] A tag push updates the running Container App to the new image tag and the new revision serves traffic
 - [ ] GitHub authenticates to Azure with OIDC federated credentials (no long-lived client secret stored in GitHub)

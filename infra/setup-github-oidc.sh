@@ -2,12 +2,12 @@
 # One-time: let GitHub Actions deploy to Azure via OIDC federated credentials (no stored secret).
 # Needs: az CLI logged in as an owner of the subscription.
 #
-#   GITHUB_REPO=yvzn/oenoteq sh infra/setup-github-oidc.sh
+#   GITHUB_REPO=<owner>/<repo> sh infra/setup-github-oidc.sh
 #
 # Prints the three values to store as GitHub repo variables (not secrets).
 set -eu
 
-GITHUB_REPO="${GITHUB_REPO:?set GITHUB_REPO, e.g. yvzn/oenoteq}"
+GITHUB_REPO="${GITHUB_REPO:?set GITHUB_REPO, e.g. <owner>/<repo>}"
 RG="${RG:-cellar-rg}"
 APP_NAME="${APP_NAME:-cellar-github-deploy}"
 

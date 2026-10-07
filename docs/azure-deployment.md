@@ -68,10 +68,12 @@ Release:
 git tag v1.2.3 && git push origin v1.2.3
 ```
 
-`Release` workflow builds the Windows exe (GitHub Release) and the image (GHCR `:v1.2.3` and `:latest`), then `deploy.yml` runs `az containerapp update --image ghcr.io/<repo>:v1.2.3`. It then polls the new revision until it is Provisioned, Healthy and serving that image (5 min max).
+`Release` workflow builds the Windows exe (GitHub Release) and the image (GHCR `:v1.2.3` and `:latest`), then `deploy.yml` runs `az containerapp update --image ghcr.io/<repo>:v1.2.3`. It then polls until the latest revision runs that image and is the latest *ready* revision (10 min max). Readiness comes from the Startup/Readiness probes on `GET /health` in `infra/main.bicep` (Easy Auth does not apply to platform probes). Re-run `infra/deploy.sh` once so the probes exist before the first tag deploy.
 
 Failure: app runs in single revision mode, so traffic stays on the previous revision until the new one is ready. If the new one never becomes healthy the workflow fails and prints recent logs; the old revision keeps serving. Inspect with `az containerapp revision list -g cellar-rg -n cellar-app -o table`.
 
 Redeploy or roll back: GitHub Actions > Deploy > Run workflow, enter an existing tag (e.g. `v1.2.2`). Concurrent deploys are serialised.
 
 Caveat: Container Apps' single mode starts the new revision before retiring the old one, so two replicas may briefly overlap during rollout. Litestream restores on start and the old replica stops shortly after, but this is not a hard single-writer guarantee. Verify on real Azure (checklist above); if overlap is a problem, switch to deactivate-first (brief downtime, no fallback to previous revision).
+
+Untested on real Azure: behaviour of `az containerapp update` while the app is scaled to zero (no replica to probe), and whether a failed deploy leaves the Release run red (the exe release job is independent and still publishes).

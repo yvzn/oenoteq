@@ -14,3 +14,5 @@ SQLite stays (pure-Go `modernc.org/sqlite`, WAL, single connection) on the conta
 The Windows exe release (ADR 0002) keeps working: port, auth mode and Litestream are all config, defaulting to the old behaviour. Revisit (set min replicas to 1) if cold-start restore time becomes noticeable; revisit the whole design if the app needs more than one replica or if Container Apps pricing changes materially.
 
 Consequences to handle in implementation: Easy Auth redirects unauthenticated requests, so `manifest.webmanifest` and the service worker script need excluding or verifying; changing origin from the LAN IP gives a fresh IndexedDB, so each phone's outbox must be drained before switching.
+
+Amendment (deploy pipeline, ticket 05): "never more than one writer" holds per revision. In single revision mode Container Apps may briefly run the old and new revision together during a rollout. Accepted for now (Litestream restores from the replica on start); revisit with deactivate-first rollout if overlap causes corruption or lost writes.

@@ -95,6 +95,21 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'cellar'
           image: image
           resources: { cpu: json('0.25'), memory: '0.5Gi' }
+          // Deploy pipeline relies on these: a revision only takes traffic once it answers /health.
+          // Startup allows a Litestream restore on cold start (up to 5 min).
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: { path: '/health', port: 8080 }
+              periodSeconds: 5
+              failureThreshold: 60
+            }
+            {
+              type: 'Readiness'
+              httpGet: { path: '/health', port: 8080 }
+              periodSeconds: 10
+            }
+          ]
           env: [
             { name: 'LITESTREAM_AZURE_ACCOUNT_NAME', value: storage.name }
             { name: 'LITESTREAM_AZURE_ACCOUNT_KEY', secretRef: 'storage-key' }
