@@ -8,3 +8,6 @@ dbs:
         bucket: ${LITESTREAM_AZURE_CONTAINER}
         path: ${LITESTREAM_AZURE_PATH}
         endpoint: ${LITESTREAM_AZURE_ENDPOINT}
+        # Point-in-time recovery window; older snapshots and WAL are deleted.
+        retention: 168h
+        snapshot-interval: 24h

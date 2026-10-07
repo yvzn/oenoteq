@@ -30,6 +30,8 @@ litestream restore -config docker/litestream.yml "$DB_PATH"
 
 ## Point-in-time recovery
 
+Retention is 7 days (`retention: 168h`, snapshot every 24h in `docker/litestream.yml`). Litestream deletes older snapshots and WAL itself, so no manual cleanup; nothing older than 7 days can be restored. For a backstop, add an Azure Blob lifecycle rule in the infra ticket (04).
+
 List generations and snapshots:
 
 ```sh
