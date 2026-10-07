@@ -9,7 +9,9 @@
 **Decisions:** identity provider = Microsoft personal accounts (Entra app registration, audience "personal Microsoft accounts only"); registry = GHCR; domain = default `*.azurecontainerapps.io`.
 
 - [ ] App reachable over HTTPS on the `*.azurecontainerapps.io` URL, login required
-- [ ] `AUTH_MODE=easyauth` set; only intended users can sign in. Easy Auth alone lets ANY Microsoft personal account sign in, so the app enforces an allowlist of permitted identities from config (`AUTH_ALLOWED_USERS`), 403 otherwise
+- [ ] Auth config: `unauthenticatedClientAction` = `RedirectToLoginPage`, `excludedPaths` covers what the PWA needs unauthenticated (manifest, service worker script; see ticket 06)
+- [ ] Only intended users can sign in, enforced by platform config, no app code. First try `identityProviders.azureActiveDirectory.validation.defaultAuthorizationPolicy.allowedPrincipals.identities`. **Spike first (about 15 min):** confirm it actually blocks a second, non-listed personal Microsoft account. The docs do not say how identities are expressed for personal accounts, and Entra "Assignment required" is documented for tenant users only. Without a restriction any personal Microsoft account can sign in
+- [ ] If the spike fails: fall back to a minimal app-side check of `X-MS-CLIENT-PRINCIPAL-NAME` against an allowlist (about 20 lines, own ticket), or use a tenant-only app registration
 - [ ] Container Apps pulls the image from GHCR (public image, or private with a read-only pull token stored as a secret)
 - [ ] Replica count pinned to exactly one writer
 - [ ] Monthly cost estimate recorded against the research file
