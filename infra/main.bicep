@@ -102,8 +102,9 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           ]
         }
       ]
-      // Exactly one writer: SQLite on local disk (ADR 0008).
-      scale: { minReplicas: 1, maxReplicas: 1 }
+      // At most one writer: SQLite on local disk. Min 0 = scale to zero, Litestream restores on
+      // cold start (ADR 0008). Raise minReplicas to 1 if cold start becomes noticeable.
+      scale: { minReplicas: 0, maxReplicas: 1 }
     }
   }
 }

@@ -5,7 +5,7 @@ Decision record: `docs/adr/0008-azure-container-apps-deployment.md`. Infra is `i
 ## What gets created
 
 - Resource group, storage account (Standard_LRS) with Blob container `backups`, 30-day lifecycle delete as backstop for Litestream's 7-day retention.
-- Container Apps environment (no Log Analytics, to avoid ingestion cost) and one app: 0.25 vCPU / 0.5 GiB, **min 1 / max 1 replica**, single active revision, HTTPS-only external ingress on 8080.
+- Container Apps environment (no Log Analytics, to avoid ingestion cost) and one app: 0.25 vCPU / 0.5 GiB, **min 0 / max 1 replica** (scale to zero; Litestream restores on each cold start), single active revision, HTTPS-only external ingress on 8080.
 - Entra app registration, audience personal Microsoft accounts only.
 - Easy Auth: `RedirectToLoginPage`, `excludedPaths` = `/manifest.webmanifest`, `/sw.js` (ticket 06 verifies the final list), optional `allowedPrincipals`.
 - Image pulled from GHCR **anonymously**: after the first tag build, set the package visibility to public (GitHub package settings). For private, add `registries` plus a read-only PAT secret to the Bicep.
@@ -33,21 +33,23 @@ Result: **TODO, needs a real Azure subscription and two Microsoft accounts.**
 - App answers on `https://<fqdn>` and redirects to Microsoft login when anonymous.
 - Litestream with the real `https://<account>.blob.core.windows.net` endpoint (the config relies on the empty-endpoint fallback, only verified against Azurite): check blobs appear in `backups/cellar`.
 - Write data, restart the revision (`az containerapp revision restart`), data still present.
-- `az containerapp show -g cellar-rg -n cellar-app --query properties.template.scale` shows min 1 / max 1.
+- `az containerapp show -g cellar-rg -n cellar-app --query properties.template.scale` shows min 0 / max 1.
+- Cold start: scale to zero (wait for idle), then time the first request; record it here. If noticeable, set `minReplicas: 1` in `infra/main.bicep`.
+- Graceful scale-down flushes Litestream: write data, let it scale to zero, restart, data present.
+- During a revision update confirm two replicas never overlap (single active revision mode should prevent it).
 
 ## Monthly cost estimate
 
-**Unverified: unit rates are from memory of the Azure Container Apps consumption price list, not read from the pricing page this session. Check against the pricing page / Retail API before relying on it** (`docs/research/cheap-hosting-go-sqlite.md` notes the API shows rates rounded to 0.0000).
+**Unverified: unit rates are from memory of the Azure Container Apps consumption price list, not read from the pricing page this session. Check before relying on it** (`docs/research/cheap-hosting-go-sqlite.md` notes the API shows rates rounded to 0.0000).
 
-Assumptions: westeurope, 0.25 vCPU / 0.5 GiB, always on (min 1), near-zero traffic so the replica is mostly in the cheaper *idle* state. Free grant per subscription: 180k vCPU-s, 360k GiB-s, 2M requests.
+Assumptions: westeurope, 0.25 vCPU / 0.5 GiB, min 0 / max 1, light personal use. Replica billed only while running; free grant per subscription: 180k vCPU-s, 360k GiB-s, 2M requests.
 
-| Item | Usage / month | Estimate |
-|---|---|---|
-| vCPU (idle rate, ~0.000003 USD/s) | 0.25 x 2.59M s = 648k, minus 180k free | ~USD 1.4 |
-| Memory (~0.000003 USD/GiB-s) | 0.5 x 2.59M s = 1.3M, minus 360k free | ~USD 2.8 |
-| Requests | well under 2M | 0 |
-| Blob storage + transactions | under 1 GB, Litestream writes | ~USD 0.1 to 0.5 |
-| Default domain + managed HTTPS | | 0 |
-| **Total** | | **~USD 4 to 5** |
+| Item | Estimate |
+|---|---|
+| vCPU + memory | likely inside the free grant (a few hours of running a day stays well under 180k vCPU-s) |
+| Requests | under 2M, 0 |
+| Blob storage + transactions (Litestream) | ~USD 0.1 to 0.5 |
+| Default domain + managed HTTPS | 0 |
+| **Total** | **~USD 0.1 to 0.5** |
 
-Note this is above the research file's scale-to-zero figure (~EUR 0.02): min 1 gives up scale-to-zero, which the ADR chose to avoid cold-start restore. Fly.io (~USD 2.4) remains the cheaper alternative the research ranked first.
+Matches the research file's scale-to-zero figure for Azure. Fallback `minReplicas: 1` (always on) costs about USD 4 to 5 a month more (0.25 vCPU idle + 0.5 GiB for 2.59M s, minus the free grant). Fly.io (~USD 2.4) remains the alternative the research ranked first.
