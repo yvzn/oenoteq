@@ -1,0 +1,72 @@
+name: Deploy
+
+# Rolls the Azure Container App to an image tag already published to GHCR.
+# Called by Release after the image job; run by hand to redeploy or roll back.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Image tag to deploy
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to deploy or roll back to (e.g. v1.2.3)
+        required: true
+        type: string
+
+# One deploy at a time: never two rollouts racing on the single SQLite writer.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # OIDC subject is repo:<owner>/<repo>:environment:production (infra/setup-github-oidc.sh).
+    environment: production
+    env:
+      RG: cellar-rg
+      APP: cellar-app
+      IMAGE: ghcr.io/${{ github.repository }}:${{ inputs.tag }}
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Roll out new revision
+        run: |
+          IMAGE="$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')"
+          # Single revision mode: traffic moves only once the new revision is ready,
+          # otherwise the previous revision keeps serving.
+          az containerapp update -g "$RG" -n "$APP" --image "$IMAGE" -o none
+
+      - name: Wait for the new revision to be healthy
+        run: |
+          IMAGE="$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')"
+          for i in $(seq 1 30); do
+            REV="$(az containerapp show -g "$RG" -n "$APP" --query properties.latestRevisionName -o tsv)"
+            READY="$(az containerapp show -g "$RG" -n "$APP" --query properties.latestReadyRevisionName -o tsv)"
+            ACTIVE="$(az containerapp revision show -g "$RG" -n "$APP" --revision "$REV" \
+              --query '[properties.provisioningState, properties.healthState, properties.runningState]' -o tsv | tr '\n' ' ')"
+            echo "latest=$REV ready=$READY state: $ACTIVE"
+            case "$ACTIVE" in
+              *Failed*|*Unhealthy*) break ;;
+            esac
+            if [ "$REV" = "$READY" ] && [ "$ACTIVE" != "${ACTIVE#Provisioned Healthy}" ]; then
+              SERVING="$(az containerapp show -g "$RG" -n "$APP" \
+                --query "properties.template.containers[0].image" -o tsv)"
+              [ "$SERVING" = "$IMAGE" ] && { echo "Deployed $IMAGE as $REV"; exit 0; }
+            fi
+            sleep 10
+          done
+          echo "::error::Revision did not become healthy; previous revision keeps serving. Logs:"
+          az containerapp logs show -g "$RG" -n "$APP" --tail 50 || true
+          exit 1

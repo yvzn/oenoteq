@@ -53,3 +53,25 @@ Assumptions: westeurope, 0.25 vCPU / 0.5 GiB, min 0 / max 1, light personal use.
 | **Total** | **~USD 0.1 to 0.5** |
 
 Matches the research file's scale-to-zero figure for Azure. Fallback `minReplicas: 1` (always on) costs about USD 4 to 5 a month more (0.25 vCPU idle + 0.5 GiB for 2.59M s, minus the free grant). Fly.io (~USD 2.4) remains the alternative the research ranked first.
+
+## Release procedure (tag to live)
+
+One-time setup:
+
+1. Run `az login`, then `GITHUB_REPO=<owner>/<repo> sh infra/setup-github-oidc.sh`. It creates an Entra app with a federated credential (subject `repo:<owner>/<repo>:environment:production`) and Contributor on `cellar-rg` only. No client secret is stored in GitHub.
+2. Create GitHub environment `production`; add the three printed values as repo variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
+3. Do the first manual deploy above, so the app exists.
+
+Release:
+
+```sh
+git tag v1.2.3 && git push origin v1.2.3
+```
+
+`Release` workflow builds the Windows exe (GitHub Release) and the image (GHCR `:v1.2.3` and `:latest`), then `deploy.yml` runs `az containerapp update --image ghcr.io/<repo>:v1.2.3`. It then polls the new revision until it is Provisioned, Healthy and serving that image (5 min max).
+
+Failure: app runs in single revision mode, so traffic stays on the previous revision until the new one is ready. If the new one never becomes healthy the workflow fails and prints recent logs; the old revision keeps serving. Inspect with `az containerapp revision list -g cellar-rg -n cellar-app -o table`.
+
+Redeploy or roll back: GitHub Actions > Deploy > Run workflow, enter an existing tag (e.g. `v1.2.2`). Concurrent deploys are serialised.
+
+Caveat: Container Apps' single mode starts the new revision before retiring the old one, so two replicas may briefly overlap during rollout. Litestream restores on start and the old replica stops shortly after, but this is not a hard single-writer guarantee. Verify on real Azure (checklist above); if overlap is a problem, switch to deactivate-first (brief downtime, no fallback to previous revision).
