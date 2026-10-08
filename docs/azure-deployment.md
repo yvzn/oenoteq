@@ -80,14 +80,15 @@ Untested on real Azure: behaviour of `az containerapp update` while the app is s
 
 ## PWA behind Easy Auth
 
-Code side (done): excluded paths above; a 401 from Easy Auth becomes `ApiError(401, ..., retryable=true)` (`web/src/api/client.ts`); the sync handlers retry on `e.retryable` (network errors are retryable too), so an expired session never fails or drops an outbox item. A 302 to the Microsoft login host is a cross-origin redirect that `fetch` rejects, which is already the retryable network-error path. Sync resumes on the next app open (post-login redirect reloads the app) or `online` event.
+Code side: excluded paths above. No client change was needed (unverified on real Azure): with `RedirectToLoginPage`, an expired session most likely makes Easy Auth answer API calls with a 302 to `login.microsoftonline.com`, which `fetch` rejects cross-origin. `web/src/api/client.ts` already maps that to `ApiError` status 0, which the sync handlers treat as retryable, so the outbox item stays pending. The user sees the generic network error, not "session expired". If the live check shows a 401 instead (e.g. `Return401`), handle it then. Sync resumes on the next app open (post-login redirect reloads the app) or `online` event.
 
 Verify on real Azure with an Android Chrome phone (not yet run):
 
 - `https://<fqdn>/manifest.webmanifest`, `/sw.js` and `/icons/pwa-192x192.png` load in a private window with no login redirect. If `/icons/*` is not honoured, the icon fetch redirects and install fails: list icon paths individually.
 - Sign in, SW registers (DevTools remote debugging > Application), Chrome offers install (WebAPK), app cold-starts in airplane mode.
 - Gated update (offline-first-pwa/08): deploy a new tag with an empty outbox, app updates on next open; with a queued item, update is held back until the outbox drains.
-- Expired session offline: queue a change, wait out/clear the session cookie, go online. Item stays pending (not failed). Reload, sign in, item syncs.
+- Expired session: queue a change, clear the session cookie, go online. Record whether the API call gets a 302 or a 401. Item must stay pending (not failed). Reload, sign in, item syncs.
+- `sw.js` imports `workbox-*.js` (and `registerSW.js` is loaded by the page): check these are not redirected when the session is expired. Add to `excludedPaths` if they are.
 
 ## Origin cutover (LAN exe to Azure)
 

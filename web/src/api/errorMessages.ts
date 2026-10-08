@@ -40,6 +40,6 @@ export function friendlyMessageForCode(code: string): string {
 
 export function friendlyErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return GENERIC_MESSAGE
-  if (error.retryable) return error.message
+  if (error.status === 0) return error.message
   return friendlyMessageForCode(error.message)
 }

@@ -1,14 +1,10 @@
 export class ApiError extends Error {
   readonly status: number
-  // True when the write was not accepted and retrying later can succeed
-  // (offline, or expired login). The outbox keeps such items pending.
-  readonly retryable: boolean
 
-  constructor(status: number, message: string, retryable = status === 0) {
+  constructor(status: number, message: string) {
     super(message)
     this.name = 'ApiError'
     this.status = status
-    this.retryable = retryable
   }
 }
 
@@ -21,12 +17,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     })
   } catch {
     throw new ApiError(0, 'Network error: unable to reach the server')
-  }
-
-  // Easy Auth answers 401 once the login session expires: keep the item
-  // pending and retry after re-login.
-  if (response.status === 401) {
-    throw new ApiError(401, 'Session expired: sign in again to sync', true)
   }
 
   if (!response.ok) {

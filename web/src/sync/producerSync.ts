@@ -30,7 +30,7 @@ const producerHandler: OutboxHandler = async (item) => {
     }
     await apiClient.put<Producer>(`/producers/${item.targetId}`, item.payload)
   } catch (e) {
-    if (e instanceof ApiError && e.retryable) throw new RetryableOutboxError(e.message)
+    if (e instanceof ApiError && e.status === 0) throw new RetryableOutboxError(e.message)
     throw e
   }
 }

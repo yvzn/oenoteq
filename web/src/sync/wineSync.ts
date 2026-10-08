@@ -40,10 +40,11 @@ const wineHandler: OutboxHandler = async (item) => {
     const payload = await resolveReferencedIds(item.payload as WineInput)
     await apiClient.put<Wine>(`/wines/${item.targetId}`, payload)
   } catch (e) {
-    // status 0 means the request never reached the server (offline/unreachable
-    // home PC per ADR-0002) — that's not a rejection of this item, just try
-    // again on the next reconnect.
-    if (e instanceof ApiError && e.retryable) throw new RetryableOutboxError(e.message)
+    // status 0 means the request never reached the server (offline, or an
+    // expired Easy Auth session whose login redirect fetch can't follow,
+    // ADR-0008) — that's not a rejection of this item, just try again on the
+    // next reconnect or after re-login.
+    if (e instanceof ApiError && e.status === 0) throw new RetryableOutboxError(e.message)
     throw e
   }
 }

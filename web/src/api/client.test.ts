@@ -46,18 +46,7 @@ describe('apiClient.get', () => {
 
     await expect(apiClient.get('/wines')).rejects.toMatchObject({
       status: 500,
-      retryable: false,
       message: 'Request failed with status 500',
-    })
-  })
-
-  it('throws a retryable ApiError keeping status 401 when the session expired (Easy Auth), so queued writes stay pending', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 401 })))
-
-    await expect(apiClient.get('/wines')).rejects.toMatchObject({
-      status: 401,
-      retryable: true,
-      message: 'Session expired: sign in again to sync',
     })
   })
 
@@ -66,7 +55,6 @@ describe('apiClient.get', () => {
 
     await expect(apiClient.get('/wines')).rejects.toMatchObject({
       status: 0,
-      retryable: true,
     })
     await expect(apiClient.get('/wines')).rejects.toBeInstanceOf(ApiError)
   })
