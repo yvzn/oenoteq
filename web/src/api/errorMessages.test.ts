@@ -23,6 +23,12 @@ describe('friendlyErrorMessage', () => {
     expect(friendlyErrorMessage(error)).toBe('Network error: unable to reach the server')
   })
 
+  it('passes an expired-session message through as-is', () => {
+    const error = new ApiError(401, 'Session expired: sign in again to sync', true)
+
+    expect(friendlyErrorMessage(error)).toBe('Session expired: sign in again to sync')
+  })
+
   it('falls back to a generic message for a non-ApiError', () => {
     expect(friendlyErrorMessage(new Error('boom'))).toBe('Something went wrong. Please try again.')
   })

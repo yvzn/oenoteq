@@ -76,6 +76,20 @@ describe('pushConsumptions — consumption create', () => {
   })
 })
 
+describe('pushConsumptions — expired session', () => {
+  it('leaves the item pending (not failed) on a retryable 401', async () => {
+    await db.wines.put(wine)
+    await enqueueConsumptionCreate(-1, 5, { date: '2026-03-01', rating: null, notes: null, client_id: 'abc' })
+    vi.mocked(apiClient.post).mockRejectedValue(new ApiError(401, 'Session expired: sign in again to sync', true))
+
+    await pushConsumptions()
+
+    const items = await db.outbox.toArray()
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({ status: 'pending' })
+  })
+})
+
 describe('pushConsumptions — consumption update', () => {
   it('sends a PUT for an already-synced consumption', async () => {
     await enqueueConsumptionUpdate(1, { date: '2026-03-02', rating: 4, notes: 'Revised' })

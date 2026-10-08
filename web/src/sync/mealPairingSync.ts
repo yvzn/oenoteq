@@ -21,7 +21,7 @@ const mealPairingHandler: OutboxHandler = async (item) => {
       meal_id: resolvedMealId,
     })
   } catch (e) {
-    if (e instanceof ApiError && e.status === 0) throw new RetryableOutboxError(e.message)
+    if (e instanceof ApiError && e.retryable) throw new RetryableOutboxError(e.message)
     throw e
   }
 }

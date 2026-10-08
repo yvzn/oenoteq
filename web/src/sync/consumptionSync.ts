@@ -41,10 +41,10 @@ async function replaceLocalConsumption(wineId: number, localId: number, created:
   await db.wines.update(wineId, { consumption_history: history })
 }
 
-// A network error (status 0) never reached the server, so it's not a
-// rejection of this item — just try again on the next reconnect.
+// A retryable error (offline, or expired login) isn't a rejection of this
+// item — just try again on the next reconnect or after re-login.
 function rethrowNetworkErrorsAsRetryable(e: unknown): never {
-  if (e instanceof ApiError && e.status === 0) throw new RetryableOutboxError(e.message)
+  if (e instanceof ApiError && e.retryable) throw new RetryableOutboxError(e.message)
   throw e
 }
 

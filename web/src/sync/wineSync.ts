@@ -43,7 +43,7 @@ const wineHandler: OutboxHandler = async (item) => {
     // status 0 means the request never reached the server (offline/unreachable
     // home PC per ADR-0002) — that's not a rejection of this item, just try
     // again on the next reconnect.
-    if (e instanceof ApiError && e.status === 0) throw new RetryableOutboxError(e.message)
+    if (e instanceof ApiError && e.retryable) throw new RetryableOutboxError(e.message)
     throw e
   }
 }

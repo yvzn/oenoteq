@@ -80,7 +80,7 @@ Untested on real Azure: behaviour of `az containerapp update` while the app is s
 
 ## PWA behind Easy Auth
 
-Code side (done): excluded paths above; a 401 from Easy Auth is mapped to a retryable network-style error (`web/src/api/client.ts`), so an expired session never fails or drops an outbox item. A 302 to the Microsoft login host is a cross-origin redirect that `fetch` rejects, which is already the retryable status 0 path. Sync resumes on the next app open (post-login redirect reloads the app) or `online` event.
+Code side (done): excluded paths above; a 401 from Easy Auth becomes `ApiError(401, ..., retryable=true)` (`web/src/api/client.ts`); the sync handlers retry on `e.retryable` (network errors are retryable too), so an expired session never fails or drops an outbox item. A 302 to the Microsoft login host is a cross-origin redirect that `fetch` rejects, which is already the retryable network-error path. Sync resumes on the next app open (post-login redirect reloads the app) or `online` event.
 
 Verify on real Azure with an Android Chrome phone (not yet run):
 
