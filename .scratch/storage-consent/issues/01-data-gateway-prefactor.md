@@ -1,0 +1,15 @@
+# 01: Data gateway prefactor
+
+**What to build:** a single data gateway that every composable calls for reads and writes of Wines, Consumptions, quantity adjustments, Producers, Appellations, Meals, Meal Pairings and the cellar search. The current local store, outbox and sync move behind it as the local-first adapter, with no change in behavior. This is the seam ADR 0010 needs to later swap in a direct-to-server adapter. If the offline wine list effort has not landed, the cellar list read is the gateway's first operation, with the same shape. See `.scratch/storage-consent/spec.md` and ADR 0010.
+
+**Blocked by:** None (can start immediately)
+
+**Status:** ready-for-agent
+
+- [ ] One gateway interface covering every entity read and write the app performs today, including the cellar search, quantity adjustment and consumption create/update/delete
+- [ ] The existing local-first behavior (local store first, outbox, background push, id remapping, "pending" state) lives in one adapter implementing that interface; no behavior change
+- [ ] No composable or view imports the local store or calls the API client for entity data directly; everything goes through the gateway
+- [ ] The active adapter is resolved in one place; for now it is always the local-first adapter
+- [ ] Contract tests are written once against the gateway interface and run against the local-first adapter: list/get/create/update for each entity, quantity adjustment, consumption create/update/delete, search with filters and sorts, errors surfacing as friendly errors. Where adapters will legitimately differ (outbox, local ids, pending state) the contract states the difference explicitly
+- [ ] Every existing test passes unchanged (same assertions, same mocks at the API-client and fake IndexedDB boundaries)
+- [ ] No API, schema or `api.http` change

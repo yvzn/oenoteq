@@ -47,3 +47,11 @@ _Avoid_: Drinking status, maturity, unknown (use "unassessed")
 **Label Scan**:
 Prefilling the Add Wine form's Millesime, Appellation, Producer, and Color from a photo of the bottle's etiquette, via client-side OCR. Always reviewed and submitted manually — never auto-adds a Wine. Garde and Quantity are never scanned: they're the user's own judgment/stock count, not printed on a label.
 _Avoid_: OCR, photo import
+
+**Storage Consent**:
+The user's explicit choice, asked on first visit and changeable at any time, to let the app keep data on their device. Granting it turns on Offline Mode; refusing leaves the app fully usable but online-only. Until a choice is made, nothing is kept on the device except the choice itself. The sign-in session belongs to the hosting platform and is not covered.
+_Avoid_: Cookie consent (the app sets no cookies of its own)
+
+**Offline Mode**:
+Working with the cellar without a network: the cellar is kept on the device and changes are queued to sync later. Exists only while Storage Consent is granted; without it the app works only while online.
+_Avoid_: Local mode, PWA mode
