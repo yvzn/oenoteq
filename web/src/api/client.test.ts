@@ -50,6 +50,15 @@ describe('apiClient.get', () => {
     })
   })
 
+  it('throws an ApiError with status 0 when the session expired (401 from Easy Auth) so queued writes stay retryable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 401 })))
+
+    await expect(apiClient.get('/wines')).rejects.toMatchObject({
+      status: 0,
+      message: 'Session expired: sign in again to sync',
+    })
+  })
+
   it('throws an ApiError with status 0 when fetch rejects (network failure)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')))
 

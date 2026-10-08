@@ -19,6 +19,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(0, 'Network error: unable to reach the server')
   }
 
+  // Easy Auth answers 401 once the login session expires. Reported as status 0
+  // (not delivered) so the outbox keeps the item pending and retries after re-login.
+  if (response.status === 401) {
+    throw new ApiError(0, 'Session expired: sign in again to sync')
+  }
+
   if (!response.ok) {
     let message = `Request failed with status ${response.status}`
     try {

@@ -16,10 +16,12 @@ param clientSecret string
 @description('Entra object ids allowed to sign in. Empty = no restriction (any personal account!).')
 param allowedIdentities array = []
 
-@description('Paths reachable without login (PWA needs them, ticket 06).')
+@description('Paths reachable without login. The browser fetches the manifest and its icons without cookies (install / WebAPK), so they must be open; sw.js is open so SW update checks never hit a login redirect. Bare + /* forms because wildcard support is undocumented for Container Apps.')
 param excludedPaths array = [
   '/manifest.webmanifest'
   '/sw.js'
+  '/icons'
+  '/icons/*'
 ]
 
 var storageName = toLower('${namePrefix}${uniqueString(resourceGroup().id)}')

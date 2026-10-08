@@ -7,7 +7,7 @@ Decision record: `docs/adr/0008-azure-container-apps-deployment.md`. Infra is `i
 - Resource group, storage account (Standard_LRS) with Blob container `backups`, 30-day lifecycle delete as backstop for Litestream's 7-day retention.
 - Container Apps environment (no Log Analytics, to avoid ingestion cost) and one app: 0.25 vCPU / 0.5 GiB, **min 0 / max 1 replica** (scale to zero; Litestream restores on each cold start), single active revision, HTTPS-only external ingress on 8080.
 - Entra app registration, audience personal Microsoft accounts only.
-- Easy Auth: `RedirectToLoginPage`, `excludedPaths` = `/manifest.webmanifest`, `/sw.js` (ticket 06 verifies the final list), optional `allowedPrincipals`.
+- Easy Auth: `RedirectToLoginPage`, `excludedPaths` = `/manifest.webmanifest`, `/sw.js`, `/icons`, `/icons/*` (manifest and icons are fetched without cookies, so install needs them open; `/icons/*` wildcard unverified on Container Apps, check on real Azure), optional `allowedPrincipals`.
 - Image pulled from GHCR **anonymously**: after the first tag build, set the package visibility to public (GitHub package settings). For private, add `registries` plus a read-only PAT secret to the Bicep.
 
 ## Deploy
@@ -77,3 +77,23 @@ Redeploy or roll back: GitHub Actions > Deploy > Run workflow, enter an existing
 Caveat: Container Apps' single mode starts the new revision before retiring the old one, so two replicas may briefly overlap during rollout. Litestream restores on start and the old replica stops shortly after, but this is not a hard single-writer guarantee. Verify on real Azure (checklist above); if overlap is a problem, switch to deactivate-first (brief downtime, no fallback to previous revision).
 
 Untested on real Azure: behaviour of `az containerapp update` while the app is scaled to zero (no replica to probe), and whether a failed deploy leaves the Release run red (the exe release job is independent and still publishes).
+
+## PWA behind Easy Auth
+
+Code side (done): excluded paths above; a 401 from Easy Auth is mapped to a retryable network-style error (`web/src/api/client.ts`), so an expired session never fails or drops an outbox item. A 302 to the Microsoft login host is a cross-origin redirect that `fetch` rejects, which is already the retryable status 0 path. Sync resumes on the next app open (post-login redirect reloads the app) or `online` event.
+
+Verify on real Azure with an Android Chrome phone (not yet run):
+
+- `https://<fqdn>/manifest.webmanifest`, `/sw.js` and `/icons/pwa-192x192.png` load in a private window with no login redirect. If `/icons/*` is not honoured, the icon fetch redirects and install fails: list icon paths individually.
+- Sign in, SW registers (DevTools remote debugging > Application), Chrome offers install (WebAPK), app cold-starts in airplane mode.
+- Gated update (offline-first-pwa/08): deploy a new tag with an empty outbox, app updates on next open; with a queued item, update is held back until the outbox drains.
+- Expired session offline: queue a change, wait out/clear the session cookie, go online. Item stays pending (not failed). Reload, sign in, item syncs.
+
+## Origin cutover (LAN exe to Azure)
+
+IndexedDB is per origin: the Azure origin starts with an empty local DB and an empty outbox. Anything still queued on the old LAN origin is not carried over.
+
+1. Per phone, on the old LAN origin: go online to the LAN exe, open the app, wait until the sync-status page shows an empty outbox (retry or discard failed items).
+2. Stop the LAN exe. Copy its `cellar.db` somewhere safe (it is the source of truth).
+3. Seed Azure with that DB: with the app scaled to zero, run a throwaway container with the file at `DB_PATH` and Litestream pointed at the production prefix (same procedure as "re-upload that file" in `docs/backup-and-restore.md`), then start the app. Litestream restores it on cold start. If Azure already has data, restore into a new `LITESTREAM_AZURE_PATH` prefix instead, never overwrite the live one.
+4. Per phone: open the Azure URL, sign in, install the PWA, let the first pull fill local IndexedDB. Uninstall the old LAN PWA/shortcut afterwards.
