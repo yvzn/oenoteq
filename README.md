@@ -36,6 +36,15 @@ Starts the Vite dev server (with hot reload) and proxies `/wines` and `/health` 
 go test ./...
 ```
 
+## E2E (offline-first sync tracer)
+
+```sh
+cd web
+npm run e2e
+```
+
+Builds the web app and the Go exe (SPA embedded), starts it on a free port with a temporary database, runs the Playwright test in Chromium, then stops the exe and deletes the database. First time only: `npx playwright install chromium`. Local and on demand; no CI job.
+
 ## API
 
 Endpoints are documented as runnable requests in `api.http`.
