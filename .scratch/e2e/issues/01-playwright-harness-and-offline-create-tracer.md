@@ -18,7 +18,7 @@
 - [x] Waits use polling on observable conditions, no fixed sleeps
 - [x] The test never reads or writes the local store
 - [x] Passes 10 consecutive runs
-- [x] Time-box: if stabilising exceeds about one day, stop, record why under `## Comments`, set status accordingly, and remove the blocking edge on the data gateway prefactor ticket
+- [x] Time-box (not triggered): if stabilising exceeds about one day, stop, record why under `## Comments`, set status accordingly, and remove the blocking edge on the data gateway prefactor ticket
 - [x] No API, schema or `api.http` change
 
 **Out of scope:**
@@ -30,5 +30,7 @@
 
 - Command: `cd web && npm run e2e` (documented in README). Passed 10 consecutive runs, ~12s each.
 - Offline toggle: `context.setOffline(true/false)` reaches the app's connectivity logic in Chromium (banner appears and disappears); no explicit event dispatch needed.
-- Deviation from AC 13: the cellar list is fed by the server (`/search`), so offline the new Wine is not in the list. The "not yet synced" badge is asserted on the Wine detail page the form navigates to. The list is asserted after reconnect, and again after reload.
+- Deviation from the tracer-flow AC ("shows in the list with the not-yet-synced indicator"): the cellar list still calls `/search` (ADR 0009, accepted, is not implemented yet), so offline the new Wine is not in the list. Re-tighten the test to assert the list offline when ADR 0009 lands.
+- Storage Consent (ADR 0010) is not implemented either, so no consent step exists; add one when it lands.
+- Original text: The "not yet synced" badge is asserted on the Wine detail page the form navigates to. The list is asserted after reconnect, and again after reload.
 - The exe embeds `internal/static/dist` (tracked placeholder). Global setup swaps the built SPA in for `go build`, then restores the placeholder via `git checkout`; the working tree stays clean.

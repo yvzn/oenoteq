@@ -18,6 +18,15 @@ test('a wine created offline reaches the server after reconnecting', async ({ pa
   await page.evaluate(() => navigator.serviceWorker.ready)
   await expect(page.getByTestId('offline-banner')).toBeHidden()
 
+  // Reference data is loaded once the form can offer it; only then go offline.
+  await page.getByTestId('add-wine-link').click()
+  await page.getByTestId('wine-appellation-input').click()
+  await expect(page.getByTestId('wine-appellation-option')).toHaveCount(1)
+  await page.getByTestId('wine-producer-input').click()
+  await expect(page.getByTestId('wine-producer-option')).toHaveCount(1)
+  await page.getByTestId('wine-form-cancel').click()
+  await expect(page.getByTestId('wine-item')).toHaveCount(0)
+
   await context.setOffline(true)
   await expect(page.getByTestId('offline-banner')).toBeVisible()
 
@@ -52,4 +61,9 @@ test('a wine created offline reaches the server after reconnecting', async ({ pa
   await expect(page.getByTestId('wine-item')).toHaveCount(1)
   await page.reload()
   await expect(page.getByTestId('wine-item')).toHaveCount(1)
+
+  // The remapped id resolves: the listed wine opens with its entered fields.
+  await page.getByTestId('wine-link').click()
+  await expect(page.getByText('Domaine du Closel')).toBeVisible()
+  await expect(page.getByText('2018')).toBeVisible()
 })

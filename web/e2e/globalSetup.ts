@@ -22,19 +22,20 @@ function freePort(): Promise<number> {
 }
 
 // The exe embeds internal/static/dist (a tracked placeholder). Swap in the
-// freshly built SPA for the Go build only, then put the placeholder back so
-// the working tree stays clean.
-function buildExe(exePath: string): void {
+// freshly built SPA for the Go build only, then restore what was there.
+function buildExe(exePath: string, workDir: string): void {
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
   execFileSync(npm, ['run', 'build'], { cwd: webDir, stdio: 'inherit', shell: process.platform === 'win32' })
 
+  const backup = join(workDir, 'dist-backup')
+  cpSync(embedDir, backup, { recursive: true })
   try {
     rmSync(embedDir, { recursive: true, force: true })
     cpSync(join(webDir, 'dist'), embedDir, { recursive: true })
     execFileSync('go', ['build', '-o', exePath, '.'], { cwd: repoRoot, stdio: 'inherit' })
   } finally {
     rmSync(embedDir, { recursive: true, force: true })
-    execFileSync('git', ['checkout', '--', 'internal/static/dist'], { cwd: repoRoot, stdio: 'inherit' })
+    cpSync(backup, embedDir, { recursive: true })
   }
 }
 
@@ -64,7 +65,12 @@ async function post(baseUrl: string, path: string, body: unknown): Promise<void>
 export default async function globalSetup(): Promise<() => Promise<void>> {
   const workDir = mkdtempSync(join(tmpdir(), 'cellar-e2e-'))
   const exePath = join(workDir, exeName)
-  buildExe(exePath)
+  try {
+    buildExe(exePath, workDir)
+  } catch (err) {
+    rmSync(workDir, { recursive: true, force: true })
+    throw err
+  }
 
   const port = await freePort()
   const baseUrl = `http://127.0.0.1:${port}`
