@@ -64,6 +64,8 @@ One-time setup:
 
 Release:
 
+First run the E2E before releasing: `cd web && npm run e2e` (see README). No CI job gates it yet; the first regression that slips past local runs gets a CI job.
+
 ```sh
 git tag v1.2.3 && git push origin v1.2.3
 ```

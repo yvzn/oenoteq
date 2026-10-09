@@ -4,8 +4,8 @@
 
 **Blocked by:** 01: Playwright harness and offline-create tracer
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The release instructions contain one line: run the E2E command before releasing
-- [ ] The same place notes the promotion trigger: the first regression that slips past local runs gets a CI job
-- [ ] The command named matches the one delivered by ticket 01
+- [x] The release instructions contain one line: run the E2E command before releasing
+- [x] The same place notes the promotion trigger: the first regression that slips past local runs gets a CI job
+- [x] The command named matches the one delivered by ticket 01
