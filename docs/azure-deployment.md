@@ -17,7 +17,7 @@ az login
 IMAGE=ghcr.io/yvzn/oenoteq:<tag> sh infra/deploy.sh
 ```
 
-Re-running is safe (resources are updated, a new client secret is appended). Logs: `az containerapp logs show -g cellar-rg -n cellar-app --follow`.
+Re-running is safe (resources are updated, a new client secret replaces the previous one, since Entra allows only 2 per app). Logs: `az containerapp logs show -g cellar-rg -n cellar-app --follow`.
 
 ## Spike: does `allowedPrincipals` block a non-listed personal account? (~15 min, not yet run)
 

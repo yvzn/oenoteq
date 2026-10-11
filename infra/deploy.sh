@@ -23,8 +23,8 @@ if [ -z "$CLIENT_ID" ]; then
   CLIENT_ID="$(az ad app create --display-name "$APP_REG_NAME" \
     --sign-in-audience PersonalMicrosoftAccount --query appId -o tsv)"
 fi
-# New secret each run; only the latest is stored in the container app.
-CLIENT_SECRET="$(az ad app credential reset --id "$CLIENT_ID" --append \
+# New secret each run. Without --append, reset replaces existing secrets (Entra allows only 2).
+CLIENT_SECRET="$(az ad app credential reset --id "$CLIENT_ID" \
   --display-name "easyauth-$(date +%Y%m%d)" --years 1 --query password -o tsv)"
 
 IDENTITIES="[]"
