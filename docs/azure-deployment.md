@@ -82,7 +82,7 @@ Untested on real Azure: behaviour of `az containerapp update` while the app is s
 
 ## PWA behind Easy Auth
 
-Code side: excluded paths above. No client change was needed (unverified on real Azure): with `RedirectToLoginPage`, an expired session most likely makes Easy Auth answer API calls with a 302 to `login.microsoftonline.com`, which `fetch` rejects cross-origin. `web/src/api/client.ts` already maps that to `ApiError` status 0, which the sync handlers treat as retryable, so the outbox item stays pending. The user sees the generic network error, not "session expired". If the live check shows a 401 instead (e.g. `Return401`), handle it then. Sync resumes on the next app open (post-login redirect reloads the app) or `online` event.
+Code side: excluded paths above, and `navigateFallbackDenylist: [/^\/\.auth\//]` in `web/vite.config.ts` so the service worker does not answer `/.auth/*` navigations with the cached `index.html` (that made `/.auth/me` show the SPA home page instead of the login flow). No client change was needed (unverified on real Azure): with `RedirectToLoginPage`, an expired session most likely makes Easy Auth answer API calls with a 302 to `login.microsoftonline.com`, which `fetch` rejects cross-origin. `web/src/api/client.ts` already maps that to `ApiError` status 0, which the sync handlers treat as retryable, so the outbox item stays pending. The user sees the generic network error, not "session expired". If the live check shows a 401 instead (e.g. `Return401`), handle it then. Sync resumes on the next app open (post-login redirect reloads the app) or `online` event.
 
 Verify on real Azure with an Android Chrome phone (not yet run):
 

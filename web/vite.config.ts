@@ -17,6 +17,8 @@ export default defineConfig({
       workbox: {
         // Precache the built app shell only — API responses are not cached here.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Auth routes are served by Easy Auth, not the SPA, so navigations to them must bypass the index.html fallback.
+        navigateFallbackDenylist: [/^\/\.auth\//],
       },
       manifest: {
         name: 'Oenoteq – Wine Cellar Tracker',
