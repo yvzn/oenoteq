@@ -16,7 +16,7 @@ function goToSyncStatus() {
     type="button"
     data-testid="offline-banner"
     role="status"
-    class="border-line bg-parchment-raised fixed bottom-4 left-1/2 z-20 flex max-w-xs -translate-x-1/2 items-center gap-3 rounded-lg border px-4 py-2 text-left text-sm shadow-lg"
+    class="border-line bg-parchment-raised fixed bottom-4 left-1/2 z-20 flex max-w-xs -translate-x-1/2 items-center gap-3 rounded-lg border px-4 py-2 text-left text-sm shadow-lg max-[360px]:w-[calc(100vw-1rem)] max-[360px]:py-3"
     @click="goToSyncStatus"
   >
     <span class="text-danger">
