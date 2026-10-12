@@ -112,6 +112,14 @@ function onEnter(event: KeyboardEvent) {
   select(item)
 }
 
+function clear() {
+  query.value = ''
+  open.value = false
+  resetHighlight()
+}
+
+defineExpose({ clear })
+
 function onEscape() {
   if (!open.value) return
   open.value = false

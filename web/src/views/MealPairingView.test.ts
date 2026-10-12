@@ -289,6 +289,56 @@ describe('MealPairingView', () => {
     expect(useSuccessMessage().message.value).toMatch(/added/i)
   })
 
+  it('clears the add-meal input after a successful "+create" and automatic pairing', async () => {
+    mockApi()
+    vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
+      if (path === '/meals') return Promise.resolve({ id: 3, ...(body as object) })
+      if (path === '/meal-pairings') return Promise.resolve({ appellation_id: 1, color: 'rouge', meal_id: 3 })
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    const { wrapper } = await mountAt('/meal-pairings')
+    await selectAppellationAndColor(wrapper)
+
+    await createNewMeal(wrapper, 'Tartiflette')
+    await flushPromises()
+
+    const input = wrapper.get('[data-testid="add-meal-autocomplete-input"]').element as HTMLInputElement
+    expect(input.value).toBe('')
+    expect(wrapper.find('[data-testid="new-meal-created"]').exists()).toBe(true)
+  })
+
+  it('keeps the typed text and shows the error when the local meal create fails', async () => {
+    mockApi()
+    const { wrapper } = await mountAt('/meal-pairings')
+    await selectAppellationAndColor(wrapper)
+    vi.spyOn(db.meals, 'put').mockRejectedValueOnce(new Error('create exploded'))
+
+    await createNewMeal(wrapper, 'Tartiflette')
+    await flushPromises()
+
+    const input = wrapper.get('[data-testid="add-meal-autocomplete-input"]').element as HTMLInputElement
+    expect(input.value).toBe('Tartiflette')
+    expect(wrapper.find('[data-testid="new-meal-error"]').exists()).toBe(true)
+  })
+
+  // Existing error handling: the created meal is left selected, so the input
+  // shows its name and the user can retry with "Add meal".
+  it('leaves the created meal in the input when create succeeds but the pairing add fails', async () => {
+    mockApi()
+    const { wrapper } = await mountAt('/meal-pairings')
+    await selectAppellationAndColor(wrapper)
+    vi.spyOn(db.mealPairings, 'put').mockRejectedValueOnce(new Error('pairing exploded'))
+
+    await createNewMeal(wrapper, 'Tartiflette')
+    await flushPromises()
+
+    const input = wrapper.get('[data-testid="add-meal-autocomplete-input"]').element as HTMLInputElement
+    expect(input.value).toBe('Tartiflette')
+    expect(wrapper.find('[data-testid="new-meal-created"]').exists()).toBe(true)
+    expect(useSuccessMessage().message.value).toBeNull()
+  })
+
   it('creates and pairs a new meal immediately even when the network rejects the pairing, leaving it queued in the outbox', async () => {
     mockApi()
     vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {

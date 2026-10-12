@@ -49,6 +49,7 @@ const appellationId = ref<number | null>(parseId(route.query.appellation_id))
 const color = ref<Color | ''>(parseColor(route.query.color) ?? '')
 
 const selectedMealId = ref<number | null>(null)
+const addMealAutocomplete = ref<InstanceType<typeof AutocompleteField> | null>(null)
 
 const pairingSuccess = useSuccessMessage()
 const createdMeal = ref<{ id: number; name: string } | null>(null)
@@ -110,6 +111,7 @@ async function submitNewMeal(name: string) {
   if (mutateError.value) {
     selectedMealId.value = created.id
   } else {
+    addMealAutocomplete.value?.clear()
     pairingSuccess.show('Meal pairing added.')
   }
 }
@@ -192,6 +194,7 @@ async function submitNewMeal(name: string) {
             @keydown="(e) => submitOnEnter(e, addMeal)"
           >
             <AutocompleteField
+              ref="addMealAutocomplete"
               testid="add-meal-autocomplete"
               :items="meals"
               :model-value="selectedMealId"
