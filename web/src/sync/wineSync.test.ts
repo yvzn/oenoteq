@@ -58,6 +58,20 @@ describe('pullWines', () => {
     })
   })
 
+  it('does not overwrite a wine that still has a queued update', async () => {
+    await db.wines.put({ ...wine, garde_debut: null, garde_fin: null, suggested_meals: [], consumption_history: [] })
+    await enqueueWineUpdate(5, { ...wine, garde_debut: null, garde_fin: null })
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/wines') return Promise.resolve([wine])
+      if (path === '/producers') return Promise.resolve([producer])
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    await pullWines()
+
+    expect(await db.wines.get(5)).toMatchObject({ garde_debut: null, garde_fin: null })
+  })
+
   it('drops a local wine with a server id that no longer exists on the server', async () => {
     await db.wines.put({ ...wine, id: 6, suggested_meals: [], consumption_history: [] })
     vi.mocked(apiClient.get).mockImplementation((path: string) => {
@@ -94,6 +108,45 @@ describe('pullWine', () => {
 
     expect(result).toEqual(detail)
     expect(await db.wines.get(5)).toEqual(detail)
+  })
+
+  it.each([
+    ['clearing both garde bounds', { garde_debut: null, garde_fin: null }],
+    ['changing garde to other values', { garde_debut: 2022, garde_fin: 2030 }],
+  ])('keeps the local copy while an update is still queued (%s)', async (_label, garde) => {
+    const stale = { ...wine, suggested_meals: [], consumption_history: [] }
+    await db.wines.put({ ...stale, ...garde })
+    await enqueueWineUpdate(5, { ...wine, ...garde })
+    vi.mocked(apiClient.get).mockResolvedValue(stale)
+
+    const result = await pullWine(5)
+
+    expect(result).toMatchObject(garde)
+    expect(await db.wines.get(5)).toMatchObject(garde)
+  })
+
+  it('converges on server state once the queued update has synced', async () => {
+    const stale = { ...wine, suggested_meals: [], consumption_history: [] }
+    const edited = { ...stale, garde_debut: null, garde_fin: null }
+    await db.wines.put(edited)
+    await enqueueWineUpdate(5, { ...wine, garde_debut: null, garde_fin: null })
+    vi.mocked(apiClient.put).mockResolvedValue(edited)
+    await pushWines()
+    vi.mocked(apiClient.get).mockResolvedValue({ ...edited, quantity: 9 })
+
+    const result = await pullWine(5)
+
+    expect(result).toMatchObject({ garde_debut: null, garde_fin: null, quantity: 9 })
+    expect(await db.wines.get(5)).toMatchObject({ quantity: 9 })
+  })
+
+  it('still refreshes a wine with no queued item from the server', async () => {
+    await db.wines.put({ ...wine, suggested_meals: [], consumption_history: [] })
+    vi.mocked(apiClient.get).mockResolvedValue({ ...wine, garde_debut: null, suggested_meals: [], consumption_history: [] })
+
+    await pullWine(5)
+
+    expect(await db.wines.get(5)).toMatchObject({ garde_debut: null })
   })
 })
 

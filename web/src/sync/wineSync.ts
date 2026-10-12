@@ -2,7 +2,7 @@ import { ApiError, apiClient } from '../api/client'
 import type { Producer, Wine, WineCreateInput, WineDetail, WineInput } from '../api/types'
 import { db } from '../db/localDb'
 import { resolveSyncedId } from './idRemap'
-import { enqueue, replay, RetryableOutboxError, type OutboxHandler } from './outbox'
+import { enqueue, isQueued, replay, RetryableOutboxError, type OutboxHandler } from './outbox'
 
 export interface WineCreatePayload extends WineCreateInput {
   client_id: string
@@ -75,8 +75,15 @@ export async function pushWines(): Promise<void> {
   await replay(db.outbox, { wine: wineHandler })
 }
 
+// While a Wine still has a queued create/update, the local copy is the
+// authoritative one: a server read predates that edit and would revert it.
 export async function pullWine(id: number): Promise<WineDetail> {
   const detail = await apiClient.get<WineDetail>(`/wines/${id}`)
+  // Checked after the fetch so an edit queued while the GET was in flight is covered too.
+  if (await isQueued(db.outbox, 'wine', id)) {
+    const local = await db.wines.get(id)
+    if (local) return local
+  }
   await db.wines.put(detail)
   return detail
 }
@@ -90,6 +97,7 @@ export async function pullWines(): Promise<void> {
   ])
   await db.producers.bulkPut(producers)
   for (const wine of wines) {
+    if (await isQueued(db.outbox, 'wine', wine.id)) continue
     const existing = await db.wines.get(wine.id)
     await db.wines.put({
       ...wine,
