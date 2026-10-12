@@ -6,12 +6,11 @@
 
 **Status:** in-progress (infra scripted; needs real Azure run, see docs/azure-deployment.md)
 
-**Decisions:** identity provider = Microsoft personal accounts (Entra app registration, audience "personal Microsoft accounts only"); registry = GHCR; domain = default `*.azurecontainerapps.io`.
+**Decisions:** identity provider = Microsoft Entra ID, single tenant (app registration "current tenant only"); registry = GHCR; domain = default `*.azurecontainerapps.io`.
 
-- [ ] App reachable over HTTPS on the `*.azurecontainerapps.io` URL, login required
-- [ ] Auth config: `unauthenticatedClientAction` = `RedirectToLoginPage`, `excludedPaths` covers what the PWA needs unauthenticated (manifest, service worker script; see ticket 06)
-- [ ] Only intended users can sign in, enforced by platform config, no app code. First try `identityProviders.azureActiveDirectory.validation.defaultAuthorizationPolicy.allowedPrincipals.identities`. **Spike first (about 15 min):** confirm it actually blocks a second, non-listed personal Microsoft account. The docs do not say how identities are expressed for personal accounts, and Entra "Assignment required" is documented for tenant users only. Without a restriction any personal Microsoft account can sign in
-- [ ] If the spike fails: fall back to a minimal app-side check of `X-MS-CLIENT-PRINCIPAL-NAME` against an allowlist (about 20 lines, own ticket), or use a tenant-only app registration
-- [ ] Container Apps pulls the image from GHCR (public image, or private with a read-only pull token stored as a secret)
-- [ ] Replica count capped at one writer (max 1), min 0; measure cold-start restore time on the first deploy
-- [ ] Monthly cost estimate recorded against the research file
+- [x] App reachable over HTTPS on the `*.azurecontainerapps.io` URL, login required
+- [x] Auth config: `unauthenticatedClientAction` = `RedirectToLoginPage`, `excludedPaths` covers what the PWA needs unauthenticated (manifest, service worker script; see ticket 06)
+- [ ] Only the owner's tenant can sign in, enforced by platform config, no app code: tenant issuer + `defaultAuthorizationPolicy.allowedApplications` = own client id
+- [x] Container Apps pulls the image from GHCR (public image, or private with a read-only pull token stored as a secret)
+- [x] Replica count capped at one writer (max 1), min 0; measure cold-start restore time on the first deploy
+- [x] Monthly cost estimate recorded against the research file

@@ -7,14 +7,11 @@ param namePrefix string = 'cellar'
 @description('GHCR image, e.g. ghcr.io/yvzn/oenoteq:latest. Public image: no pull credentials.')
 param image string
 
-@description('Entra app registration (client) id, audience personal Microsoft accounts only.')
+@description('Entra app registration (client) id, single tenant (this tenant only).')
 param clientId string
 
 @secure()
 param clientSecret string
-
-@description('Entra object ids allowed to sign in. Empty = no restriction (any personal account!).')
-param allowedIdentities array = []
 
 @description('Paths reachable without login. The browser fetches the manifest and its icons without cookies (install / WebAPK), so they must be open; sw.js is open so SW update checks never hit a login redirect. Bare + /* forms because wildcard support is undocumented for Container Apps.')
 param excludedPaths array = [
@@ -140,15 +137,16 @@ resource auth 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
       azureActiveDirectory: {
         enabled: true
         registration: {
-          // "consumers" tenant = personal Microsoft accounts.
-          openIdIssuer: 'https://login.microsoftonline.com/consumers/v2.0'
+          // Tenant-specific issuer: only accounts of this tenant can sign in.
+          openIdIssuer: '${environment().authentication.loginEndpoint}${tenant().tenantId}/v2.0'
           clientId: clientId
           clientSecretSettingName: 'auth-client-secret'
         }
         validation: {
           allowedAudiences: [ clientId ]
-          defaultAuthorizationPolicy: empty(allowedIdentities) ? {} : {
-            allowedPrincipals: { identities: allowedIdentities }
+          // Client application requirement: only tokens issued for this app itself.
+          defaultAuthorizationPolicy: {
+            allowedApplications: [ clientId ]
           }
         }
       }

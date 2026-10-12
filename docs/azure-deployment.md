@@ -6,8 +6,8 @@ Decision record: `docs/adr/0008-azure-container-apps-deployment.md`. Infra is `i
 
 - Resource group, storage account (Standard_LRS) with Blob container `backups`, 30-day lifecycle delete as backstop for Litestream's 7-day retention.
 - Container Apps environment (no Log Analytics, to avoid ingestion cost) and one app: 0.25 vCPU / 0.5 GiB, **min 0 / max 1 replica** (scale to zero; Litestream restores on each cold start), single active revision, HTTPS-only external ingress on 8080.
-- Entra app registration, audience personal Microsoft accounts only.
-- Easy Auth: `RedirectToLoginPage`, `excludedPaths` = `/manifest.webmanifest`, `/sw.js`, `/icons`, `/icons/*` (manifest and icons are fetched without cookies, so install needs them open; `/icons/*` wildcard unverified on Container Apps, check on real Azure), optional `allowedPrincipals`.
+- Entra app registration, single tenant (current tenant). Easy Auth uses the tenant issuer and `allowedApplications` = the app's own client id, so only accounts of this tenant, with tokens issued for this app, get in. No per-user allow-list.
+- Easy Auth: `RedirectToLoginPage`, `excludedPaths` = `/manifest.webmanifest`, `/sw.js`, `/icons`, `/icons/*` (manifest and icons are fetched without cookies, so install needs them open; `/icons/*` wildcard unverified on Container Apps, check on real Azure).
 - Image pulled from GHCR **anonymously**: after the first tag build, set the package visibility to public (GitHub package settings). For private, add `registries` plus a read-only PAT secret to the Bicep.
 
 ## Deploy
@@ -18,15 +18,6 @@ IMAGE=ghcr.io/yvzn/oenoteq:<tag> sh infra/deploy.sh
 ```
 
 Re-running is safe (resources are updated, a new client secret replaces the previous one, since Entra allows only 2 per app). Logs: `az containerapp logs show -g cellar-rg -n cellar-app --follow`.
-
-## Spike: does `allowedPrincipals` block a non-listed personal account? (~15 min, not yet run)
-
-1. Deploy with no `ALLOWED_OIDS`. Sign in with account A, then account B (private window). Both get in: confirms the default hole.
-2. Find account A's object id: after signing in, open `https://<fqdn>/.auth/me` and read the `oid` / `http://schemas.microsoft.com/identity/claims/objectidentifier` claim.
-3. Redeploy with `ALLOWED_OIDS="<oid of A>"`. Retry A (should work) and B in a fresh private window (should be refused, 403).
-4. Record the result below. If B still gets in, use the fallback from the ticket: app-side allowlist on `X-MS-CLIENT-PRINCIPAL-NAME` (own ticket), or a tenant-only app registration.
-
-Result: **TODO, needs a real Azure subscription and two Microsoft accounts.**
 
 ## Verify on real Azure (also carried over from ticket 03)
 
