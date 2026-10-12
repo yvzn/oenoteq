@@ -1125,8 +1125,9 @@ func sortWinesSQL(sortBy, sortDir string) string {
 }
 
 // sortWinesByStatus orders results by Garde Status ascending/descending,
-// following CONTEXT.md's definition sequence, with the same producer-name/id
-// tie-break used by the SQL-driven sorts.
+// following CONTEXT.md's definition sequence. Within a status, wines are
+// ordered by garde_debut in the same direction (unset always last), then by
+// the same producer-name/id tie-break used by the SQL-driven sorts.
 func sortWinesByStatus(results []WineSearchResult, sortDir string) {
 	sort.SliceStable(results, func(i, j int) bool {
 		ri, rj := gardeStatusSortRank[results[i].GardeStatus], gardeStatusSortRank[results[j].GardeStatus]
@@ -1135,6 +1136,16 @@ func sortWinesByStatus(results []WineSearchResult, sortDir string) {
 				return ri > rj
 			}
 			return ri < rj
+		}
+		di, dj := results[i].GardeDebut, results[j].GardeDebut
+		if (di == nil) != (dj == nil) {
+			return di != nil
+		}
+		if di != nil && *di != *dj {
+			if sortDir == "desc" {
+				return *di > *dj
+			}
+			return *di < *dj
 		}
 		if results[i].Producer.Name != results[j].Producer.Name {
 			return results[i].Producer.Name < results[j].Producer.Name

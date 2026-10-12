@@ -414,6 +414,30 @@ func TestSearchSortByStatusFollowsGlossaryOrder(t *testing.T) {
 	}
 }
 
+func TestSearchSortByStatusOrdersWithinStatusByGardeDebut(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	year := time.Now().Year()
+	appellation := createTestAppellation(t, harness, "Bandol")
+
+	// Creation order differs from garde_debut order so the producer/id
+	// fallback can't satisfy the assertions by accident.
+	mid := createSearchTestWine(t, harness, appellation, "rouge", year-2, year+5, 3)
+	earliest := createSearchTestWine(t, harness, appellation, "rouge", year-6, year+5, 3)
+	fin := year + 5
+	noDebut := createSearchTestWineWithOptionalGarde(t, harness, appellation, "rouge", nil, &fin, 3)
+	latest := createSearchTestWine(t, harness, appellation, "rouge", year-1, year+5, 3)
+
+	ascending := doSearch(t, harness, "?sort_by=status&sort_dir=asc")
+	if got, want := resultIDs(ascending), []int{earliest.ID, mid.ID, latest.ID, noDebut.ID}; !slicesEqual(got, want) {
+		t.Errorf("Expected ascending garde_debut with unset last, got %v want %v", got, want)
+	}
+
+	descending := doSearch(t, harness, "?sort_by=status&sort_dir=desc")
+	if got, want := resultIDs(descending), []int{latest.ID, mid.ID, earliest.ID, noDebut.ID}; !slicesEqual(got, want) {
+		t.Errorf("Expected descending garde_debut with unset last, got %v want %v", got, want)
+	}
+}
+
 func TestSearchSortTieBreaksByProducerThenID(t *testing.T) {
 	harness, _ := setupHandlerWithDB(t)
 	year := time.Now().Year()
