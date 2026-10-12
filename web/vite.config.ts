@@ -66,7 +66,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: false,
-    setupFiles: ['./src/test/dialogPolyfill.ts', './src/test/fakeIndexedDb.ts', './src/test/resetLocalDb.ts'],
+    setupFiles: ['./src/test/dialogPolyfill.ts', './src/test/i18n.ts', './src/test/fakeIndexedDb.ts', './src/test/resetLocalDb.ts'],
     pool: 'vmThreads',
   },
 })

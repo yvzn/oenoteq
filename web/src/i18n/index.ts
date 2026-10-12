@@ -1,0 +1,29 @@
+import { createI18n } from 'vue-i18n'
+import { createLocalePreference } from './localePreference'
+import { FALLBACK_LOCALE, type Locale } from './locales'
+import en from './messages/en'
+import fr from './messages/fr'
+
+export const messages = { en, fr }
+
+export const preference = createLocalePreference(() => navigator.languages ?? [])
+
+// French has no distinct "zero" form: 0 reads as singular ("0 vin"). Choices are ordered [one, other].
+function frenchPlural(choice: number, choicesLength: number): number {
+  if (choicesLength === 2) return choice === 0 || choice === 1 ? 0 : 1
+  return Math.min(choice, choicesLength - 1)
+}
+
+export function createAppI18n(
+  locale: Locale = preference.current(),
+  options: { onMissing?: (locale: string, key: string) => void } = {},
+) {
+  return createI18n({
+    legacy: false,
+    locale,
+    fallbackLocale: FALLBACK_LOCALE,
+    messages,
+    pluralRules: { fr: frenchPlural },
+    missing: options.onMissing,
+  })
+}

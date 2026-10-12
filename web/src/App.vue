@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { useDocumentLocale } from './i18n/useDocumentLocale'
 import AppHeader from './components/AppHeader.vue'
 import OfflineBanner from './components/OfflineBanner.vue'
 import SuccessToast from './components/SuccessToast.vue'
+
+useDocumentLocale()
 </script>
 
 <template>
