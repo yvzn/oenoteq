@@ -3,6 +3,7 @@ import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Producer } from '../api/types'
 import { db } from '../db/localDb'
+import { sortByName } from '../db/sortByName'
 import { nextLocalId } from '../db/localId'
 import { pushChangesInBackground } from '../sync'
 import {
@@ -28,9 +29,9 @@ export function useProducers() {
     error.value = null
     try {
       if (navigator.onLine !== false) await pullProducers()
-      producers.value = await db.producers.toArray()
+      producers.value = sortByName(await db.producers.toArray())
     } catch (e) {
-      const cached = await db.producers.toArray()
+      const cached = sortByName(await db.producers.toArray())
       if (cached.length > 0) {
         producers.value = cached
       } else {
@@ -48,7 +49,7 @@ export function useProducers() {
       const localId = nextLocalId()
       const record: Producer = { id: localId, name }
       await db.producers.put(record)
-      producers.value = [...producers.value, record]
+      producers.value = sortByName([...producers.value, record])
       await enqueueProducerCreate(localId, { name, client_id: crypto.randomUUID() })
       pushChangesInBackground()
       return record
@@ -66,7 +67,7 @@ export function useProducers() {
     try {
       const record: Producer = { id, name }
       await db.producers.put(record)
-      producers.value = producers.value.map((p) => (p.id === id ? record : p))
+      producers.value = sortByName(producers.value.map((p) => (p.id === id ? record : p)))
 
       const patchedPendingCreate = id < 0 && (await patchPendingProducerCreate(id, { name }))
       if (!patchedPendingCreate) await enqueueProducerUpdate(id, { name })

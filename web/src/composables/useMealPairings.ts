@@ -3,6 +3,7 @@ import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Color, Meal } from '../api/types'
 import { db } from '../db/localDb'
+import { sortByName } from '../db/sortByName'
 import { pushChangesInBackground } from '../sync'
 import { enqueueMealPairingAdd, pullMealPairings } from '../sync/mealPairingSync'
 
@@ -13,7 +14,7 @@ async function readLocalPairing(appellationId: number, color: Color): Promise<Me
     .filter((r) => r.color === color)
     .toArray()
   const meals = await Promise.all(records.map((r) => db.meals.get(r.mealId)))
-  return meals.filter((m): m is Meal => m !== undefined)
+  return sortByName(meals.filter((m): m is Meal => m !== undefined))
 }
 
 export function useMealPairings() {
@@ -28,7 +29,7 @@ export function useMealPairings() {
     error.value = null
     try {
       if (navigator.onLine !== false) {
-        meals.value = await pullMealPairings(appellationId, color)
+        meals.value = sortByName(await pullMealPairings(appellationId, color))
       } else {
         meals.value = await readLocalPairing(appellationId, color)
       }
@@ -50,7 +51,7 @@ export function useMealPairings() {
     try {
       const meal = await db.meals.get(mealId)
       await db.mealPairings.put({ appellationId, color, mealId })
-      if (meal) meals.value = [...meals.value, meal]
+      if (meal) meals.value = sortByName([...meals.value, meal])
       await enqueueMealPairingAdd({ appellationId, color, mealId })
       pushChangesInBackground()
     } catch (e) {

@@ -94,7 +94,7 @@ describe('ProducerListView', () => {
     mockGet()
 
     const { wrapper } = await mountAt('/producers')
-    await wrapper.findAll('[data-testid="producer-delete-button"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="producer-delete-button"]')[1]!.trigger('click')
 
     const dialog = wrapper.get('[data-testid="confirm-dialog"]').element as HTMLDialogElement
     expect(dialog.open).toBe(true)
@@ -113,7 +113,7 @@ describe('ProducerListView', () => {
     vi.mocked(apiClient.delete).mockResolvedValue(undefined)
 
     const { wrapper } = await mountAt('/producers')
-    await wrapper.findAll('[data-testid="producer-delete-button"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="producer-delete-button"]')[1]!.trigger('click')
     await wrapper.get('[data-testid="confirm-dialog-confirm"]').trigger('click')
     await flushPromises()
 
@@ -128,7 +128,7 @@ describe('ProducerListView', () => {
     vi.mocked(apiClient.delete).mockRejectedValue(new ApiError(409, 'producer_in_use'))
 
     const { wrapper } = await mountAt('/producers')
-    await wrapper.findAll('[data-testid="producer-delete-button"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="producer-delete-button"]')[1]!.trigger('click')
     await wrapper.get('[data-testid="confirm-dialog-confirm"]').trigger('click')
     await flushPromises()
 

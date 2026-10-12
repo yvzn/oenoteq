@@ -3,6 +3,7 @@ import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Appellation } from '../api/types'
 import { db } from '../db/localDb'
+import { sortByName } from '../db/sortByName'
 import { nextLocalId } from '../db/localId'
 import { pushChangesInBackground } from '../sync'
 import {
@@ -28,9 +29,9 @@ export function useAppellations() {
     error.value = null
     try {
       if (navigator.onLine !== false) await pullAppellations()
-      appellations.value = await db.appellations.toArray()
+      appellations.value = sortByName(await db.appellations.toArray())
     } catch (e) {
-      const cached = await db.appellations.toArray()
+      const cached = sortByName(await db.appellations.toArray())
       if (cached.length > 0) {
         appellations.value = cached
       } else {
@@ -48,7 +49,7 @@ export function useAppellations() {
       const localId = nextLocalId()
       const record: Appellation = { id: localId, name }
       await db.appellations.put(record)
-      appellations.value = [...appellations.value, record]
+      appellations.value = sortByName([...appellations.value, record])
       await enqueueAppellationCreate(localId, { name, client_id: crypto.randomUUID() })
       pushChangesInBackground()
       return record
@@ -66,7 +67,7 @@ export function useAppellations() {
     try {
       const record: Appellation = { id, name }
       await db.appellations.put(record)
-      appellations.value = appellations.value.map((a) => (a.id === id ? record : a))
+      appellations.value = sortByName(appellations.value.map((a) => (a.id === id ? record : a)))
 
       const patchedPendingCreate = id < 0 && (await patchPendingAppellationCreate(id, { name }))
       if (!patchedPendingCreate) await enqueueAppellationUpdate(id, { name })

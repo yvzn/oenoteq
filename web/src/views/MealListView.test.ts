@@ -68,6 +68,16 @@ describe('MealListView', () => {
     expect(wrapper.findAll('[data-testid="meal-rename-link"]')).toHaveLength(2)
   })
 
+  it('lists meals alphabetically by name', async () => {
+    mockGet()
+
+    const { wrapper } = await mountAt('/meals')
+
+    const items = wrapper.findAll('[data-testid="meal-item"]')
+    expect(items[0]!.text()).toContain('Grilled Fish')
+    expect(items[1]!.text()).toContain('Oysters')
+  })
+
   it('shows an empty state when there are no meals', async () => {
     mockGet({ meals: [] })
 
@@ -94,7 +104,7 @@ describe('MealListView', () => {
     mockGet()
 
     const { wrapper } = await mountAt('/meals')
-    await wrapper.findAll('[data-testid="meal-delete-button"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="meal-delete-button"]')[1]!.trigger('click')
 
     const dialog = wrapper.get('[data-testid="confirm-dialog"]').element as HTMLDialogElement
     expect(dialog.open).toBe(true)
@@ -113,7 +123,7 @@ describe('MealListView', () => {
     vi.mocked(apiClient.delete).mockResolvedValue(undefined)
 
     const { wrapper } = await mountAt('/meals')
-    await wrapper.findAll('[data-testid="meal-delete-button"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="meal-delete-button"]')[1]!.trigger('click')
     await wrapper.get('[data-testid="confirm-dialog-confirm"]').trigger('click')
     await flushPromises()
 
@@ -128,7 +138,7 @@ describe('MealListView', () => {
     vi.mocked(apiClient.delete).mockRejectedValue(new ApiError(409, 'meal_in_use'))
 
     const { wrapper } = await mountAt('/meals')
-    await wrapper.findAll('[data-testid="meal-delete-button"]')[0]!.trigger('click')
+    await wrapper.findAll('[data-testid="meal-delete-button"]')[1]!.trigger('click')
     await wrapper.get('[data-testid="confirm-dialog-confirm"]').trigger('click')
     await flushPromises()
 

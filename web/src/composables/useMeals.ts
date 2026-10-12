@@ -3,6 +3,7 @@ import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Meal } from '../api/types'
 import { db } from '../db/localDb'
+import { sortByName } from '../db/sortByName'
 import { nextLocalId } from '../db/localId'
 import { pushChangesInBackground } from '../sync'
 import { enqueueMealCreate, enqueueMealUpdate, patchPendingMealCreate, pullMeals } from '../sync/mealSync'
@@ -23,9 +24,9 @@ export function useMeals() {
     error.value = null
     try {
       if (navigator.onLine !== false) await pullMeals()
-      meals.value = await db.meals.toArray()
+      meals.value = sortByName(await db.meals.toArray())
     } catch (e) {
-      const cached = await db.meals.toArray()
+      const cached = sortByName(await db.meals.toArray())
       if (cached.length > 0) {
         meals.value = cached
       } else {
@@ -43,7 +44,7 @@ export function useMeals() {
       const localId = nextLocalId()
       const record: Meal = { id: localId, name }
       await db.meals.put(record)
-      meals.value = [...meals.value, record]
+      meals.value = sortByName([...meals.value, record])
       await enqueueMealCreate(localId, { name, client_id: crypto.randomUUID() })
       pushChangesInBackground()
       return record
@@ -61,7 +62,7 @@ export function useMeals() {
     try {
       const record: Meal = { id, name }
       await db.meals.put(record)
-      meals.value = meals.value.map((m) => (m.id === id ? record : m))
+      meals.value = sortByName(meals.value.map((m) => (m.id === id ? record : m)))
 
       const patchedPendingCreate = id < 0 && (await patchPendingMealCreate(id, { name }))
       if (!patchedPendingCreate) await enqueueMealUpdate(id, { name })
