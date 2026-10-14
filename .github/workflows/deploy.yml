@@ -28,7 +28,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # OIDC subject is repo:<owner>/<repo>:environment:production (infra/setup-github-oidc.sh).
+    # OIDC subject is repo:<owner>@<ownerId>/<repo>@<repoId>:environment:production (infra/setup-github-oidc.sh).
     environment: production
     env:
       RG: cellar-rg

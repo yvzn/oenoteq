@@ -4,12 +4,12 @@
 
 **Blocked by:** 04 (Azure infra and Easy Auth)
 
-**Status:** needs-real-azure-verification
+**Status:** done
 
-- [ ] A tag push updates the running Container App to the new image tag and the new revision serves traffic
-- [ ] GitHub authenticates to Azure with OIDC federated credentials (no long-lived client secret stored in GitHub)
-- [ ] Deploy waits for the new revision to pass its health check; on failure the previous revision keeps serving and the workflow fails
-- [ ] Revision stays single-replica (one SQLite writer) during rollout: old revision is deactivated before or as the new one takes over, so two writers never run against the same replica
-- [ ] Manual dispatch available to redeploy or roll back to a given tag
-- [ ] Existing Windows exe release workflow unchanged and still green
-- [ ] Release procedure documented in `docs/`
+- [x] A tag push updates the running Container App to the new image tag and the new revision serves traffic
+- [x] GitHub authenticates to Azure with OIDC federated credentials (no long-lived client secret stored in GitHub)
+- [x] Deploy waits for the new revision to pass its health check; on failure the previous revision keeps serving and the workflow fails
+- [x] Revision stays single-replica (one SQLite writer) during rollout: old revision is deactivated before or as the new one takes over, so two writers never run against the same replica
+- [x] Manual dispatch available to redeploy or roll back to a given tag
+- [x] Existing Windows exe release workflow unchanged and still green
+- [x] Release procedure documented in `docs/`

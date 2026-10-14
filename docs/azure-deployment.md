@@ -49,7 +49,7 @@ Matches the research file's scale-to-zero figure for Azure. Fallback `minReplica
 
 One-time setup:
 
-1. Run `az login`, then `GITHUB_REPO=<owner>/<repo> sh infra/setup-github-oidc.sh`. It creates an Entra app with a federated credential (subject `repo:<owner>/<repo>:environment:production`) and Contributor on `cellar-rg` only. No client secret is stored in GitHub.
+1. Run `az login` and `gh auth login`, then `GITHUB_REPO=<owner>/<repo> sh infra/setup-github-oidc.sh`. It looks up the owner and repo IDs with `gh api`, then creates (or updates) an Entra app with a federated credential (subject `repo:<owner>@<ownerId>/<repo>@<repoId>:environment:production`) and Contributor on `cellar-rg` only. No client secret is stored in GitHub.
 2. Create GitHub environment `production`; add the three printed values as repo variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
 3. Do the first manual deploy above, so the app exists.
 
