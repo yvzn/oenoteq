@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '../api/client'
 import { db } from '../db/localDb'
 import { pushChangesInBackground, syncNow } from '../sync'
-import { enqueue } from '../sync/outbox'
+import { discard, enqueue } from '../sync/outbox'
 import SyncStatusView from './SyncStatusView.vue'
 
 vi.mock('../sync', async () => {
@@ -271,6 +271,88 @@ describe('SyncStatusView', () => {
       await flushPromises()
 
       expect(button.attributes('disabled')).toBeUndefined()
+    })
+  })
+
+  describe('Show details', () => {
+    it('renders counts only by default, with no pending list in the DOM', async () => {
+      await enqueue(db.outbox, { entity: 'meal', action: 'create', targetId: -1, payload: { name: 'Roast' } })
+
+      const wrapper = await mountView()
+
+      expect(wrapper.find('[data-testid="sync-status-pending-list"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="sync-status-nothing-pending"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="sync-status-toggle-details"]').text()).toBe('Show details')
+    })
+
+    it('reveals one row per pending item in queue order, and hides again on second click', async () => {
+      await db.producers.put({ id: 1, name: 'Château X' })
+      await db.appellations.put({ id: 2, name: 'Pomerol' })
+      await enqueue(db.outbox, {
+        entity: 'wine',
+        action: 'create',
+        targetId: -1,
+        payload: { producer_id: 1, appellation_id: 2, millesime: 2015 },
+      })
+      await enqueue(db.outbox, { entity: 'meal', action: 'create', targetId: -2, payload: { name: 'Roast' } })
+
+      const wrapper = await mountView()
+      const toggle = wrapper.get('[data-testid="sync-status-toggle-details"]')
+      await toggle.trigger('click')
+
+      const rows = wrapper.findAll('[data-testid="sync-status-pending-item"]')
+      expect(rows).toHaveLength(2)
+      expect(rows[0]!.text()).toContain('Château X · Pomerol · 2015')
+      expect(rows[0]!.get('[data-testid="sync-status-pending-operation"]').text()).toBe('Create')
+      expect(rows[0]!.find('[data-testid="sync-status-pending-time"]').exists()).toBe(true)
+      expect(rows[1]!.text()).toContain('Roast')
+      expect(toggle.text()).toBe('Hide details')
+
+      await toggle.trigger('click')
+      expect(wrapper.find('[data-testid="sync-status-pending-list"]').exists()).toBe(false)
+    })
+
+    it('renders items queued without a timestamp, minus the time', async () => {
+      const id = await enqueue(db.outbox, { entity: 'meal', action: 'create', targetId: -1, payload: { name: 'Roast' } })
+      await db.outbox.update(id, { createdAt: undefined })
+
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="sync-status-toggle-details"]').trigger('click')
+
+      expect(wrapper.get('[data-testid="sync-status-pending-item"]').text()).toContain('Roast')
+      expect(wrapper.find('[data-testid="sync-status-pending-time"]').exists()).toBe(false)
+    })
+
+    it('does not duplicate failed items in the pending list', async () => {
+      const failing = await enqueue(db.outbox, { entity: 'meal', action: 'update', targetId: 1, payload: {} })
+      await db.outbox.update(failing, { status: 'failed', error: 'meal_not_found' })
+      await enqueue(db.outbox, { entity: 'appellation', action: 'create', targetId: -1, payload: { name: 'Pomerol' } })
+
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="sync-status-toggle-details"]').trigger('click')
+
+      expect(wrapper.findAll('[data-testid="sync-status-pending-item"]')).toHaveLength(1)
+      expect(wrapper.findAll('[data-testid="sync-status-failed-item"]')).toHaveLength(1)
+    })
+
+    it('says "Nothing pending." when expanded with an empty outbox', async () => {
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="sync-status-toggle-details"]').trigger('click')
+
+      expect(wrapper.get('[data-testid="sync-status-nothing-pending"]').text()).toBe('Nothing pending.')
+    })
+
+    it('updates live as items leave the outbox', async () => {
+      const id = await enqueue(db.outbox, { entity: 'meal', action: 'create', targetId: -1, payload: { name: 'Roast' } })
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="sync-status-toggle-details"]').trigger('click')
+      expect(wrapper.findAll('[data-testid="sync-status-pending-item"]')).toHaveLength(1)
+
+      await discard(db.outbox, id)
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="sync-status-pending-item"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="sync-status-nothing-pending"]').exists()).toBe(true)
     })
   })
 })

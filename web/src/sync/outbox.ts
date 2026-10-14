@@ -18,7 +18,8 @@ export interface OutboxItem<TPayload = unknown> {
   payload: TPayload
   status: 'pending' | 'in-flight' | 'failed'
   error: string | null
-  createdAt: string
+  // Absent on items queued before this field existed.
+  createdAt?: string
 }
 
 export type OutboxHandler = (item: OutboxItem) => Promise<void>

@@ -10,6 +10,7 @@ import { useSyncStatus } from '../composables/useSyncStatus'
 const {
   counts,
   failed,
+  pendingItems,
   entityLabels,
   isSyncing,
   queuedCount,
@@ -22,6 +23,15 @@ const {
 const { isOnline } = useConnectivity()
 
 onMounted(refresh)
+
+// Summary counts stay the default; the per-item list is opt-in and not persisted.
+const showDetails = ref(false)
+
+function formatQueuedAt(iso: string | null): string {
+  if (!iso) return ''
+  const date = new Date(iso)
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString()
+}
 
 // One dialog serves both flows: discarding a single failed item, or clearing
 // the whole queue.
@@ -95,6 +105,39 @@ async function confirm() {
           <span class="text-muted tabular-nums">{{ counts[label] }}</span>
         </li>
       </ul>
+
+      <div class="mt-3">
+        <AppButton
+          type="button"
+          variant="ghost"
+          data-testid="sync-status-toggle-details"
+          :aria-expanded="showDetails"
+          @click="showDetails = !showDetails"
+        >
+          {{ showDetails ? 'Hide details' : 'Show details' }}
+        </AppButton>
+        <template v-if="showDetails">
+          <StatusLine v-if="pendingItems.length === 0" data-testid="sync-status-nothing-pending">
+            Nothing pending.
+          </StatusLine>
+          <ul v-else data-testid="sync-status-pending-list" class="mt-2 flex flex-col">
+            <li
+              v-for="item in pendingItems"
+              :key="item.id"
+              data-testid="sync-status-pending-item"
+              class="border-line border-b py-2.5 text-sm"
+            >
+              <p class="text-ink">{{ item.label }}</p>
+              <p class="text-muted">
+                <span data-testid="sync-status-pending-operation">{{ item.operation }}</span>
+                <template v-if="item.queuedAt">
+                  · <span data-testid="sync-status-pending-time">{{ formatQueuedAt(item.queuedAt) }}</span>
+                </template>
+              </p>
+            </li>
+          </ul>
+        </template>
+      </div>
 
       <section class="mt-8">
         <h2 class="font-display text-ink mb-3 text-[16px] font-semibold">Failed items</h2>

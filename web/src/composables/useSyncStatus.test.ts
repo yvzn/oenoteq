@@ -125,4 +125,64 @@ describe('useSyncStatus', () => {
     expect(await db.outbox.get(id)).toBeUndefined()
     expect(failed.value).toHaveLength(0)
   })
+
+  describe('pendingItems', () => {
+    it('lists pending items in queue order with a human label, operation and queued time', async () => {
+      await db.producers.put({ id: 1, name: 'Château X' })
+      await db.appellations.put({ id: 2, name: 'Pomerol' })
+      await db.wines.put({
+        id: 7,
+        millesime: 2015,
+        appellation_id: 2,
+        producer_id: 1,
+        producer: { id: 1, name: 'Château X' },
+        color: 'rouge',
+        garde_debut: null,
+        garde_fin: null,
+        quantity: 1,
+        suggested_meals: [],
+        consumption_history: [],
+      })
+      const a = await enqueue(db.outbox, { entity: 'quantity_adjustment', action: 'create', targetId: 7, payload: {} })
+      const b = await enqueue(db.outbox, {
+        entity: 'consumption',
+        action: 'create',
+        targetId: -1,
+        payload: { wineId: 7, body: {} },
+      })
+      const c = await enqueue(db.outbox, { entity: 'producer', action: 'update', targetId: 1, payload: {} })
+
+      const { pendingItems } = useSyncStatus()
+      await useSyncStatus().refresh()
+
+      expect(pendingItems.value.map((i) => [i.id, i.label, i.operation])).toEqual([
+        [a, 'Wine: Château X · Pomerol · 2015', 'Quantity adjustment'],
+        [b, 'Consumption: Château X · Pomerol · 2015', 'Consumption'],
+        [c, 'Producer: Château X', 'Edit'],
+      ])
+      expect(pendingItems.value[0]!.queuedAt).toEqual(expect.any(String))
+    })
+
+    it('falls back to the entity label when the record cannot be resolved, and tolerates a missing createdAt', async () => {
+      const id = await enqueue(db.outbox, { entity: 'meal_pairing', action: 'create', targetId: '1:rouge:2', payload: {} })
+      await db.outbox.update(id, { createdAt: undefined })
+
+      const { pendingItems } = useSyncStatus()
+      await useSyncStatus().refresh()
+
+      expect(pendingItems.value).toEqual([
+        { id, entity: 'Meal Pairing', label: 'Meal Pairing', operation: 'Pairing add', queuedAt: null },
+      ])
+    })
+
+    it('excludes failed items', async () => {
+      const id = await enqueue(db.outbox, { entity: 'meal', action: 'update', targetId: 1, payload: {} })
+      await db.outbox.update(id, { status: 'failed', error: 'meal_not_found' })
+
+      const { pendingItems } = useSyncStatus()
+      await useSyncStatus().refresh()
+
+      expect(pendingItems.value).toEqual([])
+    })
+  })
 })
