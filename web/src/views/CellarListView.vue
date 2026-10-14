@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
 import ColorSwatch from '../components/ColorSwatch.vue'
@@ -10,9 +11,11 @@ import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useMeals } from '../composables/useMeals'
 import { useSearch } from '../composables/useSearch'
+import { pageToQueryParams, paginate, parsePage } from '../domain/pagination'
 import { filtersToQueryParams, queryParamsToFilters, type SearchFilters } from '../domain/searchFilters'
 import { nextSort, queryParamsToSort, sortToQueryParams, type SortBy, type WineSort } from '../domain/wineSort'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -28,6 +31,8 @@ const { results, loading: searchLoading, error: searchError, search } = useSearc
 const filters = computed<SearchFilters>(() => queryParamsToFilters(route.query))
 const sort = computed<WineSort>(() => queryParamsToSort(route.query))
 
+const pageData = computed(() => paginate(results.value, parsePage(route.query.page)))
+
 const loading = computed(
   () => appellationsLoading.value || mealsLoading.value || searchLoading.value,
 )
@@ -40,7 +45,7 @@ const hasError = computed(() => error.value !== '')
 
 const listTitle = computed(() => {
   if (loading.value || hasError.value) return 'Cellar'
-  return `${results.value.length} ${results.value.length === 1 ? 'wine' : 'wines'} in cellar`
+  return `${pageData.value.total} ${pageData.value.total === 1 ? 'wine' : 'wines'} in cellar`
 })
 
 const appellationNameById = computed(() => {
@@ -59,6 +64,12 @@ function updateFilters(next: SearchFilters) {
 
 function updateSort(next: WineSort) {
   router.push({ query: { ...filtersToQueryParams(filters.value), ...sortToQueryParams(next) } })
+}
+
+function goToPage(page: number) {
+  router.push({
+    query: { ...filtersToQueryParams(filters.value), ...sortToQueryParams(sort.value), ...pageToQueryParams(page) },
+  })
 }
 
 function sortByColumn(column: SortBy) {
@@ -80,9 +91,18 @@ function retry() {
   search(filters.value, sort.value)
 }
 
-watch([filters, sort], ([nextFilters, nextSortValue]) => search(nextFilters, nextSortValue), {
-  immediate: true,
-})
+// Keyed on the search params only: a page change must not refetch.
+const searchKey = computed(() =>
+  new URLSearchParams({ ...filtersToQueryParams(filters.value), ...sortToQueryParams(sort.value) }).toString(),
+)
+
+// Any page change (buttons, browser back/forward, edited address) starts at the top.
+watch(
+  () => parsePage(route.query.page),
+  () => window.scrollTo({ top: 0 }),
+)
+
+watch(searchKey, () => search(filters.value, sort.value), { immediate: true })
 
 onMounted(loadFilterOptions)
 </script>
@@ -157,7 +177,7 @@ onMounted(loadFilterOptions)
           </button>
         </div>
         <ul data-testid="wine-list" class="mt-2 flex flex-col sm:mt-0">
-          <li v-for="wine in results" :key="wine.id" data-testid="wine-item" class="border-line border-b">
+          <li v-for="wine in pageData.items" :key="wine.id" data-testid="wine-item" class="border-line border-b">
             <RouterLink
               :to="{ name: 'wine-detail', params: { id: wine.id } }"
               data-testid="wine-link"
@@ -185,6 +205,32 @@ onMounted(loadFilterOptions)
             </RouterLink>
           </li>
         </ul>
+        <nav
+          v-if="pageData.pageCount > 1"
+          data-testid="pagination"
+          :aria-label="t('cellar.pagination.label')"
+          class="mt-6 flex items-center justify-between gap-4"
+        >
+          <AppButton
+            variant="secondary"
+            data-testid="pagination-previous"
+            :disabled="pageData.page <= 1"
+            @click="goToPage(pageData.page - 1)"
+          >
+            {{ t('cellar.pagination.previous') }}
+          </AppButton>
+          <span data-testid="pagination-status" class="text-muted text-sm tabular-nums">
+            {{ t('cellar.pagination.status', { page: pageData.page, pageCount: pageData.pageCount }) }}
+          </span>
+          <AppButton
+            variant="secondary"
+            data-testid="pagination-next"
+            :disabled="pageData.page >= pageData.pageCount"
+            @click="goToPage(pageData.page + 1)"
+          >
+            {{ t('cellar.pagination.next') }}
+          </AppButton>
+        </nav>
       </template>
     </div>
   </section>

@@ -1,7 +1,8 @@
 import { mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
+import { setTestLocale } from '../test/i18n'
 import CellarListView from './CellarListView.vue'
 
 vi.mock('../api/client', async () => {
@@ -270,6 +271,190 @@ describe('CellarListView', () => {
 
     expect(router.currentRoute.value.query).toEqual({ sort_by: 'status' })
     expect(apiClient.get).toHaveBeenLastCalledWith('/search?sort_by=status')
+  })
+})
+
+describe('CellarListView pagination', () => {
+  beforeEach(() => vi.stubGlobal('scrollTo', vi.fn()))
+  afterEach(() => vi.unstubAllGlobals())
+
+  const manyWines = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      ...searchResults[0]!,
+      id: i + 1,
+      producer: { id: i + 1, name: `Producer ${i + 1}` },
+    }))
+
+  const ids = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
+    wrapper.findAll('[data-testid="wine-link"]').map((l) => l.attributes('href'))
+
+  it('shows 10 wines per page, page 2 continuing where page 1 ends', async () => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper } = await mountAt('/')
+    expect(ids(wrapper)).toEqual(Array.from({ length: 10 }, (_, i) => `/wines/${i + 1}`))
+
+    const { wrapper: page2 } = await mountAt('/?page=2')
+    expect(ids(page2)).toEqual(Array.from({ length: 10 }, (_, i) => `/wines/${i + 11}`))
+  })
+
+  it('shows Page N of M with Previous disabled on the first page', async () => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper } = await mountAt('/')
+
+    expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 1 of 3')
+    expect(wrapper.get('[data-testid="pagination-previous"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="pagination-next"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('disables Next on the last page', async () => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper } = await mountAt('/?page=3')
+
+    expect(wrapper.get('[data-testid="pagination-next"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="pagination-previous"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('hides the controls when everything fits on one page', async () => {
+    mockApi({ search: manyWines(10) })
+
+    const { wrapper } = await mountAt('/')
+
+    expect(wrapper.find('[data-testid="pagination"]').exists()).toBe(false)
+  })
+
+  it('puts the page in the address on Next and Previous without refetching', async () => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper, router } = await mountAt('/')
+    vi.mocked(apiClient.get).mockClear()
+
+    await wrapper.get('[data-testid="pagination-next"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ page: '2' })
+    expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 2 of 3')
+    expect(apiClient.get).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="pagination-previous"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({})
+  })
+
+  it('keeps filters and sort next to the page param', async () => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper, router } = await mountAt('/?color=rouge&sort_by=producer')
+    await wrapper.get('[data-testid="pagination-next"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ color: 'rouge', sort_by: 'producer', page: '2' })
+  })
+
+  it('restores the page when going back from a wine detail', async () => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper, router } = await mountAt('/?page=2')
+    await router.push('/wines/11')
+    await flushPromises()
+    await router.back()
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ page: '2' })
+    expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 2 of 3')
+  })
+
+  it('resets to page 1 when a filter changes', async () => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper, router } = await mountAt('/?page=2')
+    await wrapper.find('[data-testid="color-filter"]').setValue('rouge')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ color: 'rouge' })
+  })
+
+  it('resets to page 1 when the sort changes', async () => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper, router } = await mountAt('/?page=2')
+    await wrapper.get('[data-testid="sort-header-producer"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer' })
+  })
+
+  it('clamps a page beyond the last to the last page', async () => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper } = await mountAt('/?page=99')
+
+    expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 3 of 3')
+    expect(wrapper.findAll('[data-testid="wine-item"]')).toHaveLength(5)
+  })
+
+  it.each(['abc', '0', '-1', ''])('treats page=%j as page 1', async (value) => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper } = await mountAt(`/?page=${value}`)
+
+    expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 1 of 3')
+  })
+
+  it('shows the total number of matching wines in the title, not the page count', async () => {
+    mockApi({ search: manyWines(25) })
+
+    const { wrapper } = await mountAt('/?page=3')
+
+    expect(wrapper.text()).toContain('25 wines in cellar')
+  })
+
+  it('slices in the order the result arrives (sorted before sliced)', async () => {
+    mockApi({ search: manyWines(25).reverse() })
+
+    const { wrapper } = await mountAt('/')
+
+    expect(ids(wrapper)[0]).toBe('/wines/25')
+    expect(ids(wrapper)[9]).toBe('/wines/16')
+  })
+
+  it('scrolls to the top when the page changes', async () => {
+    mockApi({ search: manyWines(25) })
+    const scrollTo = vi.fn()
+    vi.stubGlobal('scrollTo', scrollTo)
+
+    const { wrapper } = await mountAt('/')
+    await wrapper.get('[data-testid="pagination-next"]').trigger('click')
+    await flushPromises()
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 })
+  })
+
+  it('scrolls to the top on browser back to another page', async () => {
+    mockApi({ search: manyWines(25) })
+    const scrollTo = vi.fn()
+    vi.stubGlobal('scrollTo', scrollTo)
+
+    const { router } = await mountAt('/?page=2')
+    expect(scrollTo).not.toHaveBeenCalled()
+    await router.push('/')
+    await flushPromises()
+    scrollTo.mockClear()
+    await router.back()
+    await flushPromises()
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 })
+  })
+
+  it('renders the controls in French', async () => {
+    mockApi({ search: manyWines(25) })
+    setTestLocale('fr')
+
+    const { wrapper } = await mountAt('/')
+
+    expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 1 sur 3')
+    expect(wrapper.get('[data-testid="pagination-next"]').text()).toBe('Suivant')
   })
 })
 
