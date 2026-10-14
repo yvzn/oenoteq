@@ -128,6 +128,80 @@ describe('SyncStatusView', () => {
     expect(await db.outbox.count()).toBe(1)
   })
 
+  describe('Clear queue', () => {
+    it('is disabled when nothing is queued', async () => {
+      const wrapper = await mountView()
+      expect(wrapper.get('[data-testid="sync-status-clear"]').attributes('disabled')).toBeDefined()
+    })
+
+    it('states the item count in the confirm dialog and changes nothing on cancel', async () => {
+      await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: -1, payload: {} })
+      const failing = await enqueue(db.outbox, { entity: 'meal', action: 'update', targetId: 1, payload: {} })
+      await db.outbox.update(failing, { status: 'failed', error: 'meal_not_found' })
+
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="sync-status-clear"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.get('[data-testid="confirm-dialog"]').text()).toContain(
+        "2 queued changes will be lost. This can't be undone.",
+      )
+      await wrapper.get('[data-testid="confirm-dialog-cancel"]').trigger('click')
+      await flushPromises()
+
+      expect(await db.outbox.count()).toBe(2)
+      expect(syncNow).not.toHaveBeenCalled()
+    })
+
+    it('empties the outbox, zeroes the counts and pulls on confirm', async () => {
+      vi.mocked(syncNow).mockResolvedValue()
+      await enqueue(db.outbox, { entity: 'appellation', action: 'create', targetId: -1, payload: {} })
+      const failing = await enqueue(db.outbox, { entity: 'meal', action: 'update', targetId: 1, payload: {} })
+      await db.outbox.update(failing, { status: 'failed', error: 'meal_not_found' })
+
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="sync-status-clear"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-testid="confirm-dialog-confirm"]').trigger('click')
+      await flushPromises()
+
+      expect(await db.outbox.count()).toBe(0)
+      const texts = wrapper.findAll('[data-testid="sync-status-count"]').map((r) => r.text())
+      expect(texts.every((t) => t.endsWith('0'))).toBe(true)
+      expect(wrapper.find('[data-testid="sync-status-failed-item"]').exists()).toBe(false)
+      expect(syncNow).toHaveBeenCalledTimes(1)
+    })
+
+    it('still clears the queue when the follow-up pull fails', async () => {
+      vi.mocked(syncNow).mockRejectedValue(new Error('boom'))
+      await enqueue(db.outbox, { entity: 'appellation', action: 'create', targetId: -1, payload: {} })
+
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="sync-status-clear"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-testid="confirm-dialog-confirm"]').trigger('click')
+      await flushPromises()
+
+      expect(await db.outbox.count()).toBe(0)
+    })
+
+    it('defers the follow-up pull while offline but still drops local-only records', async () => {
+      setNavigatorOnLine(false)
+      await db.producers.put({ id: -1, name: 'Local only' })
+      await enqueue(db.outbox, { entity: 'producer', action: 'create', targetId: -1, payload: {} })
+
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="sync-status-clear"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-testid="confirm-dialog-confirm"]').trigger('click')
+      await flushPromises()
+
+      expect(await db.outbox.count()).toBe(0)
+      expect(await db.producers.get(-1)).toBeUndefined()
+      expect(syncNow).not.toHaveBeenCalled()
+    })
+  })
+
   describe('Retry sync', () => {
     it('runs a full sync on click, disabled while in flight, then refreshes counts', async () => {
       vi.mocked(apiClient.get).mockResolvedValue({})

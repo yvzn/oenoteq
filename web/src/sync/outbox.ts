@@ -52,6 +52,20 @@ export async function discard(table: Table<OutboxItem, number>, id: number): Pro
   bump()
 }
 
+// Drops every item (pending, in-flight and failed alike) and hands them back
+// so the caller can undo their optimistic local effects. Page-agnostic on
+// purpose: the sync page's "Clear queue" and a later consent revocation both
+// sit on top of it with their own confirm flow.
+export async function discardAll(table: Table<OutboxItem, number>): Promise<OutboxItem[]> {
+  const items = await table.db.transaction('rw', table, async () => {
+    const all = await table.toArray()
+    await table.clear()
+    return all
+  })
+  bump()
+  return items
+}
+
 // Whether some create/update for this entity+targetId is still sitting in
 // the outbox (pending, in-flight, or failed) — i.e. not yet confirmed by the
 // server.

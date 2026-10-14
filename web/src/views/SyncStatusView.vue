@@ -7,28 +7,51 @@ import StatusLine from '../components/StatusLine.vue'
 import { useConnectivity } from '../composables/useConnectivity'
 import { useSyncStatus } from '../composables/useSyncStatus'
 
-const { counts, failed, entityLabels, isSyncing, refresh, syncAllNow, retryFailedItem, discardFailedItem } =
-  useSyncStatus()
+const {
+  counts,
+  failed,
+  entityLabels,
+  isSyncing,
+  queuedCount,
+  refresh,
+  syncAllNow,
+  retryFailedItem,
+  discardFailedItem,
+  clearAllQueued,
+} = useSyncStatus()
 const { isOnline } = useConnectivity()
 
 onMounted(refresh)
 
-const pendingDiscardId = ref<number | null>(null)
-const confirmOpen = computed(() => pendingDiscardId.value !== null)
+// One dialog serves both flows: discarding a single failed item, or clearing
+// the whole queue.
+type Pending = { kind: 'discard'; id: number } | { kind: 'clear' } | null
+const pending = ref<Pending>(null)
+const confirmOpen = computed(() => pending.value !== null)
+const confirmMessage = computed(() => {
+  if (pending.value?.kind !== 'clear') return "Discard this queued change? It won't be retried."
+  const n = queuedCount.value
+  return `Clear the queue? ${n} queued ${n === 1 ? 'change' : 'changes'} will be lost. This can't be undone.`
+})
+const confirmLabel = computed(() => (pending.value?.kind === 'clear' ? 'Clear queue' : 'Discard'))
 
 function askDiscard(id: number) {
-  pendingDiscardId.value = id
+  pending.value = { kind: 'discard', id }
 }
 
-function cancelDiscard() {
-  pendingDiscardId.value = null
+function askClear() {
+  pending.value = { kind: 'clear' }
 }
 
-async function confirmDiscard() {
-  if (pendingDiscardId.value === null) return
-  const id = pendingDiscardId.value
-  pendingDiscardId.value = null
-  await discardFailedItem(id)
+function cancelConfirm() {
+  pending.value = null
+}
+
+async function confirm() {
+  const current = pending.value
+  pending.value = null
+  if (current?.kind === 'discard') await discardFailedItem(current.id)
+  else if (current?.kind === 'clear') await clearAllQueued()
 }
 </script>
 
@@ -46,6 +69,15 @@ async function confirmDiscard() {
           @click="syncAllNow"
         >
           {{ isSyncing ? 'Syncing…' : 'Retry sync' }}
+        </AppButton>
+        <AppButton
+          type="button"
+          variant="secondary"
+          data-testid="sync-status-clear"
+          :disabled="isSyncing || queuedCount === 0"
+          @click="askClear"
+        >
+          Clear queue
         </AppButton>
         <p v-if="!isOnline" data-testid="sync-status-offline-note" class="text-muted text-sm">
           You're offline. Sync will run when you're back online.
@@ -103,10 +135,10 @@ async function confirmDiscard() {
 
     <ConfirmDialog
       :open="confirmOpen"
-      message="Discard this queued change? It won't be retried."
-      confirm-label="Discard"
-      @confirm="confirmDiscard"
-      @cancel="cancelDiscard"
+      :message="confirmMessage"
+      :confirm-label="confirmLabel"
+      @confirm="confirm"
+      @cancel="cancelConfirm"
     />
   </section>
 </template>

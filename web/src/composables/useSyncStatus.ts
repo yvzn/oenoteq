@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { friendlyMessageForCode } from '../api/errorMessages'
 import { db } from '../db/localDb'
 import { pushChangesInBackground, syncNow } from '../sync'
+import { clearQueue } from '../sync/clearQueue'
 import { discard, outboxVersion, retry, type OutboxItem } from '../sync/outbox'
 
 // The six entity types the sync-status page reports on. `quantity_adjustment`
@@ -78,6 +79,10 @@ const hasPending = computed(
   () => Object.values(counts.value).some((count) => count > 0) || failed.value.length > 0,
 )
 
+const queuedCount = computed(
+  () => Object.values(counts.value).reduce((sum, count) => sum + count, 0) + failed.value.length,
+)
+
 async function retryFailedItem(id: number): Promise<void> {
   await retry(db.outbox, id)
   pushChangesInBackground()
@@ -88,6 +93,20 @@ async function discardFailedItem(id: number): Promise<void> {
 }
 
 const isSyncing = ref(false)
+
+// Discards the whole outbox, then pulls (when online) so local data converges
+// on server state. Offline, the pull is skipped: the local rollback in
+// clearQueue already removed what it could, and the reconnect sync finishes
+// the job. A failed pull isn't an error here — the queue is already cleared.
+async function clearAllQueued(): Promise<void> {
+  await clearQueue()
+  if (navigator.onLine === false) return
+  try {
+    await syncNow()
+  } catch {
+    // The next reconnect/manual sync retries the pull.
+  }
+}
 
 // Guarded against double-trigger; always refreshes afterwards, even if the
 // sync itself failed, so the page shows whatever state the outbox ended in.
@@ -109,11 +128,13 @@ export function useSyncStatus() {
     counts,
     failed,
     hasPending,
+    queuedCount,
     isSyncing,
     syncAllNow,
     entityLabels: ENTITY_DISPLAY_LABELS,
     refresh,
     retryFailedItem,
     discardFailedItem,
+    clearAllQueued,
   }
 }

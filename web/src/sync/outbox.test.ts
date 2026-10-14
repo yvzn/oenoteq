@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { discard, enqueue, isQueued, replay, retry, RetryableOutboxError, type OutboxHandler, type OutboxItem } from './outbox'
+import { discard, discardAll, enqueue, isQueued, replay, retry, RetryableOutboxError, type OutboxHandler, type OutboxItem } from './outbox'
 
 class TestDb extends Dexie {
   outbox!: Table<OutboxItem, number>
@@ -119,6 +119,18 @@ describe('outbox', () => {
     await discard(db.outbox, id)
 
     expect(await db.outbox.get(id)).toBeUndefined()
+  })
+
+  it('discards every item regardless of status and returns them', async () => {
+    const db = makeDb()
+    await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: -1, payload: {} })
+    const failing = await enqueue(db.outbox, { entity: 'meal', action: 'update', targetId: 2, payload: {} })
+    await db.outbox.update(failing, { status: 'failed', error: 'meal_not_found' })
+
+    const removed = await discardAll(db.outbox)
+
+    expect(removed.map((i) => i.entity).sort()).toEqual(['meal', 'wine'])
+    expect(await db.outbox.count()).toBe(0)
   })
 
   describe('isQueued', () => {
