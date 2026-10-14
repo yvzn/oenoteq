@@ -1,6 +1,6 @@
 import { pullAppellations, pushAppellations } from './appellationSync'
 import { pushConsumptions } from './consumptionSync'
-import { pushMealPairings } from './mealPairingSync'
+import { pullAllMealPairings, pushMealPairings } from './mealPairingSync'
 import { pullMeals, pushMeals } from './mealSync'
 import { pullProducers, pushProducers } from './producerSync'
 import { pullWines, pushWines } from './wineSync'
@@ -23,6 +23,8 @@ async function syncAll(): Promise<void> {
   await pullAppellations()
   await pullMeals()
   await pullWines()
+  // Isolated: a failed pairings pull must not fail the rest of the sync.
+  await pullAllMealPairings().catch(() => {})
 }
 
 // Fire-and-forget replay of every queued mutation, triggered right after a

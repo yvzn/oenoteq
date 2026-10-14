@@ -230,6 +230,9 @@ Content-Type: application/json
 ### List Meals for (Appellation, Color)
 GET {{baseUrl}}/meal-pairings?appellation_id=1&color=rouge
 
+### List every Meal Pairing edge (appellation_id, color, meal_id) in one call
+GET {{baseUrl}}/meal-pairings/all
+
 ### Remove Meal from (Appellation, Color)
 DELETE {{baseUrl}}/meal-pairings
 Content-Type: application/json

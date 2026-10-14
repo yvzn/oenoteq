@@ -43,8 +43,7 @@ export async function pushMealPairings(): Promise<void> {
 }
 
 // Fetches and caches the current server pairing list for one
-// appellation+color — there's no bulk "list all pairings" endpoint to
-// support full replication, so this is pulled on demand instead.
+// appellation+color, for the per-combination pairing view.
 export async function pullMealPairings(appellationId: number, color: Color): Promise<Meal[]> {
   const meals = await apiClient.get<Meal[]>(`/meal-pairings?appellation_id=${appellationId}&color=${color}`)
   await db.mealPairings
@@ -55,4 +54,35 @@ export async function pullMealPairings(appellationId: number, color: Color): Pro
   await db.mealPairings.bulkPut(meals.map((meal) => ({ appellationId, color, mealId: meal.id })))
   await db.meals.bulkPut(meals)
   return meals
+}
+
+interface ServerMealPairing {
+  appellation_id: number
+  color: Color
+  meal_id: number
+}
+
+// Full replication of every server pairing edge, so the meal filter works
+// offline for any appellation+color. An edge with an unsent add in the outbox
+// is kept even though the server doesn't list it yet. Removes are online-only
+// (ADR 0006), so there is never a pending remove to protect.
+export async function pullAllMealPairings(): Promise<void> {
+  const edges = await apiClient.get<ServerMealPairing[]>('/meal-pairings/all')
+  const key = (a: number, c: Color, m: number) => `${a}:${c}:${m}`
+  const serverKeys = new Set(edges.map((e) => key(e.appellation_id, e.color, e.meal_id)))
+
+  await db.transaction('rw', db.mealPairings, db.outbox, async () => {
+    // Read inside the transaction so an add enqueued during the fetch is seen.
+    const pendingKeys = new Set(
+      (await db.outbox.where('entity').equals('meal_pairing').toArray()).map((item) => String(item.targetId)),
+    )
+    const stale = (await db.mealPairings.toArray()).filter((r) => {
+      const k = key(r.appellationId, r.color, r.mealId)
+      return !serverKeys.has(k) && !pendingKeys.has(k)
+    })
+    await db.mealPairings.bulkDelete(stale.map((r) => [r.appellationId, r.color, r.mealId]))
+    await db.mealPairings.bulkPut(
+      edges.map((e) => ({ appellationId: e.appellation_id, color: e.color, mealId: e.meal_id })),
+    )
+  })
 }

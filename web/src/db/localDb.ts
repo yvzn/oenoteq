@@ -10,9 +10,8 @@ export interface IdRemap {
   serverId: number
 }
 
-// A read-through cache of meals currently paired with an appellation+color,
-// keyed so an offline `add` can be reflected locally without needing a
-// bulk "list all pairings" endpoint to pull from.
+// Local copy of every Meal Pairing edge (full sync pulls the bulk read), keyed
+// so an offline `add` is reflected locally before it syncs.
 export interface MealPairingRecord {
   appellationId: number
   color: Color

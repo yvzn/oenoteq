@@ -851,6 +851,38 @@ func (d *DB) ListMealsForPairing(ctx context.Context, appellationID int, color s
 	return meals, nil
 }
 
+type MealPairing struct {
+	AppellationID int    `json:"appellation_id"`
+	Color         string `json:"color"`
+	MealID        int    `json:"meal_id"`
+}
+
+func (d *DB) ListAllMealPairings(ctx context.Context) ([]MealPairing, error) {
+	rows, err := d.QueryContext(ctx, `
+		SELECT appellation_id, color, meal_id
+		FROM meal_pairing
+		ORDER BY appellation_id, color, meal_id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("querying all meal pairings: %w", err)
+	}
+	defer rows.Close()
+
+	var pairings []MealPairing
+	for rows.Next() {
+		var p MealPairing
+		if err := rows.Scan(&p.AppellationID, &p.Color, &p.MealID); err != nil {
+			return nil, fmt.Errorf("scanning meal pairing: %w", err)
+		}
+		pairings = append(pairings, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating all meal pairings: %w", err)
+	}
+
+	return pairings, nil
+}
+
 func (d *DB) UpdateWine(ctx context.Context, id int, w Wine) (*Wine, error) {
 	if err := validateWine(w); err != nil {
 		return nil, err

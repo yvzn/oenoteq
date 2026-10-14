@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A new server read returns every pairing edge (appellation, color, meal) in one response; an empty set returns an empty list; it is consistent with the existing per-combination read
-- [ ] `api.http` has a matching request; the existing per-combination endpoint is unchanged
-- [ ] Server tests cover: all edges returned, the empty case, and consistency with the per-combination read, through the existing handler test harness
-- [ ] The full sync pulls the bulk read into the local pairings table, replacing server-known edges while keeping edges that still have a pending add or pending remove in the outbox
-- [ ] Sync tests cover: a fresh pull fills the table, a pull does not drop a pending add, a pull does not resurrect a pending remove, an edge removed on the server disappears locally once nothing is pending for it
-- [ ] The existing per-combination pairing view still works online and offline, unchanged
-- [ ] Failures of this pull don't break the rest of the sync
+- [x] A new server read returns every pairing edge (appellation, color, meal) in one response; an empty set returns an empty list; it is consistent with the existing per-combination read
+- [x] `api.http` has a matching request; the existing per-combination endpoint is unchanged
+- [x] Server tests cover: all edges returned, the empty case, and consistency with the per-combination read, through the existing handler test harness
+- [x] The full sync pulls the bulk read into the local pairings table, replacing server-known edges while keeping edges that still have a pending add or pending remove in the outbox
+- [x] Sync tests cover: a fresh pull fills the table, a pull does not drop a pending add, a pull does not resurrect a pending remove, an edge removed on the server disappears locally once nothing is pending for it
+- [x] The existing per-combination pairing view still works online and offline, unchanged
+- [x] Failures of this pull don't break the rest of the sync

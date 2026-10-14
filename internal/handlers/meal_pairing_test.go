@@ -248,3 +248,95 @@ func TestMealPairingAssociateIsIdempotent(t *testing.T) {
 		t.Errorf("Expected re-associating the same meal to stay a single entry, got %d", len(meals))
 	}
 }
+
+func listAllMealPairings(t *testing.T, harness *test.Harness) []db.MealPairing {
+	t.Helper()
+
+	resp := harness.Do("GET", "/meal-pairings/all", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d listing all meal pairings, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var pairings []db.MealPairing
+	harness.JSONResponse(resp, &pairings)
+	return pairings
+}
+
+func TestMealPairingListAllReturnsEveryEdge(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	chablis := createTestAppellation(t, harness, "Chablis")
+	pommard := createTestAppellation(t, harness, "Pommard")
+	oysters := createTestMeal(t, harness, "Oysters")
+	beef := createTestMeal(t, harness, "Beef")
+
+	edges := []mealPairingRequest{
+		{AppellationID: chablis, Color: "blanc", MealID: oysters},
+		{AppellationID: pommard, Color: "rouge", MealID: beef},
+		{AppellationID: pommard, Color: "rouge", MealID: oysters},
+	}
+	for _, edge := range edges {
+		resp := harness.Do("POST", "/meal-pairings", edge)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Expected status %d, got %d", http.StatusCreated, resp.StatusCode)
+		}
+	}
+
+	pairings := listAllMealPairings(t, harness)
+
+	if len(pairings) != len(edges) {
+		t.Fatalf("Expected %d pairings, got %d", len(edges), len(pairings))
+	}
+	for _, edge := range edges {
+		found := false
+		for _, p := range pairings {
+			if p.AppellationID == edge.AppellationID && p.Color == edge.Color && p.MealID == edge.MealID {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("Expected pairing %+v in bulk response", edge)
+		}
+	}
+}
+
+func TestMealPairingListAllEmptyReturnsEmptyList(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+
+	resp := harness.Do("GET", "/meal-pairings/all", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var raw []interface{}
+	harness.JSONResponse(resp, &raw)
+	if raw == nil || len(raw) != 0 {
+		t.Errorf("Expected empty non-null list, got %v", raw)
+	}
+}
+
+func TestMealPairingListAllConsistentWithPerCombinationRead(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	chablis := createTestAppellation(t, harness, "Chablis")
+	oysters := createTestMeal(t, harness, "Oysters")
+	fish := createTestMeal(t, harness, "Grilled Fish")
+	for _, meal := range []int{oysters, fish} {
+		harness.Do("POST", "/meal-pairings", mealPairingRequest{AppellationID: chablis, Color: "blanc", MealID: meal})
+	}
+
+	bulk := map[int]bool{}
+	for _, p := range listAllMealPairings(t, harness) {
+		if p.AppellationID == chablis && p.Color == "blanc" {
+			bulk[p.MealID] = true
+		}
+	}
+
+	perCombination := listMealPairing(t, harness, chablis, "blanc")
+	if len(bulk) != len(perCombination) {
+		t.Fatalf("Expected bulk and per-combination reads to agree, got %d vs %d", len(bulk), len(perCombination))
+	}
+	for _, meal := range perCombination {
+		if !bulk[meal.ID] {
+			t.Errorf("Meal %d in per-combination read missing from bulk read", meal.ID)
+		}
+	}
+}

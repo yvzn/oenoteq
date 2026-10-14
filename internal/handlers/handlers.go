@@ -125,6 +125,7 @@ func (h *Handler) Register(mux *http.ServeMux, spa http.Handler) {
 	mux.HandleFunc("DELETE /consumptions/{id}", h.DeleteConsumption)
 	mux.HandleFunc("POST /meal-pairings", h.CreateMealPairing)
 	mux.HandleFunc("GET /meal-pairings", h.ListMealPairings)
+	mux.HandleFunc("GET /meal-pairings/all", h.ListAllMealPairings)
 	mux.HandleFunc("DELETE /meal-pairings", h.DeleteMealPairing)
 	mux.HandleFunc("GET /search", h.Search)
 	mux.Handle("/", spa)
@@ -721,6 +722,22 @@ func (h *Handler) ListMealPairings(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(meals)
+}
+
+func (h *Handler) ListAllMealPairings(w http.ResponseWriter, r *http.Request) {
+	pairings, err := h.db.ListAllMealPairings(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, dbErrorCode(err))
+		return
+	}
+
+	if pairings == nil {
+		pairings = []db.MealPairing{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(pairings)
 }
 
 func searchErrorStatus(err error) int {

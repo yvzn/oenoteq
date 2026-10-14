@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '../api/client'
 import { db } from '../db/localDb'
-import { enqueueMealPairingAdd, pullMealPairings, pushMealPairings } from './mealPairingSync'
+import { enqueueMealPairingAdd, pullAllMealPairings, pullMealPairings, pushMealPairings } from './mealPairingSync'
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
@@ -74,5 +74,75 @@ describe('pushMealPairings', () => {
     expect(apiClient.post).not.toHaveBeenCalled()
     const [item] = await db.outbox.toArray()
     expect(item).toMatchObject({ status: 'pending' })
+  })
+})
+
+describe('pullAllMealPairings', () => {
+  it('fills the local pairings table from the bulk read', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue([
+      { appellation_id: 1, color: 'rouge', meal_id: 2 },
+      { appellation_id: 3, color: 'blanc', meal_id: 4 },
+    ])
+
+    await pullAllMealPairings()
+
+    expect(apiClient.get).toHaveBeenCalledWith('/meal-pairings/all')
+    expect(await db.mealPairings.toArray()).toEqual(
+      expect.arrayContaining([
+        { appellationId: 1, color: 'rouge', mealId: 2 },
+        { appellationId: 3, color: 'blanc', mealId: 4 },
+      ]),
+    )
+    expect(await db.mealPairings.count()).toBe(2)
+  })
+
+  it('keeps an edge with a pending add that the server does not know yet', async () => {
+    await db.mealPairings.put({ appellationId: 1, color: 'rouge', mealId: 2 })
+    await enqueueMealPairingAdd({ appellationId: 1, color: 'rouge', mealId: 2 })
+    vi.mocked(apiClient.get).mockResolvedValue([])
+
+    await pullAllMealPairings()
+
+    expect(await db.mealPairings.get([1, 'rouge', 2])).toBeDefined()
+  })
+
+  it('keeps a pending add made against a not-yet-synced local id', async () => {
+    await db.mealPairings.put({ appellationId: -1, color: 'rouge', mealId: -2 })
+    await enqueueMealPairingAdd({ appellationId: -1, color: 'rouge', mealId: -2 })
+    vi.mocked(apiClient.get).mockResolvedValue([])
+
+    await pullAllMealPairings()
+
+    expect(await db.mealPairings.get([-1, 'rouge', -2])).toBeDefined()
+  })
+
+  it('does not resurrect an edge removed locally (no pending add) that the server still lists', async () => {
+    // Removes are online-only (ADR 0006): a removed edge is gone on the
+    // server too, so the server list never contains it.
+    await db.mealPairings.put({ appellationId: 1, color: 'rouge', mealId: 9 })
+    vi.mocked(apiClient.get).mockResolvedValue([{ appellation_id: 1, color: 'rouge', meal_id: 1 }])
+
+    await pullAllMealPairings()
+
+    expect(await db.mealPairings.get([1, 'rouge', 9])).toBeUndefined()
+    expect(await db.mealPairings.get([1, 'rouge', 1])).toBeDefined()
+  })
+
+  it('drops an edge removed on the server once nothing is pending for it', async () => {
+    await db.mealPairings.put({ appellationId: 1, color: 'rouge', mealId: 2 })
+    vi.mocked(apiClient.get).mockResolvedValue([])
+
+    await pullAllMealPairings()
+
+    expect(await db.mealPairings.count()).toBe(0)
+  })
+
+  it('leaves the local table untouched when the bulk read fails', async () => {
+    await db.mealPairings.put({ appellationId: 1, color: 'rouge', mealId: 2 })
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('offline'))
+
+    await expect(pullAllMealPairings()).rejects.toThrow()
+
+    expect(await db.mealPairings.count()).toBe(1)
   })
 })
