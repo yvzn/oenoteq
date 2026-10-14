@@ -1,17 +1,8 @@
 import { ref } from 'vue'
-import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Producer } from '../api/types'
-import { db } from '../db/localDb'
+import { gateway } from '../gateway'
 import { sortByName } from '../db/sortByName'
-import { nextLocalId } from '../db/localId'
-import { pushChangesInBackground } from '../sync'
-import {
-  enqueueProducerCreate,
-  enqueueProducerUpdate,
-  patchPendingProducerCreate,
-  pullProducers,
-} from '../sync/producerSync'
 
 export function useProducers() {
   const producers = ref<Producer[]>([])
@@ -28,15 +19,9 @@ export function useProducers() {
     loading.value = true
     error.value = null
     try {
-      if (navigator.onLine !== false) await pullProducers()
-      producers.value = sortByName(await db.producers.toArray())
+      producers.value = await gateway.producers.list()
     } catch (e) {
-      const cached = sortByName(await db.producers.toArray())
-      if (cached.length > 0) {
-        producers.value = cached
-      } else {
-        error.value = friendlyErrorMessage(e)
-      }
+      error.value = friendlyErrorMessage(e)
     } finally {
       loading.value = false
     }
@@ -46,12 +31,8 @@ export function useProducers() {
     creating.value = true
     createError.value = null
     try {
-      const localId = nextLocalId()
-      const record: Producer = { id: localId, name }
-      await db.producers.put(record)
+      const record = await gateway.producers.create(name)
       producers.value = sortByName([...producers.value, record])
-      await enqueueProducerCreate(localId, { name, client_id: crypto.randomUUID() })
-      pushChangesInBackground()
       return record
     } catch (e) {
       createError.value = friendlyErrorMessage(e)
@@ -65,13 +46,8 @@ export function useProducers() {
     updating.value = true
     updateError.value = null
     try {
-      const record: Producer = { id, name }
-      await db.producers.put(record)
-      producers.value = sortByName(producers.value.map((p) => (p.id === id ? record : p)))
-
-      const patchedPendingCreate = id < 0 && (await patchPendingProducerCreate(id, { name }))
-      if (!patchedPendingCreate) await enqueueProducerUpdate(id, { name })
-      pushChangesInBackground()
+      const record = await gateway.producers.update(id, name)
+      producers.value = sortByName(producers.value.map((r) => (r.id === id ? record : r)))
       return record
     } catch (e) {
       updateError.value = friendlyErrorMessage(e)
@@ -85,9 +61,8 @@ export function useProducers() {
     deleting.value = true
     deleteError.value = null
     try {
-      await apiClient.delete(`/producers/${id}`, undefined)
-      producers.value = producers.value.filter((p) => p.id !== id)
-      await db.producers.delete(id)
+      await gateway.producers.remove(id)
+      producers.value = producers.value.filter((r) => r.id !== id)
       return true
     } catch (e) {
       deleteError.value = friendlyErrorMessage(e)

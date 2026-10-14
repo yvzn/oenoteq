@@ -4,12 +4,18 @@
 
 **Blocked by:** `.scratch/e2e/issues/01-playwright-harness-and-offline-create-tracer.md` (characterization net for the sync layer before it is reworked; if that ticket is dropped by its time-box, this edge is removed)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] One gateway interface covering every entity read and write the app performs today, including the cellar search, quantity adjustment and consumption create/update/delete
-- [ ] The existing local-first behavior (local store first, outbox, background push, id remapping, "pending" state) lives in one adapter implementing that interface; no behavior change
-- [ ] No composable or view imports the local store or calls the API client for entity data directly; everything goes through the gateway
-- [ ] The active adapter is resolved in one place; for now it is always the local-first adapter
-- [ ] Contract tests are written once against the gateway interface and run against the local-first adapter: list/get/create/update for each entity, quantity adjustment, consumption create/update/delete, search with filters and sorts, errors surfacing as friendly errors. Where adapters will legitimately differ (outbox, local ids, pending state) the contract states the difference explicitly
-- [ ] Every existing test passes unchanged (same assertions, same mocks at the API-client and fake IndexedDB boundaries)
-- [ ] No API, schema or `api.http` change
+- [x] One gateway interface covering every entity read and write the app performs today, including the cellar search, quantity adjustment and consumption create/update/delete
+- [x] The existing local-first behavior (local store first, outbox, background push, id remapping, "pending" state) lives in one adapter implementing that interface; no behavior change
+- [x] No composable or view imports the local store or calls the API client for entity data directly; everything goes through the gateway
+- [x] The active adapter is resolved in one place; for now it is always the local-first adapter
+- [x] Contract tests are written once against the gateway interface and run against the local-first adapter: list/get/create/update for each entity, quantity adjustment, consumption create/update/delete, search with filters and sorts, errors surfacing as friendly errors. Where adapters will legitimately differ (outbox, local ids, pending state) the contract states the difference explicitly
+- [x] Every existing test passes unchanged (same assertions, same mocks at the API-client and fake IndexedDB boundaries)
+- [x] No API, schema or `api.http` change
+
+## Comments
+
+- `web/src/gateway/`: `DataGateway` interface (`types.ts`), local-first adapter, active adapter resolved in `index.ts`. Contract in `gatewayContract.ts`, run against local-first in `localFirstGateway.test.ts` using `test/fakeServer.ts`.
+- `useSyncPending` / `useSyncStatus` still read the outbox directly (sync-status data, not entity data); revisit when the direct adapter lands.
+- Cellar list read is `gateway.search` (ADR 0009 not landed).

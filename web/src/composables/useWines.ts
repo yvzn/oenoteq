@@ -1,78 +1,10 @@
 import { ref } from 'vue'
-import { ApiError, apiClient } from '../api/client'
+import { ApiError } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
-import type { Consumption, Producer, Wine, WineCreateInput, WineDetail, WineInput } from '../api/types'
-import { db } from '../db/localDb'
-import { nextLocalId } from '../db/localId'
-import { pushChangesInBackground } from '../sync'
-import { resolveIdIfSynced } from '../sync/idRemap'
-import {
-  cancelPendingConsumptionCreate,
-  enqueueConsumptionCreate,
-  enqueueConsumptionUpdate,
-  enqueueQuantityAdjustment,
-  patchPendingConsumptionCreate,
-} from '../sync/consumptionSync'
-import { enqueueWineCreate, enqueueWineUpdate, patchPendingWineCreate, pullWine } from '../sync/wineSync'
+import type { Wine, WineCreateInput, WineDetail, WineInput } from '../api/types'
+import { gateway, type ConsumptionInput } from '../gateway'
 
-export interface ConsumptionInput {
-  date: string
-  rating: number | null
-  notes: string | null
-}
-
-function buildWineDetail(
-  id: number,
-  input: WineInput,
-  producer: Producer,
-  extras: Pick<WineDetail, 'quantity' | 'suggested_meals' | 'consumption_history'>,
-): WineDetail {
-  return {
-    id,
-    millesime: input.millesime,
-    appellation_id: input.appellation_id,
-    producer_id: input.producer_id,
-    producer,
-    color: input.color,
-    garde_debut: input.garde_debut,
-    garde_fin: input.garde_fin,
-    ...extras,
-  }
-}
-
-// The form may still hold the local id of a Producer/Appellation created
-// inline whose create has since synced (and swapped to a server id) — store
-// and queue the wine against the id that actually exists now.
-async function resolveReferences<T extends { appellation_id: number; producer_id: number }>(
-  input: T,
-): Promise<T> {
-  return {
-    ...input,
-    appellation_id: await resolveIdIfSynced(input.appellation_id),
-    producer_id: await resolveIdIfSynced(input.producer_id),
-  }
-}
-
-async function resolveProducer(existing: WineDetail | undefined, producerId: number): Promise<Producer> {
-  if (existing && existing.producer_id === producerId) return existing.producer
-  return (await db.producers.get(producerId)) ?? { id: producerId, name: '' }
-}
-
-// A negative id is local-only. If it's still in the local store, its create
-// hasn't synced yet; if it's gone, the create may have already synced and
-// replaced it — the idRemap breadcrumb redirects that case to the real id.
-async function resolveWine(id: number): Promise<{ targetId: number; existing: WineDetail | undefined }> {
-  let targetId = id
-  let existing = await db.wines.get(id)
-  if (!existing && id < 0) {
-    const remap = await db.idRemap.get(id)
-    if (remap) {
-      targetId = remap.serverId
-      existing = await db.wines.get(targetId)
-    }
-  }
-  return { targetId, existing }
-}
+export type { ConsumptionInput }
 
 export function useWines() {
   const wine = ref<WineDetail | null>(null)
@@ -94,54 +26,23 @@ export function useWines() {
   async function load(id: number): Promise<number> {
     loading.value = true
     error.value = null
-    let resolvedId = id
-    let cached = await db.wines.get(id)
-    // A negative id is local-only. If it's still in the local store, its
-    // create hasn't synced yet and it can never exist at the server (see
-    // the id < 0 branch below). If it's gone, its create may have already
-    // synced and replaced it — check the breadcrumb left behind for that.
-    if (!cached && id < 0) {
-      const remap = await db.idRemap.get(id)
-      if (remap) {
-        resolvedId = remap.serverId
-        cached = await db.wines.get(resolvedId)
-      }
-    }
-    if (cached) wine.value = cached
-    if (resolvedId < 0) {
-      loading.value = false
-      return resolvedId
-    }
     try {
-      if (navigator.onLine !== false) {
-        wine.value = await pullWine(resolvedId)
-      }
-    } catch (e) {
-      if (!cached) error.value = friendlyErrorMessage(e)
+      const result = await gateway.wines.get(id, (cached) => {
+        wine.value = cached
+      })
+      if (result.wine) wine.value = result.wine
+      if (result.error) error.value = friendlyErrorMessage(result.error)
+      return result.resolvedId
     } finally {
       loading.value = false
     }
-    return resolvedId
   }
 
   async function recordConsumption(id: number, input: ConsumptionInput) {
     submittingConsumption.value = true
     consumptionError.value = null
     try {
-      const { targetId, existing } = await resolveWine(id)
-      if (!existing) throw new ApiError(404, 'wine_not_found')
-      if (existing.quantity <= 0) throw new ApiError(409, 'quantity_zero')
-      const localId = nextLocalId()
-      const consumption: Consumption = { id: localId, wine_id: targetId, ...input }
-      const updated: WineDetail = {
-        ...existing,
-        quantity: existing.quantity - 1,
-        consumption_history: [...existing.consumption_history, consumption],
-      }
-      await db.wines.put(updated)
-      wine.value = updated
-      await enqueueConsumptionCreate(localId, targetId, { ...input, client_id: crypto.randomUUID() })
-      pushChangesInBackground()
+      wine.value = await gateway.wines.recordConsumption(id, input)
     } catch (e) {
       consumptionError.value = friendlyErrorMessage(e)
     } finally {
@@ -157,18 +58,7 @@ export function useWines() {
     updatingConsumption.value = true
     updateConsumptionError.value = null
     try {
-      const existing = await db.wines.get(wineId)
-      if (!existing) throw new ApiError(404, 'wine_not_found')
-      const consumption_history = existing.consumption_history.map((c) =>
-        c.id === consumptionId ? { ...c, ...input } : c,
-      )
-      await db.wines.update(wineId, { consumption_history })
-      wine.value = { ...existing, consumption_history }
-
-      const patchedPendingCreate =
-        consumptionId < 0 && (await patchPendingConsumptionCreate(consumptionId, input))
-      if (!patchedPendingCreate) await enqueueConsumptionUpdate(consumptionId, input)
-      pushChangesInBackground()
+      wine.value = await gateway.wines.updateConsumption(wineId, consumptionId, input)
       return true
     } catch (e) {
       updateConsumptionError.value = friendlyErrorMessage(e)
@@ -178,37 +68,17 @@ export function useWines() {
     }
   }
 
-  // A consumption still sitting unsent in the outbox is simply dequeued —
-  // nothing was ever pushed, so there's no server call to make. One already
-  // synced (a positive id) stays the existing online-only delete.
   async function deleteConsumption(wineId: number, consumptionId: number): Promise<boolean> {
     deletingConsumption.value = true
     deleteConsumptionError.value = null
     try {
-      if (consumptionId < 0) {
-        const canceled = await cancelPendingConsumptionCreate(consumptionId)
-        if (!canceled) {
-          // It must have synced in the background between render and this
-          // click — refresh from the local store (now holding the real,
-          // server-assigned consumption) rather than guessing at quantity.
-          await load(wineId)
-          throw new ApiError(409, 'consumption_not_found')
-        }
-        const existing = await db.wines.get(wineId)
-        if (!existing) throw new ApiError(404, 'wine_not_found')
-        const updated: WineDetail = {
-          ...existing,
-          quantity: existing.quantity + 1,
-          consumption_history: existing.consumption_history.filter((c) => c.id !== consumptionId),
-        }
-        await db.wines.put(updated)
-        wine.value = updated
-        return true
-      }
-      await apiClient.delete(`/consumptions/${consumptionId}`, undefined)
-      await load(wineId)
+      const refreshed = await gateway.wines.deleteConsumption(wineId, consumptionId)
+      if (refreshed) wine.value = refreshed
       return true
     } catch (e) {
+      // It must have synced in the background between render and this click
+      // — refresh rather than guessing at quantity.
+      if (e instanceof ApiError && e.message === 'consumption_not_found') await load(wineId)
       deleteConsumptionError.value = friendlyErrorMessage(e)
       return false
     } finally {
@@ -220,15 +90,7 @@ export function useWines() {
     adjustingQuantity.value = true
     adjustQuantityError.value = null
     try {
-      const { targetId, existing } = await resolveWine(id)
-      if (!existing) throw new ApiError(404, 'wine_not_found')
-      const quantity = existing.quantity + delta
-      if (quantity < 0) throw new ApiError(409, 'quantity_zero')
-      const updated: WineDetail = { ...existing, quantity }
-      await db.wines.put(updated)
-      wine.value = updated
-      await enqueueQuantityAdjustment(targetId, { delta, client_id: crypto.randomUUID() })
-      pushChangesInBackground()
+      wine.value = await gateway.wines.adjustQuantity(id, delta)
       return true
     } catch (e) {
       adjustQuantityError.value = friendlyErrorMessage(e)
@@ -238,22 +100,11 @@ export function useWines() {
     }
   }
 
-  async function create(rawInput: WineCreateInput): Promise<Wine | null> {
+  async function create(input: WineCreateInput): Promise<Wine | null> {
     submitting.value = true
     submitError.value = null
     try {
-      const input = await resolveReferences(rawInput)
-      const producer = await resolveProducer(undefined, input.producer_id)
-      const localId = nextLocalId()
-      const record = buildWineDetail(localId, input, producer, {
-        quantity: input.initial_quantity,
-        suggested_meals: [],
-        consumption_history: [],
-      })
-      await db.wines.put(record)
-      await enqueueWineCreate(localId, { ...input, client_id: crypto.randomUUID() })
-      pushChangesInBackground()
-      return record
+      return await gateway.wines.create(input)
     } catch (e) {
       submitError.value = friendlyErrorMessage(e)
       return null
@@ -262,28 +113,11 @@ export function useWines() {
     }
   }
 
-  async function update(id: number, rawInput: WineInput): Promise<Wine | null> {
+  async function update(id: number, input: WineInput): Promise<Wine | null> {
     submitting.value = true
     submitError.value = null
     try {
-      const input = await resolveReferences(rawInput)
-      // Defense in depth: the view layer redirects a stale negative id once
-      // it notices load() resolved elsewhere, but if an update is somehow
-      // submitted against a stale id anyway (a tight race), redirect it here
-      // too rather than queuing a PUT against an id that no longer exists.
-      const { targetId, existing } = await resolveWine(id)
-      const producer = await resolveProducer(existing, input.producer_id)
-      const merged = buildWineDetail(targetId, input, producer, {
-        quantity: existing?.quantity ?? 0,
-        suggested_meals: existing?.suggested_meals ?? [],
-        consumption_history: existing?.consumption_history ?? [],
-      })
-      await db.wines.put(merged)
-
-      const patchedPendingCreate = targetId < 0 && (await patchPendingWineCreate(targetId, input))
-      if (!patchedPendingCreate) await enqueueWineUpdate(targetId, input)
-      pushChangesInBackground()
-      return merged
+      return await gateway.wines.update(id, input)
     } catch (e) {
       submitError.value = friendlyErrorMessage(e)
       return null

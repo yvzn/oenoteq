@@ -1,17 +1,8 @@
 import { ref } from 'vue'
-import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Appellation } from '../api/types'
-import { db } from '../db/localDb'
+import { gateway } from '../gateway'
 import { sortByName } from '../db/sortByName'
-import { nextLocalId } from '../db/localId'
-import { pushChangesInBackground } from '../sync'
-import {
-  enqueueAppellationCreate,
-  enqueueAppellationUpdate,
-  patchPendingAppellationCreate,
-  pullAppellations,
-} from '../sync/appellationSync'
 
 export function useAppellations() {
   const appellations = ref<Appellation[]>([])
@@ -28,15 +19,9 @@ export function useAppellations() {
     loading.value = true
     error.value = null
     try {
-      if (navigator.onLine !== false) await pullAppellations()
-      appellations.value = sortByName(await db.appellations.toArray())
+      appellations.value = await gateway.appellations.list()
     } catch (e) {
-      const cached = sortByName(await db.appellations.toArray())
-      if (cached.length > 0) {
-        appellations.value = cached
-      } else {
-        error.value = friendlyErrorMessage(e)
-      }
+      error.value = friendlyErrorMessage(e)
     } finally {
       loading.value = false
     }
@@ -46,12 +31,8 @@ export function useAppellations() {
     creating.value = true
     createError.value = null
     try {
-      const localId = nextLocalId()
-      const record: Appellation = { id: localId, name }
-      await db.appellations.put(record)
+      const record = await gateway.appellations.create(name)
       appellations.value = sortByName([...appellations.value, record])
-      await enqueueAppellationCreate(localId, { name, client_id: crypto.randomUUID() })
-      pushChangesInBackground()
       return record
     } catch (e) {
       createError.value = friendlyErrorMessage(e)
@@ -65,13 +46,8 @@ export function useAppellations() {
     updating.value = true
     updateError.value = null
     try {
-      const record: Appellation = { id, name }
-      await db.appellations.put(record)
-      appellations.value = sortByName(appellations.value.map((a) => (a.id === id ? record : a)))
-
-      const patchedPendingCreate = id < 0 && (await patchPendingAppellationCreate(id, { name }))
-      if (!patchedPendingCreate) await enqueueAppellationUpdate(id, { name })
-      pushChangesInBackground()
+      const record = await gateway.appellations.update(id, name)
+      appellations.value = sortByName(appellations.value.map((r) => (r.id === id ? record : r)))
       return record
     } catch (e) {
       updateError.value = friendlyErrorMessage(e)
@@ -85,9 +61,8 @@ export function useAppellations() {
     deleting.value = true
     deleteError.value = null
     try {
-      await apiClient.delete(`/appellations/${id}`, undefined)
-      appellations.value = appellations.value.filter((a) => a.id !== id)
-      await db.appellations.delete(id)
+      await gateway.appellations.remove(id)
+      appellations.value = appellations.value.filter((r) => r.id !== id)
       return true
     } catch (e) {
       deleteError.value = friendlyErrorMessage(e)

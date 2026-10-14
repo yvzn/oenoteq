@@ -1,12 +1,8 @@
 import { ref } from 'vue'
-import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { Meal } from '../api/types'
-import { db } from '../db/localDb'
+import { gateway } from '../gateway'
 import { sortByName } from '../db/sortByName'
-import { nextLocalId } from '../db/localId'
-import { pushChangesInBackground } from '../sync'
-import { enqueueMealCreate, enqueueMealUpdate, patchPendingMealCreate, pullMeals } from '../sync/mealSync'
 
 export function useMeals() {
   const meals = ref<Meal[]>([])
@@ -23,15 +19,9 @@ export function useMeals() {
     loading.value = true
     error.value = null
     try {
-      if (navigator.onLine !== false) await pullMeals()
-      meals.value = sortByName(await db.meals.toArray())
+      meals.value = await gateway.meals.list()
     } catch (e) {
-      const cached = sortByName(await db.meals.toArray())
-      if (cached.length > 0) {
-        meals.value = cached
-      } else {
-        error.value = friendlyErrorMessage(e)
-      }
+      error.value = friendlyErrorMessage(e)
     } finally {
       loading.value = false
     }
@@ -41,12 +31,8 @@ export function useMeals() {
     creating.value = true
     createError.value = null
     try {
-      const localId = nextLocalId()
-      const record: Meal = { id: localId, name }
-      await db.meals.put(record)
+      const record = await gateway.meals.create(name)
       meals.value = sortByName([...meals.value, record])
-      await enqueueMealCreate(localId, { name, client_id: crypto.randomUUID() })
-      pushChangesInBackground()
       return record
     } catch (e) {
       createError.value = friendlyErrorMessage(e)
@@ -60,13 +46,8 @@ export function useMeals() {
     updating.value = true
     updateError.value = null
     try {
-      const record: Meal = { id, name }
-      await db.meals.put(record)
-      meals.value = sortByName(meals.value.map((m) => (m.id === id ? record : m)))
-
-      const patchedPendingCreate = id < 0 && (await patchPendingMealCreate(id, { name }))
-      if (!patchedPendingCreate) await enqueueMealUpdate(id, { name })
-      pushChangesInBackground()
+      const record = await gateway.meals.update(id, name)
+      meals.value = sortByName(meals.value.map((r) => (r.id === id ? record : r)))
       return record
     } catch (e) {
       updateError.value = friendlyErrorMessage(e)
@@ -80,9 +61,8 @@ export function useMeals() {
     deleting.value = true
     deleteError.value = null
     try {
-      await apiClient.delete(`/meals/${id}`, undefined)
-      meals.value = meals.value.filter((m) => m.id !== id)
-      await db.meals.delete(id)
+      await gateway.meals.remove(id)
+      meals.value = meals.value.filter((r) => r.id !== id)
       return true
     } catch (e) {
       deleteError.value = friendlyErrorMessage(e)

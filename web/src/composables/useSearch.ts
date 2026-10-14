@@ -1,9 +1,9 @@
 import { ref } from 'vue'
-import { apiClient } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { WineSearchResult } from '../api/types'
-import { filtersToQueryParams, type SearchFilters } from '../domain/searchFilters'
-import { sortToQueryParams, type WineSort } from '../domain/wineSort'
+import type { SearchFilters } from '../domain/searchFilters'
+import type { WineSort } from '../domain/wineSort'
+import { gateway } from '../gateway'
 
 export function useSearch() {
   const results = ref<WineSearchResult[]>([])
@@ -14,11 +14,7 @@ export function useSearch() {
     loading.value = true
     error.value = null
     try {
-      const query = new URLSearchParams({
-        ...filtersToQueryParams(filters),
-        ...sortToQueryParams(sort),
-      }).toString()
-      results.value = await apiClient.get<WineSearchResult[]>(query ? `/search?${query}` : '/search')
+      results.value = await gateway.search(filters, sort)
     } catch (e) {
       error.value = friendlyErrorMessage(e)
     } finally {
