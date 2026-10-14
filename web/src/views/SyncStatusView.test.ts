@@ -1,13 +1,28 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { apiClient } from '../api/client'
 import { db } from '../db/localDb'
-import { pushChangesInBackground } from '../sync'
+import { pushChangesInBackground, syncNow } from '../sync'
 import { enqueue } from '../sync/outbox'
 import SyncStatusView from './SyncStatusView.vue'
 
 vi.mock('../sync', async () => {
   const actual = await vi.importActual<typeof import('../sync')>('../sync')
-  return { ...actual, pushChangesInBackground: vi.fn() }
+  return { ...actual, pushChangesInBackground: vi.fn(), syncNow: vi.fn() }
+})
+
+vi.mock('../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
+  return { ...actual, apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }
+})
+
+const setNavigatorOnLine = (value: boolean) =>
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value })
+
+afterEach(() => {
+  vi.mocked(syncNow).mockReset()
+  vi.mocked(apiClient.get).mockReset()
+  setNavigatorOnLine(true)
 })
 
 async function flushPromises() {
@@ -111,5 +126,77 @@ describe('SyncStatusView', () => {
 
     expect(wrapper.find('[data-testid="sync-status-failed-item"]').exists()).toBe(true)
     expect(await db.outbox.count()).toBe(1)
+  })
+
+  describe('Retry sync', () => {
+    it('runs a full sync on click, disabled while in flight, then refreshes counts', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({})
+      let finish!: () => void
+      vi.mocked(syncNow).mockImplementation(
+        () => new Promise<void>((resolve) => (finish = resolve)),
+      )
+      await enqueue(db.outbox, { entity: 'appellation', action: 'create', targetId: -1, payload: {} })
+
+      const wrapper = await mountView()
+      const button = wrapper.get('[data-testid="sync-status-retry-all"]')
+      expect(button.attributes('disabled')).toBeUndefined()
+      expect(wrapper.get('[data-testid="sync-status-count"]:nth-child(4)').text()).toBe('Appellation1')
+
+      await button.trigger('click')
+      await button.trigger('click')
+      await flushPromises()
+
+      expect(syncNow).toHaveBeenCalledTimes(1)
+      expect(button.attributes('disabled')).toBeDefined()
+      expect(button.text()).toBe('Syncing…')
+
+      await db.outbox.clear()
+      finish()
+      await flushPromises()
+
+      expect(button.attributes('disabled')).toBeUndefined()
+      expect(button.text()).toBe('Retry sync')
+      expect(wrapper.get('[data-testid="sync-status-count"]:nth-child(4)').text()).toBe('Appellation0')
+    })
+
+    it('is disabled with an explanation while offline and does not sync', async () => {
+      setNavigatorOnLine(false)
+
+      const wrapper = await mountView()
+      const button = wrapper.get('[data-testid="sync-status-retry-all"]')
+
+      expect(button.attributes('disabled')).toBeDefined()
+      expect(wrapper.get('[data-testid="sync-status-offline-note"]').text()).toBe(
+        "You're offline. Sync will run when you're back online.",
+      )
+      await button.trigger('click')
+      expect(syncNow).not.toHaveBeenCalled()
+    })
+
+    it('does not retry failed items implicitly, same as the reconnect path', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({})
+      vi.mocked(syncNow).mockResolvedValue()
+      const failingId = await enqueue(db.outbox, { entity: 'meal', action: 'update', targetId: 1, payload: {} })
+      await db.outbox.update(failingId, { status: 'failed', error: 'meal_not_found' })
+
+      const wrapper = await mountView()
+      await wrapper.get('[data-testid="sync-status-retry-all"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="sync-status-failed-item"]').exists()).toBe(true)
+      expect(await db.outbox.get(failingId)).toMatchObject({ status: 'failed' })
+    })
+
+    it('re-enables and refreshes even if the sync fails', async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({})
+      vi.mocked(syncNow).mockRejectedValue(new Error('boom'))
+
+      const wrapper = await mountView()
+      const button = wrapper.get('[data-testid="sync-status-retry-all"]')
+      await button.trigger('click')
+      await flushPromises()
+
+      expect(button.attributes('disabled')).toBeUndefined()
+    })
   })
 })

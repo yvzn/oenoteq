@@ -27,6 +27,14 @@ async function syncAll(): Promise<void> {
   await pullAllMealPairings().catch(() => {})
 }
 
+// Awaitable full push + pull, for an explicit user-triggered "Retry sync".
+// Rejects if a push or entity pull fails (the meal-pairings pull is isolated
+// and never rejects), so the caller can tell. Failed outbox items are not
+// replayed here, same as the reconnect path.
+export function syncNow(): Promise<void> {
+  return syncAll()
+}
+
 // Fire-and-forget replay of every queued mutation, triggered right after a
 // local write so a queued change syncs without waiting for the next
 // reconnect if the network is actually still up. Two local writes in quick

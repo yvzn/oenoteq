@@ -1,7 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { friendlyMessageForCode } from '../api/errorMessages'
 import { db } from '../db/localDb'
-import { pushChangesInBackground } from '../sync'
+import { pushChangesInBackground, syncNow } from '../sync'
 import { discard, outboxVersion, retry, type OutboxItem } from '../sync/outbox'
 
 // The six entity types the sync-status page reports on. `quantity_adjustment`
@@ -87,11 +87,30 @@ async function discardFailedItem(id: number): Promise<void> {
   await discard(db.outbox, id)
 }
 
+const isSyncing = ref(false)
+
+// Guarded against double-trigger; always refreshes afterwards, even if the
+// sync itself failed, so the page shows whatever state the outbox ended in.
+async function syncAllNow(): Promise<void> {
+  if (isSyncing.value) return
+  isSyncing.value = true
+  try {
+    await syncNow()
+  } catch {
+    // Failures surface as failed outbox items; nothing else to show here.
+  } finally {
+    isSyncing.value = false
+    await refresh()
+  }
+}
+
 export function useSyncStatus() {
   return {
     counts,
     failed,
     hasPending,
+    isSyncing,
+    syncAllNow,
     entityLabels: ENTITY_DISPLAY_LABELS,
     refresh,
     retryFailedItem,

@@ -4,9 +4,12 @@ import AppButton from '../components/AppButton.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
+import { useConnectivity } from '../composables/useConnectivity'
 import { useSyncStatus } from '../composables/useSyncStatus'
 
-const { counts, failed, entityLabels, refresh, retryFailedItem, discardFailedItem } = useSyncStatus()
+const { counts, failed, entityLabels, isSyncing, refresh, syncAllNow, retryFailedItem, discardFailedItem } =
+  useSyncStatus()
+const { isOnline } = useConnectivity()
 
 onMounted(refresh)
 
@@ -33,6 +36,21 @@ async function confirmDiscard() {
   <section class="px-6 py-6">
     <div class="mx-auto max-w-2xl">
       <PageHeader title="Sync status" />
+
+      <div class="mt-4 flex items-center gap-3">
+        <AppButton
+          type="button"
+          variant="secondary"
+          data-testid="sync-status-retry-all"
+          :disabled="isSyncing || !isOnline"
+          @click="syncAllNow"
+        >
+          {{ isSyncing ? 'Syncing…' : 'Retry sync' }}
+        </AppButton>
+        <p v-if="!isOnline" data-testid="sync-status-offline-note" class="text-muted text-sm">
+          You're offline. Sync will run when you're back online.
+        </p>
+      </div>
 
       <ul data-testid="sync-status-counts" class="mt-4 flex flex-col">
         <li
