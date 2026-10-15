@@ -1,11 +1,13 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { ApiError, apiClient } from '../api/client'
 import type { WineDetail } from '../api/types'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
 import { pushChangesInBackground } from '../sync'
+import { setTestLocale } from '../test/i18n'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import WineDetailView from './WineDetailView.vue'
 import WineFormView from './WineFormView.vue'
@@ -621,3 +623,47 @@ async function flushPromises() {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }
+
+describe('WineFormView in French', () => {
+  it('shows validation errors in French and follows a language switch', async () => {
+    mockGet()
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
+    expect(wrapper.get('[data-testid="wine-color-error"]').text()).toBe('Color is required')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="wine-color-error"]').text()).toBe('La couleur est obligatoire')
+    expect(wrapper.get('[data-testid="wine-appellation-error"]').text()).toBe("L'appellation est obligatoire")
+  })
+
+  it('translates parameterised quantity and garde errors', async () => {
+    mockGet()
+    setTestLocale('fr')
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="wine-garde-debut-input"]').setValue('2030')
+    await wrapper.get('[data-testid="wine-garde-fin-input"]').setValue('2020')
+    await wrapper.get('[data-testid="wine-quantity-input"]').setValue('0')
+    await wrapper.get('[data-testid="wine-form"]').trigger('submit.prevent')
+
+    expect(wrapper.get('[data-testid="wine-quantity-error"]').text()).toBe('La quantité initiale doit être au moins 1')
+    expect(wrapper.get('[data-testid="wine-garde-fin-error"]').text()).toContain('fenêtre de garde')
+  })
+
+  it('shows French labels and keeps a half-filled form when the language switches', async () => {
+    mockGet()
+    const { wrapper } = await mountAt('/wines/new')
+    await wrapper.get('[data-testid="wine-color-input"]').setValue('blanc')
+    await wrapper.get('[data-testid="wine-garde-debut-input"]').setValue('2024')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Millésime')
+    expect(wrapper.text()).toContain('Quantité initiale')
+    expect(wrapper.get('[data-testid="wine-color-input"]').findAll('option').map((o) => o.text())).toContain('Blanc')
+    expect((wrapper.get('[data-testid="wine-color-input"]').element as HTMLSelectElement).value).toBe('blanc')
+    expect((wrapper.get('[data-testid="wine-garde-debut-input"]').element as HTMLInputElement).value).toBe('2024')
+  })
+})

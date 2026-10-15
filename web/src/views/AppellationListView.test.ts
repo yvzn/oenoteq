@@ -1,8 +1,10 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient, ApiError } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { setTestLocale } from '../test/i18n'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import AppellationFormView from './AppellationFormView.vue'
 import AppellationListView from './AppellationListView.vue'
@@ -145,3 +147,26 @@ async function flushPromises() {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }
+
+describe('AppellationListView in French', () => {
+  it('shows the French title and empty state', async () => {
+    mockGet({ appellations: [] })
+    setTestLocale('fr')
+
+    const { wrapper } = await mountAt('/appellations')
+
+    expect(wrapper.text()).toContain('Appellations')
+    expect(wrapper.text()).toContain('Aucune appellation pour le moment.')
+  })
+
+  it('updates the mounted empty state when the language switches', async () => {
+    mockGet({ appellations: [] })
+    const { wrapper } = await mountAt('/appellations')
+    expect(wrapper.text()).toContain('No appellations yet.')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Aucune appellation pour le moment.')
+  })
+})

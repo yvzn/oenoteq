@@ -26,6 +26,7 @@ import {
   type WineFormErrors,
   type WineFormFields,
 } from '../domain/wineForm'
+import type { MessageRef } from '../i18n/messageRef'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -86,6 +87,11 @@ const fields = computed<WineFormFields>(() => ({
 }))
 
 const errors = ref<WineFormErrors>({})
+
+// Errors hold message refs, not text, so messages already on screen follow a language switch.
+function errorText(message: MessageRef | undefined): string | null {
+  return message ? t(message.key, message.params ?? {}) : null
+}
 
 function fillGardeFin() {
   gardeFin.value = deriveGardeFin(gardeDebut.value, gardeFin.value)
@@ -191,7 +197,7 @@ async function submit() {
 
   if (saved) {
     formSuccess.showAndNavigate(
-      isEdit.value ? 'Wine updated.' : 'Wine added.',
+      isEdit.value ? t('wine.form.updated') : t('wine.form.added'),
       { name: 'wine-detail', params: { id: saved.id } },
       router,
     )
@@ -202,13 +208,13 @@ async function submit() {
 <template>
   <section class="px-6 py-6">
    <div class="mx-auto max-w-2xl">
-    <PageHeader :title="isEdit ? 'Edit wine' : 'Add wine'" :color="color" />
+    <PageHeader :title="isEdit ? t('wine.form.editTitle') : t('wine.form.addTitle')" :color="color" />
 
-    <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
+    <StatusLine v-if="loading" class="mt-4">{{ t('wine.form.loading') }}</StatusLine>
     <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">
-      Couldn't load: {{ loadError }}
+      {{ t('wine.form.loadError', { error: loadError }) }}
       <template #retry>
-        <AppButton variant="ghost" data-testid="wine-form-retry" @click="retry">Retry</AppButton>
+        <AppButton variant="ghost" data-testid="wine-form-retry" @click="retry">{{ t('actions.retry') }}</AppButton>
       </template>
     </StatusLine>
     <form
@@ -218,22 +224,22 @@ async function submit() {
       @submit.prevent="submit"
     >
       <div class="grid grid-cols-2 gap-4">
-        <FormField label="Millesime" :error="errors.millesime">
+        <FormField :label="t('vocabulary.millesime')" :error="errorText(errors.millesime)">
           <input v-model="millesime" data-testid="wine-millesime-input" type="number" class="w-full" />
         </FormField>
 
-        <FormField label="Color" :error="errors.color" error-testid="wine-color-error">
+        <FormField :label="t('wine.form.color')" :error="errorText(errors.color)" error-testid="wine-color-error">
           <div class="flex items-center gap-2">
             <ColorSwatch v-if="color" :color="color" class="shrink-0" />
             <select v-model="color" data-testid="wine-color-input" class="w-full">
-              <option value="">Choose a color</option>
-              <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
+              <option value="">{{ t('wine.form.chooseColor') }}</option>
+              <option v-for="c in colors" :key="c" :value="c">{{ t(`color.${c}`) }}</option>
             </select>
           </div>
         </FormField>
       </div>
 
-      <FormField label="Appellation" :error="errors.appellationId" error-testid="wine-appellation-error">
+      <FormField :label="t('vocabulary.appellation')" :error="errorText(errors.appellationId)" error-testid="wine-appellation-error">
         <AutocompleteField
           testid="wine-appellation"
           :items="appellations"
@@ -253,7 +259,7 @@ async function submit() {
         />
       </FormField>
 
-      <FormField label="Producer" :error="errors.producerId" error-testid="wine-producer-error">
+      <FormField :label="t('vocabulary.producer')" :error="errorText(errors.producerId)" error-testid="wine-producer-error">
         <AutocompleteField
           testid="wine-producer"
           :items="producers"
@@ -274,7 +280,7 @@ async function submit() {
       </FormField>
 
       <div class="grid grid-cols-2 gap-4">
-        <FormField label="Garde start" :error="errors.gardeDebut" error-testid="wine-garde-debut-error">
+        <FormField :label="t('wine.form.gardeStart')" :error="errorText(errors.gardeDebut)" error-testid="wine-garde-debut-error">
           <input
             v-model="gardeDebut"
             data-testid="wine-garde-debut-input"
@@ -284,15 +290,15 @@ async function submit() {
           />
         </FormField>
 
-        <FormField label="Garde end" :error="errors.gardeFin" error-testid="wine-garde-fin-error">
+        <FormField :label="t('wine.form.gardeEnd')" :error="errorText(errors.gardeFin)" error-testid="wine-garde-fin-error">
           <input v-model="gardeFin" data-testid="wine-garde-fin-input" type="number" class="w-full" />
         </FormField>
       </div>
 
       <FormField
         v-if="!isEdit"
-        label="Initial quantity"
-        :error="errors.quantity"
+        :label="t('wine.form.initialQuantity')"
+        :error="errorText(errors.quantity)"
         error-testid="wine-quantity-error"
       >
         <NumberStepper
@@ -314,14 +320,14 @@ async function submit() {
           :disabled="submitting"
           @click="cancel"
         >
-          Cancel
+          {{ t('actions.cancel') }}
         </AppButton>
         <AppButton
           type="submit"
           data-testid="wine-form-submit"
           :disabled="submitting"
         >
-          {{ isEdit ? 'Save changes' : 'Add wine' }}
+          {{ isEdit ? t('wine.form.submitEdit') : t('wine.form.submitAdd') }}
         </AppButton>
       </div>
     </form>

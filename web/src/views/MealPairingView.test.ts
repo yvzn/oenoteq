@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
+import { setTestLocale } from '../test/i18n'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import MealPairingView from './MealPairingView.vue'
 import { itOfflineOnly } from '../test/consent'
@@ -396,3 +397,23 @@ async function flushPromises() {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }
+
+describe('MealPairingView in French', () => {
+  it('shows French pickers, the empty selection state and untouched meal names', async () => {
+    mockApi()
+    setTestLocale('fr')
+
+    const { wrapper } = await mountAt('/meal-pairings')
+
+    expect(wrapper.text()).toContain('Accords mets-vin')
+    expect(wrapper.text()).toContain('Aucune sélection')
+    const options = wrapper.get('[data-testid="meal-pairing-color-input"]').findAll('option')
+    expect(options.map((o) => o.text())).toEqual(['Choisir une couleur', 'Rouge', 'Blanc', 'Rosé'])
+    expect(options.map((o) => o.element.value)).toEqual(['', 'rouge', 'blanc', 'rose'])
+
+    await selectAppellationAndColor(wrapper)
+
+    expect(wrapper.text()).toContain('Actuellement associés')
+    expect(wrapper.text()).toContain('Boeuf bourguignon')
+  })
+})

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
 import FormField from '../components/FormField.vue'
@@ -8,8 +9,11 @@ import StatusLine from '../components/StatusLine.vue'
 import SyncPendingBadge from '../components/SyncPendingBadge.vue'
 import { useMeals } from '../composables/useMeals'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { validateName } from '../domain/nameForm'
+import type { MessageRef } from '../i18n/messageRef'
 
 const route = useRoute()
+const { t } = useI18n()
 const router = useRouter()
 
 const editId = computed(() => (route.params.id ? Number(route.params.id) : null))
@@ -29,7 +33,7 @@ const {
 } = useMeals()
 
 const name = ref('')
-const nameError = ref<string | null>(null)
+const nameError = ref<MessageRef | null>(null)
 
 const loading = computed(() => isEdit.value && mealsLoading.value)
 const loadError = computed(() => mealsError.value)
@@ -63,18 +67,16 @@ function cancel() {
 
 async function submit() {
   const trimmed = name.value.trim()
-  if (trimmed === '') {
-    nameError.value = 'Name is required'
-    return
-  }
-  nameError.value = null
+  const invalid = validateName(trimmed)
+  nameError.value = invalid ?? null
+  if (invalid) return
 
   const saved = isEdit.value
     ? await updateMeal(editId.value as number, trimmed)
     : await createMeal(trimmed)
 
   if (saved) {
-    formSuccess.showAndNavigate(isEdit.value ? 'Meal updated.' : 'Meal added.', { name: 'meals' }, router)
+    formSuccess.showAndNavigate(isEdit.value ? t('manage.meals.form.updated') : t('manage.meals.form.added'), { name: 'meals' }, router)
   }
 }
 </script>
@@ -82,14 +84,14 @@ async function submit() {
 <template>
   <section class="px-6 py-6">
    <div class="mx-auto max-w-2xl">
-    <PageHeader :title="isEdit ? 'Rename meal' : 'Add meal'" />
+    <PageHeader :title="isEdit ? t('manage.meals.form.renameTitle') : t('manage.meals.form.addTitle')" />
     <SyncPendingBadge v-if="isEdit" entity="meal" :target-id="editId as number" class="mt-3" />
 
-    <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
+    <StatusLine v-if="loading" class="mt-4">{{ t('manage.common.loading') }}</StatusLine>
     <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">
-      Couldn't load: {{ loadError }}
+      {{ t('manage.common.formLoadError', { error: loadError }) }}
       <template #retry>
-        <AppButton variant="ghost" data-testid="meal-form-retry" @click="retry">Retry</AppButton>
+        <AppButton variant="ghost" data-testid="meal-form-retry" @click="retry">{{ t('actions.retry') }}</AppButton>
       </template>
     </StatusLine>
     <form
@@ -98,7 +100,7 @@ async function submit() {
       class="mt-6 flex flex-col gap-4"
       @submit.prevent="submit"
     >
-      <FormField label="Name" :error="nameError" error-testid="meal-name-error">
+      <FormField :label="t('manage.common.name')" :error="nameError ? t(nameError.key, nameError.params ?? {}) : null" error-testid="meal-name-error">
         <input v-model="name" data-testid="meal-name-input" type="text" class="w-full" />
       </FormField>
 
@@ -112,14 +114,14 @@ async function submit() {
           :disabled="submitting"
           @click="cancel"
         >
-          Cancel
+          {{ t('actions.cancel') }}
         </AppButton>
         <AppButton
           type="submit"
           data-testid="meal-form-submit"
           :disabled="submitting"
         >
-          {{ isEdit ? 'Save changes' : 'Add meal' }}
+          {{ isEdit ? t('manage.common.saveChanges') : t('manage.meals.add') }}
         </AppButton>
       </div>
     </form>

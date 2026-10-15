@@ -1,8 +1,10 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient, ApiError } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { setTestLocale } from '../test/i18n'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import MealFormView from './MealFormView.vue'
 import MealListView from './MealListView.vue'
@@ -155,3 +157,26 @@ async function flushPromises() {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }
+
+describe('MealListView in French', () => {
+  it('shows the French title and empty state', async () => {
+    mockGet({ meals: [] })
+    setTestLocale('fr')
+
+    const { wrapper } = await mountAt('/meals')
+
+    expect(wrapper.text()).toContain('Plats')
+    expect(wrapper.text()).toContain('Aucun plat pour le moment.')
+  })
+
+  it('updates the mounted empty state when the language switches', async () => {
+    mockGet({ meals: [] })
+    const { wrapper } = await mountAt('/meals')
+    expect(wrapper.text()).toContain('No meals yet.')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Aucun plat pour le moment.')
+  })
+})

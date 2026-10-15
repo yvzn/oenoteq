@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
 import FormField from '../components/FormField.vue'
@@ -8,8 +9,11 @@ import StatusLine from '../components/StatusLine.vue'
 import SyncPendingBadge from '../components/SyncPendingBadge.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { validateName } from '../domain/nameForm'
+import type { MessageRef } from '../i18n/messageRef'
 
 const route = useRoute()
+const { t } = useI18n()
 const router = useRouter()
 
 const editId = computed(() => (route.params.id ? Number(route.params.id) : null))
@@ -29,7 +33,7 @@ const {
 } = useAppellations()
 
 const name = ref('')
-const nameError = ref<string | null>(null)
+const nameError = ref<MessageRef | null>(null)
 
 const loading = computed(() => isEdit.value && appellationsLoading.value)
 const loadError = computed(() => appellationsError.value)
@@ -63,11 +67,9 @@ function cancel() {
 
 async function submit() {
   const trimmed = name.value.trim()
-  if (trimmed === '') {
-    nameError.value = 'Name is required'
-    return
-  }
-  nameError.value = null
+  const invalid = validateName(trimmed)
+  nameError.value = invalid ?? null
+  if (invalid) return
 
   const saved = isEdit.value
     ? await updateAppellation(editId.value as number, trimmed)
@@ -75,7 +77,7 @@ async function submit() {
 
   if (saved) {
     formSuccess.showAndNavigate(
-      isEdit.value ? 'Appellation updated.' : 'Appellation added.',
+      isEdit.value ? t('manage.appellations.form.updated') : t('manage.appellations.form.added'),
       { name: 'appellations' },
       router,
     )
@@ -86,14 +88,14 @@ async function submit() {
 <template>
   <section class="px-6 py-6">
    <div class="mx-auto max-w-2xl">
-    <PageHeader :title="isEdit ? 'Rename appellation' : 'Add appellation'" />
+    <PageHeader :title="isEdit ? t('manage.appellations.form.renameTitle') : t('manage.appellations.form.addTitle')" />
     <SyncPendingBadge v-if="isEdit" entity="appellation" :target-id="editId as number" class="mt-3" />
 
-    <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
+    <StatusLine v-if="loading" class="mt-4">{{ t('manage.common.loading') }}</StatusLine>
     <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">
-      Couldn't load: {{ loadError }}
+      {{ t('manage.common.formLoadError', { error: loadError }) }}
       <template #retry>
-        <AppButton variant="ghost" data-testid="appellation-form-retry" @click="retry">Retry</AppButton>
+        <AppButton variant="ghost" data-testid="appellation-form-retry" @click="retry">{{ t('actions.retry') }}</AppButton>
       </template>
     </StatusLine>
     <form
@@ -102,7 +104,7 @@ async function submit() {
       class="mt-6 flex flex-col gap-4"
       @submit.prevent="submit"
     >
-      <FormField label="Name" :error="nameError" error-testid="appellation-name-error">
+      <FormField :label="t('manage.common.name')" :error="nameError ? t(nameError.key, nameError.params ?? {}) : null" error-testid="appellation-name-error">
         <input v-model="name" data-testid="appellation-name-input" type="text" class="w-full" />
       </FormField>
 
@@ -116,14 +118,14 @@ async function submit() {
           :disabled="submitting"
           @click="cancel"
         >
-          Cancel
+          {{ t('actions.cancel') }}
         </AppButton>
         <AppButton
           type="submit"
           data-testid="appellation-form-submit"
           :disabled="submitting"
         >
-          {{ isEdit ? 'Save changes' : 'Add appellation' }}
+          {{ isEdit ? t('manage.common.saveChanges') : t('manage.appellations.add') }}
         </AppButton>
       </div>
     </form>

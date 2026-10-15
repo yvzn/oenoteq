@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Appellation } from '../api/types'
 import AppButton from '../components/AppButton.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -8,6 +9,7 @@ import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 
+const { t } = useI18n()
 const { appellations, loading, error, load, remove, deleting, deleteError } = useAppellations()
 
 const hasError = computed(() => error.value !== null)
@@ -15,7 +17,7 @@ const hasError = computed(() => error.value !== null)
 const pendingDelete = ref<Appellation | null>(null)
 const confirmOpen = computed(() => pendingDelete.value !== null)
 const confirmMessage = computed(() =>
-  pendingDelete.value ? `Delete appellation "${pendingDelete.value.name}"?` : '',
+  pendingDelete.value ? t('manage.appellations.deleteConfirm', { name: pendingDelete.value.name }) : '',
 )
 
 const listSuccess = useSuccessMessage()
@@ -39,29 +41,29 @@ async function confirmDelete() {
   const { id, name } = pendingDelete.value
   pendingDelete.value = null
   const removed = await remove(id)
-  if (removed) listSuccess.show(`Deleted "${name}".`)
+  if (removed) listSuccess.show(t('manage.common.deleted', { name }))
 }
 </script>
 
 <template>
   <section class="px-6 py-6">
     <div class="mx-auto max-w-2xl">
-      <PageHeader title="Appellations">
+      <PageHeader :title="t('manage.appellations.label')">
         <template #actions>
           <AppButton :to="{ name: 'appellation-new' }" data-testid="add-appellation-link">
-            Add appellation
+            {{ t('manage.appellations.add') }}
           </AppButton>
         </template>
       </PageHeader>
 
-      <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
+      <StatusLine v-if="loading" class="mt-4">{{ t('manage.common.loading') }}</StatusLine>
       <StatusLine v-else-if="hasError" tone="error" class="mt-4">
-        Couldn't load appellations: {{ error }}
+        {{ t('manage.appellations.loadError', { error }) }}
         <template #retry>
-          <AppButton variant="ghost" data-testid="appellation-list-retry" @click="retry">Retry</AppButton>
+          <AppButton variant="ghost" data-testid="appellation-list-retry" @click="retry">{{ t('actions.retry') }}</AppButton>
         </template>
       </StatusLine>
-      <StatusLine v-else-if="appellations.length === 0" class="mt-4">No appellations yet.</StatusLine>
+      <StatusLine v-else-if="appellations.length === 0" class="mt-4">{{ t('manage.appellations.empty') }}</StatusLine>
       <ul v-else data-testid="appellation-list" class="mt-4 flex flex-col">
         <li
           v-for="appellation in appellations"
@@ -76,7 +78,7 @@ async function confirmDelete() {
               :to="{ name: 'appellation-edit', params: { id: appellation.id } }"
               data-testid="appellation-rename-link"
             >
-              Rename
+              {{ t('manage.common.rename') }}
             </AppButton>
             <AppButton
               type="button"
@@ -85,7 +87,7 @@ async function confirmDelete() {
               :disabled="deleting"
               @click="askDelete(appellation)"
             >
-              Delete
+              {{ t('actions.delete') }}
             </AppButton>
           </div>
         </li>
@@ -97,7 +99,7 @@ async function confirmDelete() {
     <ConfirmDialog
       :open="confirmOpen"
       :message="confirmMessage"
-      confirm-label="Delete"
+      :confirm-label="t('actions.delete')"
       @confirm="confirmDelete"
       @cancel="cancelDelete"
     />

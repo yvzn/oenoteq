@@ -1,10 +1,12 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { ApiError, apiClient } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
 import { enqueue } from '../sync/outbox'
+import { setTestLocale } from '../test/i18n'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import MealFormView from './MealFormView.vue'
 import MealListView from './MealListView.vue'
@@ -212,3 +214,30 @@ async function flushPromises() {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }
+
+describe('MealFormView in French', () => {
+  it('translates the name validation message and follows a language switch', async () => {
+    mockGet()
+    const { wrapper } = await mountAt('/meals/new')
+    await wrapper.get('[data-testid="meal-name-input"]').setValue('   ')
+    await wrapper.get('[data-testid="meal-form"]').trigger('submit.prevent')
+    expect(wrapper.get('[data-testid="meal-name-error"]').text()).toBe('Name is required')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="meal-name-error"]').text()).toBe('Le nom est obligatoire')
+  })
+
+  it('keeps a half-filled value when the language switches', async () => {
+    mockGet()
+    const { wrapper } = await mountAt('/meals/new')
+    await wrapper.get('[data-testid="meal-name-input"]').setValue('Tartiflette')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    expect((wrapper.get('[data-testid="meal-name-input"]').element as HTMLInputElement).value).toBe('Tartiflette')
+    expect(wrapper.text()).toContain('Ajouter un plat')
+  })
+})

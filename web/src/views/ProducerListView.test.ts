@@ -1,8 +1,10 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient, ApiError } from '../api/client'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { setTestLocale } from '../test/i18n'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import ProducerFormView from './ProducerFormView.vue'
 import ProducerListView from './ProducerListView.vue'
@@ -145,3 +147,26 @@ async function flushPromises() {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }
+
+describe('ProducerListView in French', () => {
+  it('shows the French title and empty state', async () => {
+    mockGet({ producers: [] })
+    setTestLocale('fr')
+
+    const { wrapper } = await mountAt('/producers')
+
+    expect(wrapper.text()).toContain('Producteurs')
+    expect(wrapper.text()).toContain('Aucun producteur pour le moment.')
+  })
+
+  it('updates the mounted empty state when the language switches', async () => {
+    mockGet({ producers: [] })
+    const { wrapper } = await mountAt('/producers')
+    expect(wrapper.text()).toContain('No producers yet.')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Aucun producteur pour le moment.')
+  })
+})

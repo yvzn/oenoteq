@@ -87,14 +87,14 @@ async function addMeal() {
   await addPairing(appellationId.value as number, color.value as Color, selectedMealId.value)
   if (!mutateError.value) {
     selectedMealId.value = null
-    pairingSuccess.show('Meal pairing added.')
+    pairingSuccess.show(t('pairing.added'))
   }
 }
 
 async function removeMeal(mealId: number) {
   if (!selectionReady.value) return
   await removePairing(appellationId.value as number, color.value as Color, mealId)
-  if (!mutateError.value) pairingSuccess.show('Meal pairing removed.')
+  if (!mutateError.value) pairingSuccess.show(t('pairing.removed'))
 }
 
 function submitOnEnter(event: KeyboardEvent, action: () => void) {
@@ -114,7 +114,7 @@ async function submitNewMeal(name: string) {
     selectedMealId.value = created.id
   } else {
     addMealAutocomplete.value?.clear()
-    pairingSuccess.show('Meal pairing added.')
+    pairingSuccess.show(t('pairing.added'))
   }
 }
 </script>
@@ -122,18 +122,18 @@ async function submitNewMeal(name: string) {
 <template>
   <section class="px-6 py-6">
    <div class="mx-auto max-w-2xl">
-    <PageHeader title="Meal pairings" :color="color" />
+    <PageHeader :title="t('manage.mealPairings.label')" :color="color" />
 
-    <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
+    <StatusLine v-if="loading" class="mt-4">{{ t('pairing.loading') }}</StatusLine>
     <StatusLine v-else-if="hasLoadError" tone="error" class="mt-4">
-      Couldn't load: {{ loadError }}
+      {{ t('pairing.loadError', { error: loadError }) }}
       <template #retry>
-        <AppButton variant="ghost" data-testid="meal-pairing-retry" @click="retry">Retry</AppButton>
+        <AppButton variant="ghost" data-testid="meal-pairing-retry" @click="retry">{{ t('actions.retry') }}</AppButton>
       </template>
     </StatusLine>
     <template v-else>
       <div class="mt-6 grid grid-cols-2 gap-4">
-        <FormField label="Appellation">
+        <FormField :label="t('vocabulary.appellation')">
           <AutocompleteField
             testid="meal-pairing-appellation"
             :items="appellations"
@@ -143,12 +143,12 @@ async function submitNewMeal(name: string) {
           />
         </FormField>
 
-        <FormField label="Color">
+        <FormField :label="t('pairing.color')">
           <div class="flex items-center gap-2">
             <ColorSwatch v-if="color" :color="color" class="shrink-0" />
             <select v-model="color" data-testid="meal-pairing-color-input" class="w-full">
-              <option value="">Choose a color</option>
-              <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
+              <option value="">{{ t('pairing.chooseColor') }}</option>
+              <option v-for="c in colors" :key="c" :value="c">{{ t(`color.${c}`) }}</option>
             </select>
           </div>
         </FormField>
@@ -158,18 +158,18 @@ async function submitNewMeal(name: string) {
         v-if="!selectionReady"
         class="border-line mt-10 flex flex-col items-center gap-1.5 rounded-lg border border-dashed px-6 py-10 text-center"
       >
-        <p class="text-ink-soft text-[15px] font-medium">No selection yet</p>
-        <p class="text-muted text-[14px]">Pick an appellation and a color above to see and edit meal pairings.</p>
+        <p class="text-ink-soft text-[15px] font-medium">{{ t('pairing.noSelection') }}</p>
+        <p class="text-muted text-[14px]">{{ t('pairing.noSelectionHint') }}</p>
       </section>
 
       <template v-if="selectionReady">
-        <StatusLine v-if="pairingsLoading" class="mt-6">Loading pairings…</StatusLine>
+        <StatusLine v-if="pairingsLoading" class="mt-6">{{ t('pairing.pairingsLoading') }}</StatusLine>
         <StatusLine v-else-if="pairingsError" tone="error" class="mt-6">
-          Couldn't load pairings: {{ pairingsError }}
+          {{ t('pairing.pairingsLoadError', { error: pairingsError }) }}
         </StatusLine>
         <section v-else class="border-line mt-8 border-t pt-6">
-          <h3 class="font-display text-ink text-[16px] font-semibold">Currently paired</h3>
-          <StatusLine v-if="pairedMeals.length === 0" class="mt-2">No meals paired yet.</StatusLine>
+          <h3 class="font-display text-ink text-[16px] font-semibold">{{ t('pairing.currentlyPaired') }}</h3>
+          <StatusLine v-if="pairedMeals.length === 0" class="mt-2">{{ t('pairing.nonePaired') }}</StatusLine>
           <ul v-else data-testid="paired-meals" class="mt-2 flex flex-col gap-1">
             <li
               v-for="meal in pairedMeals"
@@ -185,7 +185,7 @@ async function submitNewMeal(name: string) {
                 :disabled="mutating"
                 @click="removeMeal(meal.id)"
               >
-                Remove
+                {{ t('pairing.remove') }}
               </AppButton>
             </li>
           </ul>
@@ -213,7 +213,7 @@ async function submitNewMeal(name: string) {
               class="self-start"
               @click="addMeal"
             >
-              Add meal
+              {{ t('pairing.addMeal') }}
             </AppButton>
           </form>
 

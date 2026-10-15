@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Meal } from '../api/types'
 import AppButton from '../components/AppButton.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -8,6 +9,7 @@ import StatusLine from '../components/StatusLine.vue'
 import { useMeals } from '../composables/useMeals'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 
+const { t } = useI18n()
 const { meals, loading, error, load, remove, deleting, deleteError } = useMeals()
 
 const hasError = computed(() => error.value !== null)
@@ -15,7 +17,7 @@ const hasError = computed(() => error.value !== null)
 const pendingDelete = ref<Meal | null>(null)
 const confirmOpen = computed(() => pendingDelete.value !== null)
 const confirmMessage = computed(() =>
-  pendingDelete.value ? `Delete meal "${pendingDelete.value.name}"?` : '',
+  pendingDelete.value ? t('manage.meals.deleteConfirm', { name: pendingDelete.value.name }) : '',
 )
 
 const listSuccess = useSuccessMessage()
@@ -39,27 +41,27 @@ async function confirmDelete() {
   const { id, name } = pendingDelete.value
   pendingDelete.value = null
   const removed = await remove(id)
-  if (removed) listSuccess.show(`Deleted "${name}".`)
+  if (removed) listSuccess.show(t('manage.common.deleted', { name }))
 }
 </script>
 
 <template>
   <section class="px-6 py-6">
     <div class="mx-auto max-w-2xl">
-      <PageHeader title="Meals">
+      <PageHeader :title="t('manage.meals.label')">
         <template #actions>
-          <AppButton :to="{ name: 'meal-new' }" data-testid="add-meal-link">Add meal</AppButton>
+          <AppButton :to="{ name: 'meal-new' }" data-testid="add-meal-link">{{ t('manage.meals.add') }}</AppButton>
         </template>
       </PageHeader>
 
-      <StatusLine v-if="loading" class="mt-4">Loading…</StatusLine>
+      <StatusLine v-if="loading" class="mt-4">{{ t('manage.common.loading') }}</StatusLine>
       <StatusLine v-else-if="hasError" tone="error" class="mt-4">
-        Couldn't load meals: {{ error }}
+        {{ t('manage.meals.loadError', { error }) }}
         <template #retry>
-          <AppButton variant="ghost" data-testid="meal-list-retry" @click="retry">Retry</AppButton>
+          <AppButton variant="ghost" data-testid="meal-list-retry" @click="retry">{{ t('actions.retry') }}</AppButton>
         </template>
       </StatusLine>
-      <StatusLine v-else-if="meals.length === 0" class="mt-4">No meals yet.</StatusLine>
+      <StatusLine v-else-if="meals.length === 0" class="mt-4">{{ t('manage.meals.empty') }}</StatusLine>
       <ul v-else data-testid="meal-list" class="mt-4 flex flex-col">
         <li
           v-for="meal in meals"
@@ -74,7 +76,7 @@ async function confirmDelete() {
               :to="{ name: 'meal-edit', params: { id: meal.id } }"
               data-testid="meal-rename-link"
             >
-              Rename
+              {{ t('manage.common.rename') }}
             </AppButton>
             <AppButton
               type="button"
@@ -83,7 +85,7 @@ async function confirmDelete() {
               :disabled="deleting"
               @click="askDelete(meal)"
             >
-              Delete
+              {{ t('actions.delete') }}
             </AppButton>
           </div>
         </li>
@@ -95,7 +97,7 @@ async function confirmDelete() {
     <ConfirmDialog
       :open="confirmOpen"
       :message="confirmMessage"
-      confirm-label="Delete"
+      :confirm-label="t('actions.delete')"
       @confirm="confirmDelete"
       @cancel="cancelDelete"
     />

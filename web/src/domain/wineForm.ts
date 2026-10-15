@@ -1,4 +1,5 @@
 import type { Color, Wine, WineCreateInput, WineInput } from '../api/types'
+import { messageRef, type MessageRef } from '../i18n/messageRef'
 
 export interface WineFormFields {
   millesime: string
@@ -20,28 +21,28 @@ export const emptyWineFormFields: WineFormFields = {
   quantity: '1',
 }
 
-export type WineFormErrors = Partial<Record<keyof WineFormFields, string>>
+export type WineFormErrors = Partial<Record<keyof WineFormFields, MessageRef>>
 
 export function validateWineForm(fields: WineFormFields): WineFormErrors {
   const errors: WineFormErrors = {}
 
-  if (fields.appellationId === null) errors.appellationId = 'Appellation is required'
-  if (fields.producerId === null) errors.producerId = 'Producer is required'
-  if (fields.color === '') errors.color = 'Color is required'
+  if (fields.appellationId === null) errors.appellationId = messageRef('wine.form.errors.appellationRequired')
+  if (fields.producerId === null) errors.producerId = messageRef('wine.form.errors.producerRequired')
+  if (fields.color === '') errors.color = messageRef('wine.form.errors.colorRequired')
 
   const gardeDebut = parseNumber(fields.gardeDebut)
   const gardeFin = parseNumber(fields.gardeFin)
   if (gardeDebut !== null && gardeFin !== null && gardeDebut > gardeFin) {
-    errors.gardeFin = 'Garde end year must be on or after garde start year'
+    errors.gardeFin = messageRef('wine.form.errors.gardeEndBeforeStart')
   }
 
   return errors
 }
 
 // Only relevant on create (ADR-0007): editing a Wine never touches quantity.
-export function validateInitialQuantity(quantity: string): string | undefined {
+export function validateInitialQuantity(quantity: string): MessageRef | undefined {
   const n = parseNumber(quantity)
-  if (n === null || n < 1) return 'Initial quantity must be at least 1'
+  if (n === null || n < 1) return messageRef('wine.form.errors.quantityMin', { min: 1 })
   return undefined
 }
 

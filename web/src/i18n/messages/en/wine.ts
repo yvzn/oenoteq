@@ -1,6 +1,28 @@
-// Wine detail screen. Vocabulary labels live in vocabulary.ts.
+// Wine detail and form screens. Vocabulary labels live in vocabulary.ts.
 export default {
   wine: {
+    form: {
+      addTitle: 'Add wine',
+      editTitle: 'Edit wine',
+      loading: 'Loading…',
+      loadError: "Couldn't load: {error}",
+      color: 'Color',
+      chooseColor: 'Choose a color',
+      gardeStart: 'Drinking window start',
+      gardeEnd: 'Drinking window end',
+      initialQuantity: 'Initial quantity',
+      submitAdd: 'Add wine',
+      submitEdit: 'Save changes',
+      added: 'Wine added.',
+      updated: 'Wine updated.',
+      errors: {
+        appellationRequired: 'Appellation is required',
+        producerRequired: 'Producer is required',
+        colorRequired: 'Color is required',
+        gardeEndBeforeStart: 'Drinking window end must be on or after its start',
+        quantityMin: 'Initial quantity must be at least {min}',
+      },
+    },
     detail: {
       loading: 'Loading wine…',
       loadError: "Couldn't load this wine: {error}",

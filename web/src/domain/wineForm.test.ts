@@ -31,19 +31,19 @@ describe('validateWineForm', () => {
 
   it('requires an appellation', () => {
     expect(validateWineForm({ ...validFields, appellationId: null })).toMatchObject({
-      appellationId: expect.any(String),
+      appellationId: { key: 'wine.form.errors.appellationRequired' },
     })
   })
 
   it('requires a producer', () => {
     expect(validateWineForm({ ...validFields, producerId: null })).toMatchObject({
-      producerId: expect.any(String),
+      producerId: { key: 'wine.form.errors.producerRequired' },
     })
   })
 
   it('requires a color', () => {
     expect(validateWineForm({ ...validFields, color: '' })).toMatchObject({
-      color: expect.any(String),
+      color: { key: 'wine.form.errors.colorRequired' },
     })
   })
 
@@ -63,7 +63,7 @@ describe('validateWineForm', () => {
     expect(
       validateWineForm({ ...validFields, gardeDebut: '2028', gardeFin: '2020' }),
     ).toMatchObject({
-      gardeFin: expect.any(String),
+      gardeFin: { key: 'wine.form.errors.gardeEndBeforeStart' },
     })
   })
 
@@ -79,15 +79,15 @@ describe('validateInitialQuantity', () => {
   })
 
   it('rejects an empty quantity', () => {
-    expect(validateInitialQuantity('')).toEqual(expect.any(String))
+    expect(validateInitialQuantity('')).toEqual({ key: 'wine.form.errors.quantityMin', params: { min: 1 } })
   })
 
   it('rejects a quantity of 0', () => {
-    expect(validateInitialQuantity('0')).toEqual(expect.any(String))
+    expect(validateInitialQuantity('0')).toEqual({ key: 'wine.form.errors.quantityMin', params: { min: 1 } })
   })
 
   it('rejects a negative quantity', () => {
-    expect(validateInitialQuantity('-1')).toEqual(expect.any(String))
+    expect(validateInitialQuantity('-1')).toEqual({ key: 'wine.form.errors.quantityMin', params: { min: 1 } })
   })
 })
 
