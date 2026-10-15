@@ -1,0 +1,28 @@
+export default {
+  consent: {
+    title: 'Keep your cellar on this device?',
+    intro: 'Oenoteq can keep a copy of your cellar on this device so it works without a network. The choice is yours, and either one gives you a fully usable app.',
+    whatTitle: 'What would be stored',
+    what: {
+      copy: 'A copy of your cellar: wines, producers, appellations, meals and pairings.',
+      queue: 'A queue of changes you made but that are not yet sent to the server.',
+      cache: 'An app cache, so the app can launch without a network.',
+    },
+    whyTitle: 'Why',
+    why: 'So you can browse and edit your cellar offline, with changes sent automatically once you are back online, and install the app on your home screen.',
+    refuseTitle: 'If you continue without it',
+    refuse: 'Nothing is kept on this device. You cannot use the app offline and cannot install it on your home screen; changes need a network connection to be saved.',
+    signIn: 'Signing in is handled by the hosting platform and is not covered by this choice.',
+    necessary: 'The only thing kept before you choose is your choice itself, which the app needs to remember it.',
+    later: 'You can change your mind at any time from the Manage page.',
+    allow: 'Keep my cellar on this device',
+    allowHint: 'Turns on offline use and home-screen install.',
+    refuseAction: 'Continue without',
+    refuseHint: 'Online only. Nothing is kept on this device.',
+    downloadingTitle: 'Downloading your cellar…',
+    progress: 'Step {done} of {total}',
+    failedTitle: 'Your cellar could not be downloaded',
+    failed: 'Check your connection and try again.',
+    retry: 'Try again',
+  },
+}

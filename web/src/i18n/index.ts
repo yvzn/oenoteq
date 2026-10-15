@@ -1,12 +1,12 @@
 import { createI18n } from 'vue-i18n'
-import { createLocalePreference } from './localePreference'
+import { createConsentAwareOverrideStore, createLocalePreference } from './localePreference'
 import { FALLBACK_LOCALE, type Locale } from './locales'
 import en from './messages/en'
 import fr from './messages/fr'
 
 export const messages = { en, fr }
 
-export const preference = createLocalePreference(() => navigator.languages ?? [])
+export const preference = createLocalePreference(() => navigator.languages ?? [], createConsentAwareOverrideStore())
 
 // French has no distinct "zero" form: 0 reads as singular ("0 vin"). Choices are ordered [one, other].
 function frenchPlural(choice: number, choicesLength: number): number {

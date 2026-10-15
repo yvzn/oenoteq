@@ -1,0 +1,28 @@
+export default {
+  consent: {
+    title: 'Conserver votre cave sur cet appareil ?',
+    intro: 'Oenoteq peut conserver une copie de votre cave sur cet appareil pour fonctionner sans réseau. Le choix vous appartient, et les deux options donnent une application pleinement utilisable.',
+    whatTitle: 'Ce qui serait stocké',
+    what: {
+      copy: 'Une copie de votre cave : vins, producteurs, appellations, plats et accords mets-vin.',
+      queue: 'Une file des modifications que vous avez faites mais qui ne sont pas encore envoyées au serveur.',
+      cache: "Un cache de l'application, pour la lancer sans réseau.",
+    },
+    whyTitle: 'Pourquoi',
+    why: "Pour consulter et modifier votre cave hors ligne, les modifications étant envoyées automatiquement au retour du réseau, et pour installer l'application sur votre écran d'accueil.",
+    refuseTitle: 'Si vous continuez sans',
+    refuse: "Rien n'est conservé sur cet appareil. Vous ne pouvez pas utiliser l'application hors ligne ni l'installer sur votre écran d'accueil ; les modifications nécessitent une connexion pour être enregistrées.",
+    signIn: "La connexion est gérée par la plateforme d'hébergement et n'est pas concernée par ce choix.",
+    necessary: "La seule chose conservée avant votre choix est ce choix lui-même, dont l'application a besoin pour s'en souvenir.",
+    later: 'Vous pouvez changer d\'avis à tout moment depuis la page Gérer.',
+    allow: 'Conserver ma cave sur cet appareil',
+    allowHint: "Active l'usage hors ligne et l'installation sur l'écran d'accueil.",
+    refuseAction: 'Continuer sans',
+    refuseHint: "En ligne uniquement. Rien n'est conservé sur cet appareil.",
+    downloadingTitle: 'Téléchargement de votre cave…',
+    progress: 'Étape {done} sur {total}',
+    failedTitle: "Votre cave n'a pas pu être téléchargée",
+    failed: 'Vérifiez votre connexion et réessayez.',
+    retry: 'Réessayer',
+  },
+}

@@ -23,7 +23,7 @@ Index of the 22 tickets from the real-world-testing feedback, in the order to im
 | 11 | [x] | RWF-06 | `real-world-feedback/issues/06-sync-page-clear-all.md` | none | creates the discard-everything primitive SC-04 reuses |
 | 12 | [x] | RWF-09 | `real-world-feedback/issues/09-sync-page-status-details.md` | none | |
 | 13 | [x] | SC-02 | `storage-consent/issues/02-online-only-mode.md` | SC-01 (#9), OWL-01 (#7) | |
-| 14 | [ ] | SC-03 | `storage-consent/issues/03-consent-page-gate-and-granting.md` | SC-02 (#13), I18N-01 (#6) | |
+| 14 | [x] | SC-03 | `storage-consent/issues/03-consent-page-gate-and-granting.md` | SC-02 (#13), I18N-01 (#6) | |
 | 15 | [ ] | SC-04 | `storage-consent/issues/04-change-and-withdraw-consent.md` | SC-03 (#14) | reuses RWF-06's primitive (#11) |
 | 16 | [ ] | OWL-03 | `offline-wine-list/issues/03-cellar-list-reads-local-store.md` | OWL-02 (#8), SC-01 (#9), RWF-01 (#1), RWF-04 (#2) | |
 | 17 | [ ] | OWL-04 | `offline-wine-list/issues/04-background-refresh-and-first-launch.md` | OWL-03 (#16) | wires RWF-05 (#10) to the refresh routine |
