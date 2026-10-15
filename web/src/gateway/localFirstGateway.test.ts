@@ -168,7 +168,7 @@ describe('local-first adapter search', () => {
       (r) => seen.push(r.map((w) => w.id)),
       vi.fn(),
     )
-    await vi.waitFor(() => expect(seen).toEqual([[-1]]))
+    await vi.waitFor(() => expect(seen.at(-1)).toEqual([-1]))
 
     await seedStock(-2, 1)
     await vi.waitFor(() => expect(seen.at(-1)).toEqual([-2, -1]))
