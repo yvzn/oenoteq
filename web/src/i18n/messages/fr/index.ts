@@ -7,5 +7,6 @@ import offline from './offline'
 import storage from './storage'
 import sync from './sync'
 import vocabulary from './vocabulary'
+import wine from './wine'
 
-export default { ...cellar, ...common, ...consent, ...errors, ...manage, ...offline, ...storage, ...sync, ...vocabulary }
+export default { ...cellar, ...common, ...consent, ...errors, ...manage, ...offline, ...storage, ...sync, ...vocabulary, ...wine }

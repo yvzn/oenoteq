@@ -1,11 +1,13 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
 import type { WineDetail } from '../api/types'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
 import { enqueue } from '../sync/outbox'
+import { setTestLocale } from '../test/i18n'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import WineDetailView from './WineDetailView.vue'
 import { itOfflineOnly } from '../test/consent'
@@ -185,7 +187,7 @@ describe('WineDetailView', () => {
     expect(detail.text()).toContain('Les Garillères')
     expect(detail.text()).toContain('Chinon')
     expect(detail.text()).toContain('2018')
-    expect(detail.text()).toContain('rouge')
+    expect(detail.text()).toContain('Red')
     expect(detail.text()).toContain('Ready')
     expect(detail.text()).toContain('×3')
 
@@ -196,10 +198,10 @@ describe('WineDetailView', () => {
 
     const consumptions = wrapper.findAll('[data-testid="consumption-entry"]')
     expect(consumptions).toHaveLength(2)
-    expect(consumptions[0]!.text()).toContain('2026-01-01')
+    expect(consumptions[0]!.text()).toContain('1 January 2026')
     expect(consumptions[0]!.text()).toContain('Rating: 4')
     expect(consumptions[0]!.text()).toContain('Great with duck')
-    expect(consumptions[1]!.text()).toContain('2026-02-01')
+    expect(consumptions[1]!.text()).toContain('1 February 2026')
   })
 
   it('links to the edit form for this wine', async () => {
@@ -369,7 +371,7 @@ describe('WineDetailView', () => {
       notes: 'Even better than remembered',
     })
     expect(wrapper.find('[data-testid="consumption-edit-form"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('2026-01-05')
+    expect(wrapper.text()).toContain('5 January 2026')
     expect(wrapper.text()).toContain('Even better than remembered')
     expect(useSuccessMessage().message.value).toMatch(/updated/i)
   })
@@ -399,7 +401,7 @@ describe('WineDetailView', () => {
 
     const dialog = wrapper.get('[data-testid="confirm-dialog"]').element as HTMLDialogElement
     expect(dialog.open).toBe(true)
-    expect(wrapper.text()).toContain('Delete consumption from 2026-02-01?')
+    expect(wrapper.text()).toContain('Delete consumption from 1 February 2026?')
 
     await wrapper.get('[data-testid="confirm-dialog-cancel"]').trigger('click')
     await flushPromises()
@@ -506,6 +508,49 @@ describe('WineDetailView', () => {
       client_id: expect.any(String),
     })
     expect(await db.outbox.count()).toBe(0)
+  })
+
+  it('renders the detail in French with localized dates, plain-digit years and untouched user data', async () => {
+    mockApi()
+    setTestLocale('fr')
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    const detail = wrapper.get('[data-testid="wine-detail"]').text()
+    expect(detail).toContain('Rouge')
+    expect(detail).toContain('À boire')
+    expect(detail).toContain('Fenêtre de garde')
+    expect(detail).toContain('Plats suggérés')
+    expect(detail).toContain('Boeuf bourguignon')
+    expect(detail).toContain('Great with duck')
+    expect(detail).toContain('1 janvier 2026')
+    expect(detail).toContain('2018')
+    expect(detail).not.toMatch(/2[\s  ,.]018/)
+  })
+
+  it('shows French quantity text', async () => {
+    mockApi()
+    setTestLocale('fr')
+    const { wrapper } = await mountAt('/wines/1')
+
+    await openQuantityDialog(wrapper)
+    await wrapper.get('[data-testid="quantity-adjustment-delta-input"]').setValue('2')
+
+    expect(wrapper.get('[data-testid="quantity-adjustment-preview"]').text()).toBe('Actuellement ×3, deviendrait ×5')
+  })
+
+  it('updates the mounted detail in place when the language switches', async () => {
+    mockApi()
+    const { wrapper } = await mountAt('/wines/1')
+    expect(wrapper.get('[data-testid="wine-detail"]').text()).toContain('1 January 2026')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    const detail = wrapper.get('[data-testid="wine-detail"]').text()
+    expect(detail).toContain('1 janvier 2026')
+    expect(detail).toContain('Great with duck')
+    expect(detail).toContain('Les Garillères')
   })
 
   it('previews the resulting quantity as the delta changes, falling back to the current quantity when it is empty or zero', async () => {

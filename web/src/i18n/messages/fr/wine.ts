@@ -1,0 +1,35 @@
+// Wine detail screen. Vocabulary labels live in vocabulary.ts.
+export default {
+  wine: {
+    detail: {
+      loading: 'Chargement du vin…',
+      loadError: 'Impossible de charger ce vin : {error}',
+      gardeWindow: '{label} {start}–{end}',
+      suggestedMeals: 'Plats suggérés',
+      managePairings: 'Gérer',
+      noSuggestions: 'Aucune suggestion pour le moment.',
+      history: 'Historique des consommations',
+      noHistory: 'Aucune consommation enregistrée.',
+      date: 'Date',
+      rating: 'Note (1–5)',
+      ratingLine: 'Note : {rating}',
+      notes: 'Notes',
+      record: 'Enregistrer une consommation',
+      recordSubmit: 'Enregistrer',
+      blocked: 'Plus de bouteille à consommer — la quantité est déjà à 0.',
+      recorded: 'Consommation enregistrée.',
+      updated: 'Consommation modifiée.',
+      deleted: 'Consommation supprimée.',
+      deleteConfirm: 'Supprimer la consommation du {date} ?',
+      quantityAdjusted: 'Quantité ajustée.',
+      adjust: {
+        title: 'Ajuster la quantité',
+        by: 'Modifier la quantité de',
+        placeholder: 'ex. -1 ou +3',
+        current: 'Actuellement ×{quantity}',
+        change: 'Actuellement ×{quantity}, deviendrait ×{result}',
+        submit: 'Ajuster',
+      },
+    },
+  },
+}

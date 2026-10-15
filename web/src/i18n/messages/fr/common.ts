@@ -17,6 +17,11 @@ export default {
     dismiss: 'Fermer',
     confirm: 'Confirmer',
     cancel: 'Annuler',
+    edit: 'Modifier',
+    delete: 'Supprimer',
+    save: 'Enregistrer',
+    retry: 'Réessayer',
+    apply: 'Appliquer',
   },
   create: {
     creating: 'Création…',

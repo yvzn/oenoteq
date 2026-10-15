@@ -15,9 +15,11 @@ import { useSearch } from '../composables/useSearch'
 import { pageToQueryParams, paginate, parsePage } from '../domain/pagination'
 import { filtersToQueryParams, queryParamsToFilters, type SearchFilters } from '../domain/searchFilters'
 import { nextSort, queryParamsToSort, sortToQueryParams, type SortBy, type WineSort } from '../domain/wineSort'
+import { formatYear } from '../i18n/formatters'
+import type { Locale } from '../i18n/locales'
 import { setCellarListRendered } from '../router/listScroll'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -48,9 +50,13 @@ const error = computed(() =>
 const hasError = computed(() => error.value !== '' && !needsConnectedVisit.value)
 
 const listTitle = computed(() => {
-  if (loading.value || hasError.value || needsConnectedVisit.value) return 'Cellar'
-  return `${pageData.value.total} ${pageData.value.total === 1 ? 'wine' : 'wines'} in cellar`
+  if (loading.value || hasError.value || needsConnectedVisit.value) return t('cellar.list.title')
+  return t('cellar.list.count', pageData.value.total)
 })
+
+function millesimeText(millesime: number | null): string {
+  return millesime === null ? t('cellar.list.noMillesime') : formatYear(millesime, locale.value as Locale)
+}
 
 const appellationNameById = computed(() => {
   const map = new Map<number, string>()
@@ -59,7 +65,7 @@ const appellationNameById = computed(() => {
 })
 
 function appellationName(appellationId: number): string {
-  return appellationNameById.value.get(appellationId) ?? 'Unknown appellation'
+  return appellationNameById.value.get(appellationId) ?? t('cellar.list.unknownAppellation')
 }
 
 function updateFilters(next: SearchFilters) {
@@ -128,11 +134,11 @@ onMounted(loadFilterOptions)
     <div class="mx-auto max-w-2xl px-6 py-6">
       <PageHeader :title="listTitle">
         <template #actions>
-          <AppButton :to="{ name: 'wine-new' }" data-testid="add-wine-link">Add wine</AppButton>
+          <AppButton :to="{ name: 'wine-new' }" data-testid="add-wine-link">{{ t('cellar.list.add') }}</AppButton>
         </template>
       </PageHeader>
 
-      <StatusLine v-if="loading" class="mt-6">Loading your cellar…</StatusLine>
+      <StatusLine v-if="loading" class="mt-6">{{ t('cellar.list.loading') }}</StatusLine>
       <StatusLine v-else-if="needsConnectedVisit" class="mt-6" data-testid="cellar-first-visit">
         {{ t('cellar.firstVisit.message') }}
         <RouterLink :to="{ name: 'sync-status' }" data-testid="cellar-first-visit-sync-link" class="underline">
@@ -140,13 +146,13 @@ onMounted(loadFilterOptions)
         </RouterLink>
       </StatusLine>
       <StatusLine v-else-if="hasError" tone="error" class="mt-6">
-        Couldn't load your cellar: {{ error }}
+        {{ t('cellar.list.loadError', { error }) }}
         <template #retry>
-          <AppButton variant="ghost" data-testid="cellar-retry" @click="retry">Retry</AppButton>
+          <AppButton variant="ghost" data-testid="cellar-retry" @click="retry">{{ t('actions.retry') }}</AppButton>
         </template>
       </StatusLine>
       <StatusLine v-else-if="results.length === 0" class="mt-6">
-        No wines match these filters.
+        {{ t('cellar.list.empty') }}
       </StatusLine>
       <template v-else>
         <div
@@ -160,7 +166,7 @@ onMounted(loadFilterOptions)
               class="text-label flex cursor-pointer items-center gap-1 text-xs font-medium"
               @click="sortByColumn('producer')"
             >
-              Producer <span aria-hidden="true">{{ sortIndicator('producer') }}</span>
+              {{ t('vocabulary.producer') }} <span aria-hidden="true">{{ sortIndicator('producer') }}</span>
             </button>
             <button
               type="button"
@@ -168,7 +174,7 @@ onMounted(loadFilterOptions)
               class="text-label flex cursor-pointer items-center gap-1 text-xs font-medium"
               @click="sortByColumn('appellation')"
             >
-              Appellation <span aria-hidden="true">{{ sortIndicator('appellation') }}</span>
+              {{ t('vocabulary.appellation') }} <span aria-hidden="true">{{ sortIndicator('appellation') }}</span>
             </button>
           </div>
           <button
@@ -177,16 +183,16 @@ onMounted(loadFilterOptions)
             class="text-label flex cursor-pointer items-center justify-end gap-1 text-right text-xs font-medium"
             @click="sortByColumn('millesime')"
           >
-            Millesime <span aria-hidden="true">{{ sortIndicator('millesime') }}</span>
+            {{ t('vocabulary.millesime') }} <span aria-hidden="true">{{ sortIndicator('millesime') }}</span>
           </button>
-          <div class="text-label text-right text-xs font-medium">Qty</div>
+          <div class="text-label text-right text-xs font-medium">{{ t('cellar.list.columns.quantity') }}</div>
           <button
             type="button"
             data-testid="sort-header-status"
             class="text-label flex cursor-pointer items-center justify-end gap-1 text-right text-xs font-medium"
             @click="sortByColumn('status')"
           >
-            Status <span aria-hidden="true">{{ sortIndicator('status') }}</span>
+            {{ t('cellar.list.columns.status') }} <span aria-hidden="true">{{ sortIndicator('status') }}</span>
           </button>
         </div>
         <ul data-testid="wine-list" class="mt-2 flex flex-col sm:mt-0">
@@ -201,17 +207,17 @@ onMounted(loadFilterOptions)
                 <div class="font-display text-ink text-[19px] leading-[1.25] font-semibold">
                   {{ wine.producer.name }}
                 </div>
-                <div class="text-muted mt-0.5 text-[13.5px] capitalize">
-                  {{ wine.color }} · {{ appellationName(wine.appellation_id) }}
+                <div class="text-muted mt-0.5 text-[13.5px]">
+                  {{ t(`color.${wine.color}`) }} · {{ appellationName(wine.appellation_id) }}
                 </div>
                 <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 sm:hidden">
-                  <span class="text-ink-soft text-[14px] tabular-nums">{{ wine.millesime ?? 'NV' }}</span>
+                  <span class="text-ink-soft text-[14px] tabular-nums">{{ millesimeText(wine.millesime) }}</span>
                   <span class="text-ink-soft text-[14px] tabular-nums">×{{ wine.quantity }}</span>
                   <GardeStatusBadge :status="wine.garde_status" />
                 </div>
               </div>
               <div class="text-ink-soft hidden text-right text-[15px] tabular-nums sm:block">
-                {{ wine.millesime ?? 'NV' }}
+                {{ millesimeText(wine.millesime) }}
               </div>
               <div class="text-ink-soft hidden text-right text-[15px] tabular-nums sm:block">×{{ wine.quantity }}</div>
               <div class="hidden text-right sm:block"><GardeStatusBadge :status="wine.garde_status" /></div>

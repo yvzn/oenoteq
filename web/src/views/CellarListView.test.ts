@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type RouteLocationNormalized, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
 import type { WineSearchResult } from '../api/types'
@@ -242,13 +243,13 @@ describe('CellarListView', () => {
     expectSearchRequest('/search')
   })
 
-  it('labels the millesime column "Millesime", not "Vintage"', async () => {
+  it('labels the millesime column "Vintage" (approved UI vocabulary)', async () => {
     await mockApi()
 
     const { wrapper } = await mountAt('/')
 
-    expect(wrapper.text()).toContain('Millesime')
-    expect(wrapper.text()).not.toContain('Vintage')
+    expect(wrapper.get('[data-testid="sort-header-millesime"]').text()).toContain('Vintage')
+    expect(wrapper.text()).not.toContain('Millesime')
   })
 
   it('shows an ascending indicator on the appellation header by default', async () => {
@@ -497,6 +498,47 @@ describe('CellarListView pagination', () => {
 
     expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 1 sur 3')
     expect(wrapper.get('[data-testid="pagination-next"]').text()).toBe('Suivant')
+  })
+
+  it('renders the list in French', async () => {
+    await mockApi()
+    setTestLocale('fr')
+
+    const { wrapper } = await mountAt('/')
+
+    expect(wrapper.text()).toContain('2 vins en cave')
+    expect(wrapper.get('[data-testid="sort-header-millesime"]').text()).toContain('Millésime')
+    expect(wrapper.get('[data-testid="sort-header-status"]').text()).toContain('Statut')
+    expect(wrapper.get('[data-testid="color-filter"]').text()).toContain('Blanc')
+    const items = wrapper.findAll('[data-testid="wine-item"]')
+    expect(items[0]!.text()).toContain('À boire')
+    expect(items[0]!.text()).toContain('Rouge · Chinon')
+    expect(items[0]!.text()).toContain('2018')
+  })
+
+  it('uses the singular in French for a single wine', async () => {
+    await mockApi({ search: [searchResults[0]!] })
+    setTestLocale('fr')
+
+    const { wrapper } = await mountAt('/')
+
+    expect(wrapper.text()).toContain('1 vin en cave')
+    expect(wrapper.text()).not.toContain('1 vins')
+  })
+
+  it('updates the mounted list in place when the language switches, leaving user data alone', async () => {
+    await mockApi()
+    const { wrapper } = await mountAt('/')
+    expect(wrapper.text()).toContain('2 wines in cellar')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('2 vins en cave')
+    const text = wrapper.get('[data-testid="wine-list"]').text()
+    expect(text).toContain('Les Garillères')
+    expect(text).toContain('Chinon')
+    expect(text).toContain('Domaine X')
   })
 })
 

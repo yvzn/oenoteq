@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Appellation, Meal } from '../api/types'
 import { emptySearchFilters, type SearchFilters } from '../domain/searchFilters'
 import { defaultWineSort, sortAxes, type SortBy, type WineSort } from '../domain/wineSort'
@@ -12,6 +13,8 @@ const props = defineProps<{
   appellations: Appellation[]
   meals: Meal[]
 }>()
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   'update:filters': [value: SearchFilters]
@@ -27,6 +30,11 @@ const activeFilterCount = computed(
       props.filters.readyNow,
     ].filter(Boolean).length,
 )
+
+// Sort axes that are wine vocabulary share the vocabulary labels; Status is the list's own column.
+function axisLabel(sortBy: SortBy): string {
+  return sortBy === 'status' ? t('cellar.sort.status') : t(`vocabulary.${sortBy}`)
+}
 
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
@@ -122,17 +130,17 @@ function onSortPanelBackdropClick(event: MouseEvent) {
 
       <div v-if="hasActiveFilters" class="flex h-[38px] items-center">
         <AppButton variant="ghost" type="button" data-testid="clear-filters-button" @click="clearFilters">
-          Clear filters
+          {{ t('cellar.filters.clear') }}
         </AppButton>
       </div>
     </form>
 
     <div class="border-line bg-parchment-raised flex items-center gap-3 border-b px-6 py-4 sm:hidden">
       <AppButton variant="secondary" type="button" data-testid="filter-toggle-button" @click="openPanel">
-        Filters<template v-if="activeFilterCount > 0"> ({{ activeFilterCount }})</template>
+        {{ activeFilterCount > 0 ? t('cellar.filters.titleWithCount', { count: activeFilterCount }) : t('cellar.filters.title') }}
       </AppButton>
       <AppButton variant="secondary" type="button" data-testid="sort-toggle-button" @click="openSortPanel">
-        Sort<template v-if="!isDefaultSort"> {{ sort.sortDir === 'asc' ? '↑' : '↓' }}</template>
+        {{ t('cellar.sort.title') }}<template v-if="!isDefaultSort"> {{ sort.sortDir === 'asc' ? '↑' : '↓' }}</template>
       </AppButton>
       <AppButton
         v-if="hasActiveFilters"
@@ -141,7 +149,7 @@ function onSortPanelBackdropClick(event: MouseEvent) {
         data-testid="mobile-clear-filters-button"
         @click="clearFilters"
       >
-        Clear filters
+        {{ t('cellar.filters.clear') }}
       </AppButton>
     </div>
 
@@ -153,11 +161,11 @@ function onSortPanelBackdropClick(event: MouseEvent) {
       @click="onPanelBackdropClick"
     >
       <div class="flex items-center justify-between">
-        <h2 class="font-display text-ink text-base">Filters</h2>
+        <h2 class="font-display text-ink text-base">{{ t('cellar.filters.title') }}</h2>
         <button
           type="button"
           data-testid="filter-panel-close"
-          aria-label="Close filters"
+          :aria-label="t('cellar.filters.close')"
           class="text-muted hover:text-ink cursor-pointer text-xl leading-none"
           @click="cancelPanel"
         >
@@ -177,10 +185,10 @@ function onSortPanelBackdropClick(event: MouseEvent) {
 
       <div class="mt-6 flex items-center justify-between">
         <AppButton variant="ghost" type="button" data-testid="filter-panel-clear" @click="clearPanel">
-          Clear filters
+          {{ t('cellar.filters.clear') }}
         </AppButton>
         <AppButton variant="primary" type="button" data-testid="filter-panel-apply" @click="applyPanel">
-          Apply
+          {{ t('actions.apply') }}
         </AppButton>
       </div>
     </dialog>
@@ -193,11 +201,11 @@ function onSortPanelBackdropClick(event: MouseEvent) {
       @click="onSortPanelBackdropClick"
     >
       <div class="flex items-center justify-between">
-        <h2 class="font-display text-ink text-base">Sort</h2>
+        <h2 class="font-display text-ink text-base">{{ t('cellar.sort.title') }}</h2>
         <button
           type="button"
           data-testid="sort-panel-close"
-          aria-label="Close sort"
+          :aria-label="t('cellar.sort.close')"
           class="text-muted hover:text-ink cursor-pointer text-xl leading-none"
           @click="closeSortPanel"
         >
@@ -214,7 +222,7 @@ function onSortPanelBackdropClick(event: MouseEvent) {
             :checked="draftAxis === axis.sortBy"
             @change="draftAxis = axis.sortBy"
           />
-          {{ axis.label }}
+          {{ axisLabel(axis.sortBy) }}
         </label>
       </div>
 
@@ -225,7 +233,7 @@ function onSortPanelBackdropClick(event: MouseEvent) {
           data-testid="sort-direction-asc"
           @click="chooseDirection('asc')"
         >
-          ↑ Ascending
+          {{ t('cellar.sort.ascending') }}
         </AppButton>
         <AppButton
           variant="secondary"
@@ -233,7 +241,7 @@ function onSortPanelBackdropClick(event: MouseEvent) {
           data-testid="sort-direction-desc"
           @click="chooseDirection('desc')"
         >
-          ↓ Descending
+          {{ t('cellar.sort.descending') }}
         </AppButton>
       </div>
     </dialog>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import type { Consumption } from '../api/types'
 import AppButton from '../components/AppButton.vue'
@@ -15,7 +16,10 @@ import { useAppellations } from '../composables/useAppellations'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { useWines } from '../composables/useWines'
 import { computeGardeStatus } from '../domain/gardeStatus'
+import { formatDate, formatYear } from '../i18n/formatters'
+import type { Locale } from '../i18n/locales'
 
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -62,7 +66,7 @@ async function submitConsumption() {
     consumptionDate.value = ''
     consumptionRating.value = ''
     consumptionNotes.value = ''
-    consumptionSuccess.show('Consumption recorded.')
+    consumptionSuccess.show(t('wine.detail.recorded'))
   }
 }
 
@@ -91,7 +95,7 @@ async function submitEdit(consumptionId: number) {
   })
   if (ok) {
     editingConsumptionId.value = null
-    consumptionSuccess.show('Consumption updated.')
+    consumptionSuccess.show(t('wine.detail.updated'))
   }
 }
 
@@ -101,8 +105,8 @@ const quantityDialogOpen = ref(false)
 const quantityPreview = computed(() => {
   if (!wine.value) return ''
   const delta = Number(quantityDelta.value)
-  if (!delta) return `Currently ×${wine.value.quantity}`
-  return `Currently ×${wine.value.quantity}, would become ×${wine.value.quantity + delta}`
+  if (!delta) return t('wine.detail.adjust.current', { quantity: wine.value.quantity })
+  return t('wine.detail.adjust.change', { quantity: wine.value.quantity, result: wine.value.quantity + delta })
 })
 
 async function submitQuantityAdjustment() {
@@ -111,14 +115,25 @@ async function submitQuantityAdjustment() {
   if (ok) {
     quantityDelta.value = ''
     quantityDialogOpen.value = false
-    consumptionSuccess.show('Quantity adjusted.')
+    consumptionSuccess.show(t('wine.detail.quantityAdjusted'))
   }
+}
+
+// Stored and submitted dates stay YYYY-MM-DD; only what is shown is localized.
+function displayDate(isoDate: string): string {
+  return formatDate(isoDate, locale.value as Locale)
+}
+
+function year(value: number): string {
+  return formatYear(value, locale.value as Locale)
 }
 
 const pendingDeleteConsumption = ref<Consumption | null>(null)
 const deleteConfirmOpen = computed(() => pendingDeleteConsumption.value !== null)
 const deleteConfirmMessage = computed(() =>
-  pendingDeleteConsumption.value ? `Delete consumption from ${pendingDeleteConsumption.value.date}?` : '',
+  pendingDeleteConsumption.value
+    ? t('wine.detail.deleteConfirm', { date: displayDate(pendingDeleteConsumption.value.date) })
+    : '',
 )
 
 function askDeleteConsumption(consumption: Consumption) {
@@ -134,7 +149,7 @@ async function confirmDeleteConsumption() {
   const consumptionId = pendingDeleteConsumption.value.id
   pendingDeleteConsumption.value = null
   const ok = await deleteConsumption(id.value, consumptionId)
-  if (ok) consumptionSuccess.show('Consumption deleted.')
+  if (ok) consumptionSuccess.show(t('wine.detail.deleted'))
 }
 
 const loading = computed(() => wineLoading.value || appellationsLoading.value)
@@ -145,7 +160,7 @@ const hasError = computed(() => error.value !== '')
 
 const appellationName = computed(() => {
   if (!wine.value) return ''
-  return appellations.value.find((a) => a.id === wine.value!.appellation_id)?.name ?? 'Unknown appellation'
+  return appellations.value.find((a) => a.id === wine.value!.appellation_id)?.name ?? t('cellar.list.unknownAppellation')
 })
 
 const gardeStatus = computed(() => (wine.value ? computeGardeStatus(wine.value) : null))
@@ -154,7 +169,11 @@ const gardeRangeLabel = computed(() => {
   if (!wine.value) return null
   const { garde_debut, garde_fin } = wine.value
   if (garde_debut === null && garde_fin === null) return null
-  return `Garde ${garde_debut ?? ''}–${garde_fin ?? ''}`
+  return t('wine.detail.gardeWindow', {
+    label: t('vocabulary.gardeWindow'),
+    start: garde_debut === null ? '' : year(garde_debut),
+    end: garde_fin === null ? '' : year(garde_fin),
+  })
 })
 
 // If load() resolves a different id than requested (a not-yet-synced local
@@ -198,11 +217,11 @@ function retry() {
 
 <template>
   <section class="px-6 py-6">
-    <StatusLine v-if="loading">Loading wine…</StatusLine>
+    <StatusLine v-if="loading">{{ t('wine.detail.loading') }}</StatusLine>
     <StatusLine v-else-if="hasError" tone="error">
-      Couldn't load this wine: {{ error }}
+      {{ t('wine.detail.loadError', { error }) }}
       <template #retry>
-        <AppButton variant="ghost" data-testid="wine-detail-retry" @click="retry">Retry</AppButton>
+        <AppButton variant="ghost" data-testid="wine-detail-retry" @click="retry">{{ t('actions.retry') }}</AppButton>
       </template>
     </StatusLine>
     <div v-else-if="wine" data-testid="wine-detail" class="mx-auto max-w-2xl">
@@ -216,17 +235,17 @@ function retry() {
         </div>
         <div class="flex items-center gap-4 pt-2">
           <AppButton :to="{ name: 'wine-edit', params: { id: wine.id } }" variant="secondary" data-testid="edit-wine-link">
-            Edit
+            {{ t('actions.edit') }}
           </AppButton>
         </div>
       </div>
 
       <div class="text-muted mt-3.5 mb-[26px] ml-[19px] flex flex-wrap items-center gap-3 text-[14.5px]">
-        <span class="capitalize">{{ wine.color }}</span>
+        <span>{{ t(`color.${wine.color}`) }}</span>
         <span class="text-muted/40">·</span>
         <span>{{ appellationName }}</span>
         <span class="text-muted/40">·</span>
-        <span class="text-ink-soft tabular-nums">{{ wine.millesime ?? 'NV' }}</span>
+        <span class="text-ink-soft tabular-nums">{{ wine.millesime === null ? t('cellar.list.noMillesime') : year(wine.millesime) }}</span>
         <span class="text-muted/40">·</span>
         <template v-if="gardeRangeLabel">
           <span>{{ gardeRangeLabel }}</span>
@@ -247,7 +266,7 @@ function retry() {
       <div class="border-line border-t pt-[26px] pb-[26px]">
         <section>
           <div class="mb-4 flex items-center justify-between gap-3">
-            <h2 class="font-display text-ink text-[16px] font-semibold">Suggested meals</h2>
+            <h2 class="font-display text-ink text-[16px] font-semibold">{{ t('wine.detail.suggestedMeals') }}</h2>
             <AppButton
               :to="{
                 name: 'meal-pairings',
@@ -256,10 +275,10 @@ function retry() {
               variant="ghost"
               data-testid="manage-pairings-link"
             >
-              Manage
+              {{ t('wine.detail.managePairings') }}
             </AppButton>
           </div>
-          <StatusLine v-if="wine.suggested_meals.length === 0">No suggestions yet.</StatusLine>
+          <StatusLine v-if="wine.suggested_meals.length === 0">{{ t('wine.detail.noSuggestions') }}</StatusLine>
           <ul v-else data-testid="suggested-meals" class="flex flex-col gap-2.5 text-[15px]">
             <li
               v-for="meal in wine.suggested_meals"
@@ -274,8 +293,8 @@ function retry() {
         </section>
 
         <section class="border-line mt-[26px] border-t pt-[26px]">
-          <h2 class="font-display text-ink mb-4 text-[16px] font-semibold">Consumption history</h2>
-          <StatusLine v-if="wine.consumption_history.length === 0">No consumptions recorded yet.</StatusLine>
+          <h2 class="font-display text-ink mb-4 text-[16px] font-semibold">{{ t('wine.detail.history') }}</h2>
+          <StatusLine v-if="wine.consumption_history.length === 0">{{ t('wine.detail.noHistory') }}</StatusLine>
           <ul v-else data-testid="consumption-history" class="flex flex-col">
             <li
               v-for="(consumption, index) in wine.consumption_history"
@@ -290,10 +309,10 @@ function retry() {
                 class="flex flex-col gap-3"
                 @submit.prevent="submitEdit(consumption.id)"
               >
-                <FormField label="Date">
+                <FormField :label="t('wine.detail.date')">
                   <input v-model="editDate" data-testid="consumption-edit-date-input" type="date" required class="w-full" />
                 </FormField>
-                <FormField label="Rating (1–5)">
+                <FormField :label="t('wine.detail.rating')">
                   <NumberStepper
                     v-model="editRating"
                     :min="1"
@@ -303,23 +322,23 @@ function retry() {
                     increment-testid="consumption-edit-rating-increment"
                   />
                 </FormField>
-                <FormField label="Notes">
+                <FormField :label="t('wine.detail.notes')">
                   <textarea v-model="editNotes" data-testid="consumption-edit-notes-input" class="w-full"></textarea>
                 </FormField>
                 <StatusLine v-if="updateConsumptionError" tone="error">{{ updateConsumptionError }}</StatusLine>
                 <div class="flex justify-between">
                   <AppButton type="button" variant="ghost" data-testid="consumption-edit-cancel" @click="cancelEdit">
-                    Cancel
+                    {{ t('actions.cancel') }}
                   </AppButton>
                   <AppButton type="submit" :disabled="updatingConsumption" data-testid="consumption-edit-save">
-                    Save
+                    {{ t('actions.save') }}
                   </AppButton>
                 </div>
               </form>
               <div v-else class="flex items-start justify-between gap-3">
                 <div class="flex flex-col gap-0.5">
-                  <span class="text-ink text-[15px] font-semibold tabular-nums">{{ consumption.date }}</span>
-                  <span v-if="consumption.rating !== null" class="text-muted text-[14.5px]">Rating: {{ consumption.rating }}</span>
+                  <span class="text-ink text-[15px] font-semibold tabular-nums">{{ displayDate(consumption.date) }}</span>
+                  <span v-if="consumption.rating !== null" class="text-muted text-[14.5px]">{{ t('wine.detail.ratingLine', { rating: consumption.rating }) }}</span>
                   <span v-if="consumption.notes" class="text-muted text-[14.5px]">{{ consumption.notes }}</span>
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
@@ -329,7 +348,7 @@ function retry() {
                     data-testid="consumption-edit-button"
                     @click="startEdit(consumption)"
                   >
-                    Edit
+                    {{ t('actions.edit') }}
                   </AppButton>
                   <AppButton
                     type="button"
@@ -338,7 +357,7 @@ function retry() {
                     :disabled="deletingConsumption"
                     @click="askDeleteConsumption(consumption)"
                   >
-                    Delete
+                    {{ t('actions.delete') }}
                   </AppButton>
                 </div>
               </div>
@@ -349,9 +368,9 @@ function retry() {
       </div>
 
       <section class="border-line border-t pt-[26px]">
-        <h2 class="font-display text-ink mb-[18px] text-[16px] font-semibold">Record a consumption</h2>
+        <h2 class="font-display text-ink mb-[18px] text-[16px] font-semibold">{{ t('wine.detail.record') }}</h2>
         <StatusLine v-if="wine.quantity === 0" data-testid="consumption-blocked-message">
-          No bottles left to record a consumption — quantity is already 0.
+          {{ t('wine.detail.blocked') }}
         </StatusLine>
         <form
           v-else
@@ -359,10 +378,10 @@ function retry() {
           class="flex flex-col gap-4"
           @submit.prevent="submitConsumption"
         >
-          <FormField label="Date">
+          <FormField :label="t('wine.detail.date')">
             <input v-model="consumptionDate" data-testid="consumption-date-input" type="date" required class="w-full" />
           </FormField>
-          <FormField label="Rating (1–5)">
+          <FormField :label="t('wine.detail.rating')">
             <NumberStepper
               v-model="consumptionRating"
               :min="1"
@@ -372,12 +391,12 @@ function retry() {
               increment-testid="consumption-rating-increment"
             />
           </FormField>
-          <FormField label="Notes">
+          <FormField :label="t('wine.detail.notes')">
             <textarea v-model="consumptionNotes" data-testid="consumption-notes-input" class="w-full"></textarea>
           </FormField>
           <StatusLine v-if="consumptionError" tone="error">{{ consumptionError }}</StatusLine>
           <AppButton type="submit" :disabled="submittingConsumption" class="self-start" data-testid="consumption-submit">
-            Record
+            {{ t('wine.detail.recordSubmit') }}
           </AppButton>
         </form>
       </section>
@@ -386,25 +405,25 @@ function retry() {
     <ConfirmDialog
       :open="deleteConfirmOpen"
       :message="deleteConfirmMessage"
-      confirm-label="Delete"
+      :confirm-label="t('actions.delete')"
       @confirm="confirmDeleteConsumption"
       @cancel="cancelDeleteConsumption"
     />
 
     <AppDialog :open="quantityDialogOpen" @cancel="quantityDialogOpen = false">
       <template v-if="wine">
-      <h2 class="font-display text-ink mb-4 text-[16px] font-semibold">Adjust quantity</h2>
+      <h2 class="font-display text-ink mb-4 text-[16px] font-semibold">{{ t('wine.detail.adjust.title') }}</h2>
       <form
         data-testid="quantity-adjustment-form"
         class="flex flex-col gap-4"
         @submit.prevent="submitQuantityAdjustment"
       >
-        <FormField label="Change quantity by">
+        <FormField :label="t('wine.detail.adjust.by')">
           <NumberStepper
             v-model="quantityDelta"
             full-width
             required
-            placeholder="e.g. -1 or +3"
+            :placeholder="t('wine.detail.adjust.placeholder')"
             input-testid="quantity-adjustment-delta-input"
             decrement-testid="quantity-adjustment-decrement"
             increment-testid="quantity-adjustment-increment"
@@ -414,10 +433,10 @@ function retry() {
         <StatusLine v-if="adjustQuantityError" tone="error">{{ adjustQuantityError }}</StatusLine>
         <div class="flex justify-between">
           <AppButton type="button" variant="ghost" data-testid="quantity-adjustment-cancel" @click="quantityDialogOpen = false">
-            Cancel
+            {{ t('actions.cancel') }}
           </AppButton>
           <AppButton type="submit" variant="primary" :disabled="adjustingQuantity" data-testid="quantity-adjustment-submit">
-            Adjust
+            {{ t('wine.detail.adjust.submit') }}
           </AppButton>
         </div>
       </form>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { Appellation, Color, Meal } from '../api/types'
 import type { SearchFilters } from '../domain/searchFilters'
 import AutocompleteField from './AutocompleteField.vue'
@@ -16,6 +17,8 @@ const props = withDefaults(
   { testidSuffix: '', inline: false },
 )
 
+const { t } = useI18n()
+
 const emit = defineEmits<{ 'update:modelValue': [value: SearchFilters] }>()
 
 const colors: Color[] = ['rouge', 'blanc', 'rose']
@@ -30,27 +33,27 @@ function update(patch: Partial<SearchFilters>) {
 </script>
 
 <template>
-  <FormField label="Meal" :class="inline ? 'w-40' : undefined">
+  <FormField :label="t('vocabulary.meal')" :class="inline ? 'w-40' : undefined">
     <AutocompleteField
       :testid="testid('meal-filter')"
       :items="meals"
       :model-value="modelValue.mealId"
-      placeholder="Any meal"
+      :placeholder="t('cellar.filters.anyMeal')"
       @update:model-value="(v) => update({ mealId: v })"
     />
   </FormField>
 
-  <FormField label="Appellation" :class="inline ? 'w-40' : undefined">
+  <FormField :label="t('vocabulary.appellation')" :class="inline ? 'w-40' : undefined">
     <AutocompleteField
       :testid="testid('appellation-filter')"
       :items="appellations"
       :model-value="modelValue.appellationId"
-      placeholder="Any appellation"
+      :placeholder="t('cellar.filters.anyAppellation')"
       @update:model-value="(v) => update({ appellationId: v })"
     />
   </FormField>
 
-  <FormField label="Color" :class="inline ? 'w-40' : undefined">
+  <FormField :label="t('cellar.filters.color')" :class="inline ? 'w-40' : undefined">
     <div class="flex items-center gap-2">
       <ColorSwatch v-if="modelValue.color" :color="modelValue.color" class="shrink-0" />
       <select
@@ -59,8 +62,8 @@ function update(patch: Partial<SearchFilters>) {
         :value="modelValue.color ?? ''"
         @change="update({ color: (($event.target as HTMLSelectElement).value || null) as Color | null })"
       >
-        <option value="">Any color</option>
-        <option v-for="c in colors" :key="c" :value="c">{{ c }}</option>
+        <option value="">{{ t('cellar.filters.anyColor') }}</option>
+        <option v-for="c in colors" :key="c" :value="c">{{ t(`color.${c}`) }}</option>
       </select>
     </div>
   </FormField>
@@ -84,6 +87,6 @@ function update(patch: Partial<SearchFilters>) {
         <path d="M2.5 6.3 4.9 8.6 9.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
       </svg>
     </span>
-    Ready now
+    {{ t('cellar.filters.readyNow') }}
   </label>
 </template>
