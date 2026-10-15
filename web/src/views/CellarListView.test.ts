@@ -275,6 +275,8 @@ describe('CellarListView', () => {
 
     await wrapper.get('[data-testid="sort-header-producer"]').trigger('click')
     await flushPromises()
+    // Sorting restarts the load, which hides the header until the local read settles.
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="sort-header-producer"]').exists()).toBe(true))
 
     expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer' })
     expectSearchRequest('/search?sort_by=producer')
@@ -288,6 +290,8 @@ describe('CellarListView', () => {
 
     await wrapper.get('[data-testid="sort-header-producer"]').trigger('click')
     await flushPromises()
+    // Sorting restarts the load, which hides the header until the local read settles.
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="sort-header-producer"]').exists()).toBe(true))
 
     expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer', sort_dir: 'desc' })
     expect(wrapper.get('[data-testid="sort-header-producer"]').text()).toContain('↓')

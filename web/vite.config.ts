@@ -66,7 +66,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: false,
-    setupFiles: ['./src/test/dialogPolyfill.ts', './src/test/i18n.ts', './src/test/consent.ts', './src/test/fakeIndexedDb.ts', './src/test/resetLocalDb.ts'],
+    setupFiles: ['./src/test/dialogPolyfill.ts', './src/test/autoUnmount.ts', './src/test/i18n.ts', './src/test/consent.ts', './src/test/fakeIndexedDb.ts', './src/test/resetLocalDb.ts'],
     pool: 'vmThreads',
     // The first test of a view suite pays the cold import of the component graph; with every
     // worker busy that can pass the 5s default.
