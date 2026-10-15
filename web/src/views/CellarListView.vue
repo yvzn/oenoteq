@@ -9,6 +9,7 @@ import GardeStatusBadge from '../components/GardeStatusBadge.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
+import { useCellarRefresh } from '../composables/useCellarRefresh'
 import { useMeals } from '../composables/useMeals'
 import { useSearch } from '../composables/useSearch'
 import { pageToQueryParams, paginate, parsePage } from '../domain/pagination'
@@ -27,6 +28,7 @@ const {
 } = useAppellations()
 const { meals, loading: mealsLoading, error: mealsError, load: loadMeals } = useMeals()
 const { results, loading: searchLoading, error: searchError, search } = useSearch()
+const { downloading, needsConnectedVisit, neverDownloaded } = useCellarRefresh()
 
 const filters = computed<SearchFilters>(() => queryParamsToFilters(route.query))
 const sort = computed<WineSort>(() => queryParamsToSort(route.query))
@@ -34,17 +36,18 @@ const sort = computed<WineSort>(() => queryParamsToSort(route.query))
 const pageData = computed(() => paginate(results.value, parsePage(route.query.page)))
 
 const loading = computed(
-  () => appellationsLoading.value || mealsLoading.value || searchLoading.value,
+  () => appellationsLoading.value || mealsLoading.value || searchLoading.value || downloading.value,
 )
 const error = computed(() =>
   [appellationsError.value, mealsError.value, searchError.value]
     .filter((e): e is string => e !== null)
     .join('; '),
 )
-const hasError = computed(() => error.value !== '')
+// Not an error: with nothing downloaded yet, failing to reach the server is what the message explains.
+const hasError = computed(() => error.value !== '' && !needsConnectedVisit.value)
 
 const listTitle = computed(() => {
-  if (loading.value || hasError.value) return 'Cellar'
+  if (loading.value || hasError.value || needsConnectedVisit.value) return 'Cellar'
   return `${pageData.value.total} ${pageData.value.total === 1 ? 'wine' : 'wines'} in cellar`
 })
 
@@ -102,6 +105,11 @@ watch(
   () => window.scrollTo({ top: 0 }),
 )
 
+// The filter options could not be read while nothing was downloaded; read them once something is.
+watch(neverDownloaded, (never, wasNever) => {
+  if (wasNever && !never) loadFilterOptions()
+})
+
 watch(searchKey, () => search(filters.value, sort.value), { immediate: true })
 
 onMounted(loadFilterOptions)
@@ -126,6 +134,12 @@ onMounted(loadFilterOptions)
       </PageHeader>
 
       <StatusLine v-if="loading" class="mt-6">Loading your cellar…</StatusLine>
+      <StatusLine v-else-if="needsConnectedVisit" class="mt-6" data-testid="cellar-first-visit">
+        {{ t('cellar.firstVisit.message') }}
+        <RouterLink :to="{ name: 'sync-status' }" data-testid="cellar-first-visit-sync-link" class="underline">
+          {{ t('cellar.firstVisit.link') }}
+        </RouterLink>
+      </StatusLine>
       <StatusLine v-else-if="hasError" tone="error" class="mt-6">
         Couldn't load your cellar: {{ error }}
         <template #retry>

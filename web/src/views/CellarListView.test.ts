@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
 import type { WineSearchResult } from '../api/types'
-import { db } from '../db/localDb'
+import { FIRST_PULL_KEY, db } from '../db/localDb'
 import { defaultConsent, itOfflineOnly, itOnlineOnly } from '../test/consent'
 import { setTestLocale } from '../test/i18n'
 import CellarListView from './CellarListView.vue'
@@ -59,7 +59,15 @@ async function mockApi(overrides: { search?: WineSearchResult[] } = {}) {
     if (path.startsWith('/search')) return Promise.resolve(wines)
     throw new Error(`unexpected path: ${path}`)
   })
-  if (defaultConsent === 'granted') await seedLocalCellar(wines)
+  if (defaultConsent === 'granted') {
+    await markDownloaded()
+    await seedLocalCellar(wines)
+  }
+}
+
+// A device that has completed its first download, so an empty store is an empty cellar.
+async function markDownloaded() {
+  if (defaultConsent === 'granted') await db.meta.put({ key: FIRST_PULL_KEY, value: '2026-01-01T00:00:00.000Z' })
 }
 
 // Online-only mode asks the server's search; Offline Mode never does (ADR 0009, 0010).
@@ -83,6 +91,7 @@ async function mountAt(initialPath: string, { flush = true }: { flush?: boolean 
     routes: [
       { path: '/', name: 'cellar', component: CellarListView },
       { path: '/wines/new', name: 'wine-new', component: CellarListView },
+      { path: '/sync-status', name: 'sync-status', component: CellarListView },
       { path: '/wines/:id', name: 'wine-detail', component: CellarListView },
     ],
   })
@@ -146,6 +155,7 @@ describe('CellarListView', () => {
   })
 
   it('shows an error state distinct from loading when a fetch fails', async () => {
+    await markDownloaded()
     vi.mocked(apiClient.get).mockImplementation(() => {
       return Promise.reject(new Error('server exploded'))
     })
@@ -158,6 +168,7 @@ describe('CellarListView', () => {
   })
 
   it('retries the failed load when the retry action is clicked', async () => {
+    await markDownloaded()
     vi.mocked(apiClient.get).mockImplementation(() => {
       return Promise.reject(new Error('server exploded'))
     })

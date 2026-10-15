@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '../api/client'
 import { db } from '../db/localDb'
+import { enqueueConsumptionCreate, enqueueQuantityAdjustment } from './consumptionSync'
 import { enqueueWineCreate, enqueueWineUpdate, patchPendingWineCreate, pullWine, pullWines, pushWines } from './wineSync'
 
 vi.mock('../api/client', async () => {
@@ -244,5 +245,60 @@ describe('patchPendingWineCreate', () => {
     const patched = await patchPendingWineCreate(-999, { color: 'blanc' } as never)
 
     expect(patched).toBe(false)
+  })
+})
+
+describe('pulls keep a wine whose bottle count has an unsent change', () => {
+  function serverHas(quantity: number) {
+    vi.mocked(apiClient.get).mockImplementation((path: string) => {
+      if (path === '/wines') return Promise.resolve([{ ...wine, quantity }])
+      if (path === '/producers') return Promise.resolve([producer])
+      if (path === '/wines/5') return Promise.resolve({ ...wine, quantity, suggested_meals: [], consumption_history: [] })
+      throw new Error(`unexpected path: ${path}`)
+    })
+  }
+
+  async function seedLocal(quantity: number) {
+    await db.wines.put({ ...wine, quantity, suggested_meals: [], consumption_history: [] })
+  }
+
+  it.each([
+    ['a quantity adjustment', () => enqueueQuantityAdjustment(5, { delta: 2, client_id: 'a' })],
+    [
+      'a consumption',
+      () => enqueueConsumptionCreate(-1, 5, { date: '2026-01-01', rating: null, notes: null, client_id: 'c' }),
+    ],
+  ])('full pull: %s still queued', async (_name, enqueueChange) => {
+    await seedLocal(5)
+    await enqueueChange()
+    serverHas(3)
+
+    await pullWines()
+
+    expect((await db.wines.get(5))?.quantity).toBe(5)
+  })
+
+  it.each([
+    ['a quantity adjustment', () => enqueueQuantityAdjustment(5, { delta: 2, client_id: 'a' })],
+    [
+      'a consumption',
+      () => enqueueConsumptionCreate(-1, 5, { date: '2026-01-01', rating: null, notes: null, client_id: 'c' }),
+    ],
+  ])('single pull: %s still queued', async (_name, enqueueChange) => {
+    await seedLocal(1)
+    await enqueueChange()
+    serverHas(3)
+
+    expect((await pullWine(5)).quantity).toBe(1)
+    expect((await db.wines.get(5))?.quantity).toBe(1)
+  })
+
+  it('takes the server count once nothing is queued', async () => {
+    await seedLocal(5)
+    serverHas(3)
+
+    await pullWines()
+
+    expect((await db.wines.get(5))?.quantity).toBe(3)
   })
 })

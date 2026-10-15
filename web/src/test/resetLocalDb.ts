@@ -13,5 +13,6 @@ afterEach(async () => {
     db.idRemap.clear(),
     db.meals.clear(),
     db.mealPairings.clear(),
+    db.meta.clear(),
   ])
 })

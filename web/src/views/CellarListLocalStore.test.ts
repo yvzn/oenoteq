@@ -4,10 +4,12 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { apiClient } from '../api/client'
 import type { WineDetail, WineInput } from '../api/types'
 import { db } from '../db/localDb'
+import { useSyncStatus } from '../composables/useSyncStatus'
 import { gateway } from '../gateway'
 import { syncNow } from '../sync'
+import { refreshState } from '../sync/refreshState'
 import { pullWines } from '../sync/wineSync'
-import { itOfflineOnly } from '../test/consent'
+import { itOfflineOnly, itOnlineOnly } from '../test/consent'
 import { installFakeServer, type FakeServer } from '../test/fakeServer'
 import CellarListView from './CellarListView.vue'
 
@@ -25,7 +27,9 @@ beforeEach(() => {
 })
 
 afterEach(async () => {
-  // Let queued pushes finish before the shared local store is cleared.
+  for (const wrapper of mounted.splice(0)) wrapper.unmount()
+  // Let a running refresh and queued pushes finish before the shared local store is cleared.
+  await vi.waitFor(() => expect(refreshState.inFlight).toBe(false), { timeout: 5000 })
   await new Promise((r) => setTimeout(r, 50))
   for (const m of [apiClient.get, apiClient.post, apiClient.put, apiClient.delete]) vi.mocked(m).mockReset()
 })
@@ -61,6 +65,8 @@ async function seedLocal(...wines: WineDetail[]) {
 }
 
 type Wrapper = ReturnType<typeof mount>
+// A list left mounted would keep reacting to (and reading) the store of the tests that follow.
+const mounted: Wrapper[] = []
 
 async function mountList(path = '/'): Promise<Wrapper> {
   const router = createRouter({
@@ -68,12 +74,14 @@ async function mountList(path = '/'): Promise<Wrapper> {
     routes: [
       { path: '/', name: 'cellar', component: CellarListView },
       { path: '/wines/new', name: 'wine-new', component: CellarListView },
+      { path: '/sync-status', name: 'sync-status', component: CellarListView },
       { path: '/wines/:id', name: 'wine-detail', component: CellarListView },
     ],
   })
   router.push(path)
   await router.isReady()
   const wrapper = mount(CellarListView, { global: { plugins: [router] } })
+  mounted.push(wrapper)
   await settle()
   return wrapper
 }
@@ -225,5 +233,221 @@ describe('CellarListView in Offline Mode', () => {
 
     expect(hrefs(wrapper)).toEqual(['/wines/2'])
     expect(server.searches).toEqual([])
+  })
+})
+
+// Each test is a fresh visit: the refresh throttle is module state, so move well past the last run.
+let clock = new Date('2030-01-01T00:00:00Z').getTime()
+const MINUTE = 60_000
+
+function startOfVisit() {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  clock += 60 * MINUTE
+  vi.setSystemTime(clock)
+}
+
+const pullsOfWines = () => vi.mocked(apiClient.get).mock.calls.filter(([path]) => path === '/wines').length
+
+describe('CellarListView background refresh', () => {
+  beforeEach(startOfVisit)
+  afterEach(() => vi.useRealTimers())
+
+  async function seedStaleCopy() {
+    const producer = server.seedProducer('Domaine A')
+    const appellation = server.seedAppellation('Chinon')
+    const wine = server.seedWine({
+      millesime: 2018,
+      appellation_id: appellation.id,
+      producer_id: producer.id,
+      color: 'rouge',
+      garde_debut: year - 2,
+      garde_fin: year + 2,
+      quantity: 2,
+    })
+    await db.producers.put(producer)
+    await db.appellations.put(appellation)
+    await db.meals.put({ id: 1, name: 'Boeuf' })
+    await db.wines.put({ ...wine, suggested_meals: [], consumption_history: [] })
+    await db.meta.put({ key: 'firstPullCompletedAt', value: '2030-01-01' })
+    return { producer, appellation, wine }
+  }
+
+  itOfflineOnly('opening the list pulls what changed on another device and shows it in place', async () => {
+    const { producer, appellation, wine } = await seedStaleCopy()
+    const other = server.seedWine({
+      millesime: 2015,
+      appellation_id: appellation.id,
+      producer_id: producer.id,
+      color: 'blanc',
+      garde_debut: year - 1,
+      garde_fin: year + 1,
+      quantity: 1,
+    })
+
+    const wrapper = await mountList()
+
+    await vi.waitFor(() => expect(hrefs(wrapper)).toEqual([`/wines/${wine.id}`, `/wines/${other.id}`]))
+    expect(server.searches).toEqual([])
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+  })
+
+  itOfflineOnly('keeps the page and scroll position when new data arrives', async () => {
+    const { producer, appellation } = await seedStaleCopy()
+    for (let i = 0; i < 12; i++) {
+      const synced = server.seedWine({
+        millesime: 2000 + i,
+        appellation_id: appellation.id,
+        producer_id: producer.id,
+        color: 'rouge',
+        garde_debut: year - 2,
+        garde_fin: year + 2,
+        quantity: 2,
+      })
+      await db.wines.put({ ...synced, suggested_meals: [], consumption_history: [] })
+    }
+    server.down = true
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const wrapper = await mountList('/?page=2')
+    scrollTo.mockClear()
+    await vi.waitFor(() => expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 2 of 2'))
+    server.down = false
+    server.seedWine({
+      millesime: 2014,
+      appellation_id: appellation.id,
+      producer_id: producer.id,
+      color: 'rouge',
+      garde_debut: year - 1,
+      garde_fin: year + 1,
+      quantity: 1,
+    })
+
+    await syncNow()
+    await vi.waitFor(() => expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 2 of 2'))
+    await settle()
+    // 13 wines, then 14: still two pages, and the reader is still on the second.
+    expect(wrapper.text()).toContain('14 wines in cellar')
+    expect(scrollTo).not.toHaveBeenCalled()
+  })
+
+  itOfflineOnly('opening again within a minute does not refresh again, a minute later it does', async () => {
+    await seedStaleCopy()
+    await mountList()
+    expect(pullsOfWines()).toBe(1)
+
+    vi.setSystemTime(Date.now() + MINUTE - 1)
+    await mountList()
+    expect(pullsOfWines()).toBe(1)
+
+    vi.setSystemTime(Date.now() + 1)
+    await mountList()
+    expect(pullsOfWines()).toBe(2)
+  })
+
+  itOfflineOnly("the sync page's Retry sync refreshes the open list through the same routine", async () => {
+    const { producer, appellation } = await seedStaleCopy()
+    server.down = true
+    const wrapper = await mountList()
+    expect(hrefs(wrapper)).toHaveLength(1)
+    server.down = false
+    server.seedWine({
+      millesime: 2015,
+      appellation_id: appellation.id,
+      producer_id: producer.id,
+      color: 'blanc',
+      garde_debut: year - 1,
+      garde_fin: year + 1,
+      quantity: 1,
+    })
+
+    await useSyncStatus().syncAllNow()
+
+    await vi.waitFor(() => expect(hrefs(wrapper)).toHaveLength(2))
+  })
+
+  itOfflineOnly('a failed refresh changes nothing visible', async () => {
+    await seedStaleCopy()
+    server.down = true
+
+    const wrapper = await mountList()
+
+    expect(hrefs(wrapper)).toHaveLength(1)
+    expect(wrapper.text()).toContain('1 wine in cellar')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+  })
+
+  itOfflineOnly('sends an unsent change before pulling, so the refresh keeps the count', async () => {
+    const { wine } = await seedStaleCopy()
+    server.down = true
+    await gateway.wines.adjustQuantity(wine.id, 4)
+    server.down = false
+
+    const wrapper = await mountList()
+
+    expect(server.wines.find((w) => w.id === wine.id)?.quantity).toBe(6)
+    expect(listText(wrapper)).toContain('×6')
+  })
+})
+
+describe('CellarListView on a device that has downloaded nothing', () => {
+  beforeEach(startOfVisit)
+  afterEach(() => vi.useRealTimers())
+
+  itOfflineOnly('explains that the cellar needs one connected visit, with a link to the sync page', async () => {
+    server.down = true
+
+    const wrapper = await mountList()
+
+    expect(wrapper.text()).toContain('needs one connected visit')
+    expect(wrapper.get('[data-testid="cellar-first-visit-sync-link"]').attributes('href')).toBe('/sync-status')
+    expect(wrapper.text()).not.toContain('No wines match')
+  })
+
+  itOfflineOnly('shows the usual empty message once a first pull has completed on an empty cellar', async () => {
+    const wrapper = await mountList()
+
+    expect(wrapper.text()).toContain('No wines match these filters.')
+    expect(wrapper.text()).not.toContain('needs one connected visit')
+  })
+
+  itOfflineOnly('replaces the message with the cellar when a later refresh succeeds', async () => {
+    server.down = true
+    const wrapper = await mountList()
+    expect(wrapper.text()).toContain('needs one connected visit')
+
+    const producer = server.seedProducer('Domaine A')
+    const appellation = server.seedAppellation('Chinon')
+    server.seedWine({
+      millesime: 2018,
+      appellation_id: appellation.id,
+      producer_id: producer.id,
+      color: 'rouge',
+      garde_debut: year - 2,
+      garde_fin: year + 2,
+      quantity: 2,
+    })
+    server.down = false
+    await syncNow()
+    await settle()
+
+    expect(wrapper.text()).not.toContain('needs one connected visit')
+    expect(hrefs(wrapper)).toHaveLength(1)
+  })
+
+  itOfflineOnly('still shows the empty-filter message when wines exist but none match', async () => {
+    await seedLocal(localWine({ id: 5 }))
+    server.down = true
+
+    const wrapper = await mountList('/?color=blanc')
+
+    expect(wrapper.text()).toContain('No wines match these filters.')
+    expect(wrapper.text()).not.toContain('needs one connected visit')
+  })
+
+  itOnlineOnly('has no local store and no refresh: the server search answers', async () => {
+    const wrapper = await mountList()
+
+    expect(pullsOfWines()).toBe(0)
+    expect(wrapper.text()).not.toContain('needs one connected visit')
   })
 })

@@ -75,12 +75,26 @@ export async function pushWines(): Promise<void> {
   await replay(db.outbox, { wine: wineHandler })
 }
 
-// While a Wine still has a queued create/update, the local copy is the
+// Whether the Wine has a change the server hasn't confirmed yet: its own
+// create/update, or a bottle-count change (quantity adjustment, consumption).
+async function hasUnsentChange(id: number): Promise<boolean> {
+  if (await isQueued(db.outbox, 'wine', id)) return true
+  if (await isQueued(db.outbox, 'quantity_adjustment', id)) return true
+  return (
+    (await db.outbox
+      .where('entity')
+      .equals('consumption')
+      .filter((item) => item.action === 'create' && (item.payload as { wineId?: number }).wineId === id)
+      .count()) > 0
+  )
+}
+
+// While a Wine still has an unsent change, the local copy is the
 // authoritative one: a server read predates that edit and would revert it.
 export async function pullWine(id: number): Promise<WineDetail> {
   const detail = await apiClient.get<WineDetail>(`/wines/${id}`)
   // Checked after the fetch so an edit queued while the GET was in flight is covered too.
-  if (await isQueued(db.outbox, 'wine', id)) {
+  if (await hasUnsentChange(id)) {
     const local = await db.wines.get(id)
     if (local) return local
   }
@@ -97,7 +111,7 @@ export async function pullWines(): Promise<void> {
   ])
   await db.producers.bulkPut(producers)
   for (const wine of wines) {
-    if (await isQueued(db.outbox, 'wine', wine.id)) continue
+    if (await hasUnsentChange(wine.id)) continue
     const existing = await db.wines.get(wine.id)
     await db.wines.put({
       ...wine,

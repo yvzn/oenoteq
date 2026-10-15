@@ -32,7 +32,7 @@ A single "Retry sync" action on the page replays the whole outbox and refreshes 
 - [x] Component test covers click, busy, completion
 
 **Cellar list refresh:**
-The offline wine list effort (`.scratch/offline-wine-list/issues/04`) defines one background refresh routine (push outbox, then pull) that this action should call, so "Retry sync" also refreshes the cellar list. Whichever ticket lands second wires it in.
+The offline wine list effort (`.scratch/offline-wine-list/issues/04`) defines one background refresh routine (push outbox, then pull) that this action should call, so "Retry sync" also refreshes the cellar list. Whichever ticket lands second wires it in. (Wired: OWL-04 made `syncNow` that routine; "Retry sync" calls it unchanged.)
 
 **Consent note (ADR 0010):**
 The sync page exists only in Offline Mode (Storage Consent granted). Without consent there is no outbox and the page is hidden, so this action needs no separate no-consent behavior. Write it against the sync entry point, not the local store directly, so it keeps working if the data gateway lands later.

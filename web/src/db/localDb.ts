@@ -18,6 +18,16 @@ export interface MealPairingRecord {
   mealId: number
 }
 
+// Small key/value facts about the local store itself (not synced data).
+export interface MetaRecord {
+  key: string
+  value: string
+}
+
+// Set once the first full pull has completed: from then on an empty store is a
+// genuinely empty cellar rather than one that was never downloaded.
+export const FIRST_PULL_KEY = 'firstPullCompletedAt'
+
 export class LocalDb extends Dexie {
   wines!: Table<WineDetail, number>
   producers!: Table<Producer, number>
@@ -26,6 +36,7 @@ export class LocalDb extends Dexie {
   idRemap!: Table<IdRemap, number>
   meals!: Table<Meal, number>
   mealPairings!: Table<MealPairingRecord, [number, Color, number]>
+  meta!: Table<MetaRecord, string>
 
   constructor(name = 'cellar') {
     super(name)
@@ -42,6 +53,14 @@ export class LocalDb extends Dexie {
       meals: 'id',
       mealPairings: '[appellationId+color+mealId], appellationId',
     })
+    // A store that already holds wines was downloaded before this marker existed.
+    this.version(4)
+      .stores({ meta: 'key' })
+      .upgrade(async (tx) => {
+        if ((await tx.table('wines').count()) > 0) {
+          await tx.table('meta').put({ key: FIRST_PULL_KEY, value: new Date().toISOString() })
+        }
+      })
   }
 }
 
