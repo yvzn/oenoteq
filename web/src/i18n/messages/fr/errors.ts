@@ -1,0 +1,30 @@
+// One key per backend error code (see internal/handlers/handlers.go), plus `generic` and `network`.
+export default {
+  errors: {
+    generic: 'Une erreur est survenue. Veuillez réessayer.',
+    network: 'Erreur réseau : impossible de joindre le serveur.',
+    invalid_request: "Cette requête n'était pas valide. Vérifiez le formulaire et réessayez.",
+    invalid_wine_id: 'Vin introuvable. Retournez à la cave et réessayez.',
+    invalid_meal_id: 'Plat introuvable. Actualisez la page et réessayez.',
+    invalid_appellation_id: 'Appellation introuvable. Actualisez la page et réessayez.',
+    invalid_producer_id: 'Producteur introuvable. Actualisez la page et réessayez.',
+    invalid_consumption_id: 'Consommation introuvable. Actualisez la page et réessayez.',
+    already_exists: 'Ce nom est déjà utilisé. Choisissez-en un autre.',
+    invalid_color: 'La couleur doit être rouge, blanc ou rose.',
+    appellation_not_found: "Cette appellation n'existe plus. Actualisez la page et réessayez.",
+    producer_not_found: "Ce producteur n'existe plus. Actualisez la page et réessayez.",
+    wine_not_found: 'Vin introuvable. Il a peut-être été supprimé — retournez à la cave et réessayez.',
+    meal_not_found: "Ce plat n'existe plus. Actualisez la page et réessayez.",
+    meal_in_use: "Ce plat est utilisé dans un accord mets-vin. Supprimez d'abord l'accord, puis supprimez le plat.",
+    appellation_in_use:
+      "Cette appellation est utilisée par un vin ou un accord mets-vin. Supprimez d'abord ces références, puis supprimez l'appellation.",
+    producer_in_use: "Ce producteur est utilisé par un vin. Supprimez d'abord cette référence, puis supprimez le producteur.",
+    date_required: 'Saisissez une date pour cette consommation.',
+    invalid_date: 'Saisissez la date au format AAAA-MM-JJ.',
+    invalid_rating: 'La note doit être comprise entre 1 et 5.',
+    quantity_zero: "Il ne reste rien à consigner pour ce vin — mettez d'abord la quantité à jour.",
+    initial_quantity_required: "Saisissez une quantité initiale d'au moins 1.",
+    consumption_not_found: "Cette consommation n'existe plus. Actualisez la page et réessayez.",
+    internal_error: 'Un problème est survenu de notre côté. Veuillez réessayer.',
+  },
+}

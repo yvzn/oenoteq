@@ -4,6 +4,7 @@ import { apiClient } from '../api/client'
 import { db } from '../db/localDb'
 import { pushChangesInBackground, syncNow } from '../sync'
 import { discard, enqueue } from '../sync/outbox'
+import { setTestLocale } from '../test/i18n'
 import SyncStatusView from './SyncStatusView.vue'
 
 vi.mock('../sync', async () => {
@@ -354,5 +355,76 @@ describe('SyncStatusView', () => {
       expect(wrapper.find('[data-testid="sync-status-pending-item"]').exists()).toBe(false)
       expect(wrapper.find('[data-testid="sync-status-nothing-pending"]').exists()).toBe(true)
     })
+  })
+})
+
+describe('SyncStatusView in French', () => {
+  it('translates the page, the entity names and the actions', async () => {
+    setTestLocale('fr')
+
+    const wrapper = await mountView()
+
+    expect(wrapper.get('h2').text()).toBe('État de la synchronisation')
+    expect(wrapper.findAll('[data-testid="sync-status-count"]').map((row) => row.text())).toEqual([
+      'Vin0',
+      'Consommation0',
+      'Producteur0',
+      'Appellation0',
+      'Plat0',
+      'Accord mets-vin0',
+    ])
+    expect(wrapper.get('[data-testid="sync-status-retry-all"]').text()).toBe('Relancer la synchro')
+  })
+
+  it('renders a failure queued before a language switch in the new language', async () => {
+    const id = await enqueue(db.outbox, { entity: 'producer', action: 'update', targetId: 4, payload: {} })
+    await db.outbox.update(id, { status: 'failed', error: 'producer_not_found' })
+    const wrapper = await mountView()
+    expect(wrapper.get('[data-testid="sync-status-failed-reason"]').text()).toBe(
+      "That producer doesn't exist anymore. Recreate it, then retry.",
+    )
+
+    setTestLocale('fr')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="sync-status-failed-reason"]').text()).toBe(
+      "Ce producteur n'existe plus. Recréez l'élément, puis réessayez.",
+    )
+    expect(wrapper.get('[data-testid="sync-status-failed-item"]').text()).toContain('Producteur')
+    expect((await db.outbox.get(id))!.error).toBe('producer_not_found')
+  })
+
+  it('shows an unknown failure code as the generic message in the active language', async () => {
+    const id = await enqueue(db.outbox, { entity: 'meal', action: 'update', targetId: 4, payload: {} })
+    await db.outbox.update(id, { status: 'failed', error: 'brand_new_code' })
+    setTestLocale('fr')
+
+    const wrapper = await mountView()
+
+    expect(wrapper.get('[data-testid="sync-status-failed-reason"]').text()).toBe(
+      'Une erreur est survenue. Veuillez réessayer.',
+    )
+  })
+
+  it.each([
+    [1, "Vider la file d'attente ? 1 modification en attente sera perdue."],
+    [2, "Vider la file d'attente ? 2 modifications en attente seront perdues."],
+  ])('uses the right plural when clearing %i queued changes', async (count, expected) => {
+    setTestLocale('fr')
+    for (let i = 0; i < count; i++) {
+      await enqueue(db.outbox, { entity: 'meal', action: 'create', targetId: -(i + 1), payload: {} })
+    }
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-testid="sync-status-clear"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="confirm-dialog"]').text()).toContain(expected)
+  })
+
+  it('says "1 change" and "2 changes" in English', async () => {
+    await enqueue(db.outbox, { entity: 'meal', action: 'create', targetId: -1, payload: {} })
+    const wrapper = await mountView()
+    await wrapper.get('[data-testid="sync-status-clear"]').trigger('click')
+    expect(wrapper.get('[data-testid="confirm-dialog"]').text()).toContain('1 queued change will be lost')
   })
 })

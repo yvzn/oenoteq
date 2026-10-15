@@ -1,0 +1,37 @@
+export default {
+  sync: {
+    title: 'État de la synchronisation',
+    retryAll: 'Relancer la synchro',
+    syncing: 'Synchronisation…',
+    clearQueue: "Vider la file d'attente",
+    offlineNote: 'Vous êtes hors ligne. La synchronisation reprendra au retour de la connexion.',
+    showDetails: 'Afficher les détails',
+    hideDetails: 'Masquer les détails',
+    nothingPending: 'Rien en attente.',
+    failedTitle: 'Éléments en échec',
+    nothingFailed: 'Aucun échec.',
+    retry: 'Réessayer',
+    discard: 'Abandonner',
+    confirmDiscard: 'Abandonner cette modification en attente ? Elle ne sera pas renvoyée.',
+    confirmClear:
+      "Vider la file d'attente ? {count} modification en attente sera perdue. Cette action est irréversible. | Vider la file d'attente ? {count} modifications en attente seront perdues. Cette action est irréversible.",
+    recreate: "Recréez l'élément, puis réessayez.",
+    describedItem: '{entity} : {description}',
+    entity: {
+      wine: 'Vin',
+      consumption: 'Consommation',
+      producer: 'Producteur',
+      appellation: 'Appellation',
+      meal: 'Plat',
+      mealPairing: 'Accord mets-vin',
+    },
+    operation: {
+      quantityAdjustment: 'Ajustement de quantité',
+      consumption: 'Consommation',
+      consumptionEdit: 'Modification de consommation',
+      pairingAdd: "Ajout d'accord",
+      create: 'Création',
+      edit: 'Modification',
+    },
+  },
+}

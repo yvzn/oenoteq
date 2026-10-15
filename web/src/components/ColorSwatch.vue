@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Color } from '../api/types'
 
 const props = withDefaults(defineProps<{ color: Color; variant?: 'dot' | 'rail' }>(), {
   variant: 'dot',
 })
+
+const { t } = useI18n()
 
 const dotClassByColor: Record<Color, string> = {
   rouge: 'bg-bordeaux',
@@ -28,14 +31,14 @@ const classes = computed(() =>
     v-if="variant === 'rail'"
     class="inline-block w-[5px] shrink-0 self-stretch rounded-[3px]"
     :class="classes"
-    :title="color"
+    :title="t(`color.${color}`)"
     aria-hidden="true"
   />
   <span
     v-else
     class="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
     :class="classes"
-    :title="color"
+    :title="t(`color.${color}`)"
     aria-hidden="true"
   />
 </template>

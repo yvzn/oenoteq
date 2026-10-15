@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import type { Table } from 'dexie'
 import { friendlyMessageForCode } from '../api/errorMessages'
+import { activeLocale, translate } from '../i18n'
 import { isOfflineMode } from '../consent/storageConsent'
 import { db } from '../db/localDb'
 import type { WineInput } from '../api/types'
@@ -12,7 +13,8 @@ import { discard, outboxVersion, retry, type OutboxItem } from '../sync/outbox'
 // The six entity types the sync-status page reports on. `quantity_adjustment`
 // has no bucket of its own — it's a correction against a Wine's stock, not a
 // distinct record type from the user's point of view, so it's folded into
-// "Wine".
+// "Wine". These labels are stable lookup keys for the counts, never shown as
+// text: `entityDisplayName` gives the translated name.
 const ENTITY_LABELS: Record<string, string> = {
   wine: 'Wine',
   consumption: 'Consumption',
@@ -23,6 +25,20 @@ const ENTITY_LABELS: Record<string, string> = {
   quantity_adjustment: 'Wine',
 }
 
+const ENTITY_NAME_KEYS: Record<string, string> = {
+  Wine: 'wine',
+  Consumption: 'consumption',
+  Producer: 'producer',
+  Appellation: 'appellation',
+  Meal: 'meal',
+  'Meal Pairing': 'mealPairing',
+}
+
+export function entityDisplayName(label: string): string {
+  const key = ENTITY_NAME_KEYS[label]
+  return key ? translate(`sync.entity.${key}`) : label
+}
+
 // Derived, not hand-kept in sync with ENTITY_LABELS: its six values, in
 // first-occurrence order, are exactly the six display buckets the
 // sync-status page reports on.
@@ -30,7 +46,7 @@ export const ENTITY_DISPLAY_LABELS = [...new Set(Object.values(ENTITY_LABELS))]
 
 export interface PendingSyncItem {
   id: number
-  // Entity bucket ("Wine", "Meal Pairing", ...), same as the counts.
+  // Entity bucket ("Wine", "Meal Pairing", ...), the same lookup key as the counts.
   entity: string
   // Plain-language identity of the record, e.g. "Château X · Pomerol · 2015".
   label: string
@@ -63,10 +79,11 @@ function labelFor(item: OutboxItem): string {
 }
 
 function operationFor(item: OutboxItem): string {
-  if (item.entity === 'quantity_adjustment') return 'Quantity adjustment'
-  if (item.entity === 'consumption') return item.action === 'create' ? 'Consumption' : 'Consumption edit'
-  if (item.entity === 'meal_pairing') return 'Pairing add'
-  return item.action === 'create' ? 'Create' : 'Edit'
+  const op = (key: string) => translate(`sync.operation.${key}`)
+  if (item.entity === 'quantity_adjustment') return op('quantityAdjustment')
+  if (item.entity === 'consumption') return item.action === 'create' ? op('consumption') : op('consumptionEdit')
+  if (item.entity === 'meal_pairing') return op('pairingAdd')
+  return item.action === 'create' ? op('create') : op('edit')
 }
 
 function joinWineParts(...parts: (string | number | null | undefined)[]): string | null {
@@ -99,7 +116,7 @@ async function namedLabel(table: Table<{ name: string }, number>, item: OutboxIt
 // from the local copy, so it still works offline; any miss falls back to the
 // bare entity label rather than failing the whole list.
 async function describeItem(item: OutboxItem): Promise<string> {
-  const fallback = labelFor(item)
+  const fallback = entityDisplayName(labelFor(item))
   const payload = (item.payload ?? {}) as Record<string, unknown>
   let described: string | null = null
   switch (item.entity) {
@@ -133,11 +150,11 @@ async function describeItem(item: OutboxItem): Promise<string> {
         mealId == null ? undefined : db.meals.get(mealId),
         appellationId == null ? undefined : db.appellations.get(appellationId),
       ])
-      described = meal && appellation ? `${meal.name} · ${appellation.name} (${color})` : null
+      described = meal && appellation ? `${meal.name} · ${appellation.name} (${color ? translate(`color.${color}`) : color})` : null
       break
     }
   }
-  return described ? `${fallback}: ${described}` : fallback
+  return described ? translate('sync.describedItem', { entity: fallback, description: described }) : fallback
 }
 
 // The shared error copy in api/errorMessages.ts is written for a live form
@@ -145,11 +162,13 @@ async function describeItem(item: OutboxItem): Promise<string> {
 // item sitting next to this page's own Retry/Discard buttons. For the
 // "referenced record no longer exists" family, swap in the remediation the
 // ticket actually asks for: recreate the record, then retry.
+// The outbox stores only the code; the text is built here, so `refresh` (which re-runs on a
+// language switch) renders a failure queued in any language in the current one.
 function reasonForFailedItem(code: string): string {
   const message = friendlyMessageForCode(code)
   if (!code.endsWith('_not_found')) return message
   const [reason] = message.split(/\.\s+/, 1)
-  return `${reason}. Recreate it, then retry.`
+  return `${reason}. ${translate('sync.recreate')}`
 }
 
 async function refresh(): Promise<void> {
@@ -162,7 +181,7 @@ async function refresh(): Promise<void> {
   for (const item of items) {
     const label = labelFor(item)
     if (item.status === 'failed') {
-      nextFailed.push({ id: item.id!, label, reason: reasonForFailedItem(item.error ?? '') })
+      nextFailed.push({ id: item.id!, label: entityDisplayName(label), reason: reasonForFailedItem(item.error ?? '') })
     } else if (label in nextCounts) {
       nextCounts[label]!++
       pendingOutbox.push(item)
@@ -183,7 +202,8 @@ async function refresh(): Promise<void> {
   pendingItems.value = nextPending
 }
 
-watch(outboxVersion, refresh, { immediate: true })
+// A language switch rebuilds the texts held here (failed reasons, operations, item labels).
+watch([outboxVersion, activeLocale], refresh, { immediate: true })
 
 const hasPending = computed(
   () => Object.values(counts.value).some((count) => count > 0) || failed.value.length > 0,

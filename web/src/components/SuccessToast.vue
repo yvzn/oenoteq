@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import AppButton from './AppButton.vue'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 
+const { t } = useI18n()
 const { message, clear } = useSuccessMessage()
 </script>
 
@@ -19,7 +21,7 @@ const { message, clear } = useSuccessMessage()
       data-testid="success-toast-dismiss"
       @click="clear"
     >
-      Dismiss
+      {{ t('actions.dismiss') }}
     </AppButton>
   </div>
 </template>

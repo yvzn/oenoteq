@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import type { Color } from '../api/types'
 import AppButton from '../components/AppButton.vue'
@@ -27,6 +28,7 @@ import {
 } from '../domain/wineForm'
 
 const route = useRoute()
+const { t } = useI18n()
 const router = useRouter()
 
 const editId = computed(() => (route.params.id ? Number(route.params.id) : null))
@@ -236,7 +238,7 @@ async function submit() {
           testid="wine-appellation"
           :items="appellations"
           :model-value="appellationId"
-          placeholder="Pick or create an appellation"
+          :placeholder="t('autocomplete.pickOrCreateAppellation')"
           creatable
           :busy="creatingAppellation"
           @update:model-value="(v) => (appellationId = v)"
@@ -256,7 +258,7 @@ async function submit() {
           testid="wine-producer"
           :items="producers"
           :model-value="producerId"
-          placeholder="Pick or create a producer"
+          :placeholder="t('autocomplete.pickOrCreateProducer')"
           creatable
           :busy="creatingProducer"
           @update:model-value="(v) => (producerId = v)"

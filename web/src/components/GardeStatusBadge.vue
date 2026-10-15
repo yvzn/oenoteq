@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { GardeStatus } from '../api/types'
 
 const props = defineProps<{ status: GardeStatus }>()
 
-const label: Record<GardeStatus, string> = {
-  too_young: 'Too young',
-  ready: 'Ready',
-  past_peak: 'Past peak',
-  unassessed: 'Not assessed',
-}
+const { t } = useI18n()
 
 const textClassByStatus: Record<GardeStatus, string> = {
   too_young: 'text-status-young',
@@ -27,7 +23,7 @@ const dotClassByStatus: Record<GardeStatus, string> = {
 
 const textClass = computed(() => textClassByStatus[props.status])
 const dotClass = computed(() => dotClassByStatus[props.status])
-const text = computed(() => label[props.status])
+const text = computed(() => t(`gardeStatus.${props.status}`))
 </script>
 
 <template>

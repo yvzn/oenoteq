@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const modelValue = defineModel<string>({ required: true })
 
 const props = withDefaults(
@@ -34,6 +37,7 @@ function stepBy(delta: number) {
     <button
       type="button"
       :data-testid="decrementTestid"
+      :aria-label="t('stepper.decrease')"
       class="text-ink-soft focus-visible:ring-bordeaux w-12 shrink-0 cursor-pointer rounded-l-lg text-lg font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
       @click="stepBy(-step)"
     >
@@ -55,6 +59,7 @@ function stepBy(delta: number) {
     <button
       type="button"
       :data-testid="incrementTestid"
+      :aria-label="t('stepper.increase')"
       class="text-ink-soft focus-visible:ring-bordeaux w-12 shrink-0 cursor-pointer rounded-r-lg text-lg font-medium transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
       @click="stepBy(step)"
     >

@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { db } from '../db/localDb'
 import { enqueue } from '../sync/outbox'
 import { setConsent } from '../test/consent'
+import { setTestLocale } from '../test/i18n'
 import AppHeader from './AppHeader.vue'
 
 const stub = { template: '<div />' }
@@ -102,5 +103,19 @@ describe('AppHeader without Offline Mode', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="sync-status-indicator"]').exists()).toBe(false)
+  })
+})
+
+describe('AppHeader in French', () => {
+  it('shows the nav, tagline and sync indicator in French', async () => {
+    setTestLocale('fr')
+    await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: -1, payload: {} })
+
+    const { wrapper } = await mountAt('/')
+    await flushPromises()
+
+    expect(wrapper.get('nav').findAll('a').map((link) => link.text())).toEqual(['Cave', 'Gérer'])
+    expect(wrapper.get('h1').text()).toBe('Suivi de cave à vin')
+    expect(wrapper.get('[data-testid="sync-status-indicator"]').text()).toContain('Synchro')
   })
 })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import { useSyncPending } from '../composables/useSyncPending'
 
 const props = defineProps<{
@@ -11,6 +12,8 @@ const props = defineProps<{
   testid: string
   errorTestid?: string
 }>()
+
+const { t } = useI18n()
 
 // Live: drops out as soon as the create leaves the outbox, so the note never
 // outlives the sync it describes.
@@ -25,10 +28,10 @@ const { pending } = useSyncPending(
     <p v-if="error" role="alert" :data-testid="errorTestid ?? `${testid}-error`" class="text-danger mt-1">
       {{ error }}
     </p>
-    <p v-else-if="creating" :data-testid="`${testid}-creating`" class="text-muted mt-1">Creating…</p>
+    <p v-else-if="creating" :data-testid="`${testid}-creating`" class="text-muted mt-1">{{ t('create.creating') }}</p>
     <p v-else-if="created" :data-testid="`${testid}-created`" class="text-success mt-1">
-      ✓ Created "{{ created.name }}"<span v-if="pending" :data-testid="`${testid}-pending`" class="text-muted">
-        — not synced yet, will sync automatically</span>
+      ✓ {{ t('create.created', { name: created.name }) }}<span v-if="pending" :data-testid="`${testid}-pending`" class="text-muted">
+        — {{ t('create.pendingNote') }}</span>
     </p>
   </div>
 </template>

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
 import { setConsent } from '../test/consent'
+import { setTestLocale } from '../test/i18n'
 import OfflineBanner from './OfflineBanner.vue'
 
 vi.mock('../api/client', async () => {
@@ -108,5 +109,18 @@ describe.each(['refused', 'no-choice'] as const)('OfflineBanner without Offline 
 
     expect(wrapper.find('button').exists()).toBe(false)
     expect(router.currentRoute.value.name).toBe('cellar')
+  })
+})
+
+describe('OfflineBanner in French', () => {
+  it('says the changes are saved locally, in French', async () => {
+    setTestLocale('fr')
+    setNavigatorOnLine(false)
+
+    const { wrapper } = await mountBanner()
+
+    expect(wrapper.get('[data-testid="offline-banner"]').text()).toContain(
+      'les modifications sont enregistrées localement',
+    )
   })
 })

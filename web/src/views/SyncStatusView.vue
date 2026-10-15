@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppButton from '../components/AppButton.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
 import { useConnectivity } from '../composables/useConnectivity'
-import { useSyncStatus } from '../composables/useSyncStatus'
+import { entityDisplayName, useSyncStatus } from '../composables/useSyncStatus'
 
 const {
   counts,
@@ -21,6 +22,7 @@ const {
   clearAllQueued,
 } = useSyncStatus()
 const { isOnline } = useConnectivity()
+const { t, locale } = useI18n()
 
 onMounted(refresh)
 
@@ -30,7 +32,7 @@ const showDetails = ref(false)
 function formatQueuedAt(iso: string | null): string {
   if (!iso) return ''
   const date = new Date(iso)
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString()
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(locale.value)
 }
 
 // One dialog serves both flows: discarding a single failed item, or clearing
@@ -39,11 +41,11 @@ type Pending = { kind: 'discard'; id: number } | { kind: 'clear' } | null
 const pending = ref<Pending>(null)
 const confirmOpen = computed(() => pending.value !== null)
 const confirmMessage = computed(() => {
-  if (pending.value?.kind !== 'clear') return "Discard this queued change? It won't be retried."
+  if (pending.value?.kind !== 'clear') return t('sync.confirmDiscard')
   const n = queuedCount.value
-  return `Clear the queue? ${n} queued ${n === 1 ? 'change' : 'changes'} will be lost. This can't be undone.`
+  return t('sync.confirmClear', { count: n }, n)
 })
-const confirmLabel = computed(() => (pending.value?.kind === 'clear' ? 'Clear queue' : 'Discard'))
+const confirmLabel = computed(() => (pending.value?.kind === 'clear' ? t('sync.clearQueue') : t('sync.discard')))
 
 function askDiscard(id: number) {
   pending.value = { kind: 'discard', id }
@@ -68,7 +70,7 @@ async function confirm() {
 <template>
   <section class="px-6 py-6">
     <div class="mx-auto max-w-2xl">
-      <PageHeader title="Sync status" />
+      <PageHeader :title="t('sync.title')" />
 
       <div class="mt-4 flex items-center gap-3">
         <AppButton
@@ -78,7 +80,7 @@ async function confirm() {
           :disabled="isSyncing || !isOnline"
           @click="syncAllNow"
         >
-          {{ isSyncing ? 'Syncing…' : 'Retry sync' }}
+          {{ isSyncing ? t('sync.syncing') : t('sync.retryAll') }}
         </AppButton>
         <AppButton
           type="button"
@@ -87,10 +89,10 @@ async function confirm() {
           :disabled="isSyncing || queuedCount === 0"
           @click="askClear"
         >
-          Clear queue
+          {{ t('sync.clearQueue') }}
         </AppButton>
         <p v-if="!isOnline" data-testid="sync-status-offline-note" class="text-muted text-sm">
-          You're offline. Sync will run when you're back online.
+          {{ t('sync.offlineNote') }}
         </p>
       </div>
 
@@ -101,7 +103,7 @@ async function confirm() {
           data-testid="sync-status-count"
           class="border-line flex items-center justify-between border-b py-2.5 text-sm"
         >
-          <span class="text-ink">{{ label }}</span>
+          <span class="text-ink">{{ entityDisplayName(label) }}</span>
           <span class="text-muted tabular-nums">{{ counts[label] }}</span>
         </li>
       </ul>
@@ -114,11 +116,11 @@ async function confirm() {
           :aria-expanded="showDetails"
           @click="showDetails = !showDetails"
         >
-          {{ showDetails ? 'Hide details' : 'Show details' }}
+          {{ showDetails ? t('sync.hideDetails') : t('sync.showDetails') }}
         </AppButton>
         <template v-if="showDetails">
           <StatusLine v-if="pendingItems.length === 0" data-testid="sync-status-nothing-pending">
-            Nothing pending.
+            {{ t('sync.nothingPending') }}
           </StatusLine>
           <ul v-else data-testid="sync-status-pending-list" class="mt-2 flex flex-col">
             <li
@@ -140,9 +142,9 @@ async function confirm() {
       </div>
 
       <section class="mt-8">
-        <h2 class="font-display text-ink mb-3 text-[16px] font-semibold">Failed items</h2>
+        <h2 class="font-display text-ink mb-3 text-[16px] font-semibold">{{ t('sync.failedTitle') }}</h2>
         <StatusLine v-if="failed.length === 0" data-testid="sync-status-no-failures">
-          Nothing failed.
+          {{ t('sync.nothingFailed') }}
         </StatusLine>
         <ul v-else data-testid="sync-status-failed-list" class="flex flex-col gap-3">
           <li
@@ -160,7 +162,7 @@ async function confirm() {
                 data-testid="sync-status-retry"
                 @click="retryFailedItem(item.id)"
               >
-                Retry
+                {{ t('sync.retry') }}
               </AppButton>
               <AppButton
                 type="button"
@@ -168,7 +170,7 @@ async function confirm() {
                 data-testid="sync-status-discard"
                 @click="askDiscard(item.id)"
               >
-                Discard
+                {{ t('sync.discard') }}
               </AppButton>
             </div>
           </li>

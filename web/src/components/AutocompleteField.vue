@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 interface Item {
   id: number
   name: string
 }
+
+const { t } = useI18n()
 
 const props = defineProps<{
   items: Item[]
@@ -165,6 +168,7 @@ function onCreateOptionKeydown(event: KeyboardEvent) {
       :aria-controls="`${testid}-options`"
       :aria-activedescendant="activeDescendant"
       :placeholder="placeholder"
+      :aria-label="placeholder"
       class="w-full text-sm"
       :data-testid="`${testid}-input`"
       autocomplete="off"
@@ -212,7 +216,7 @@ function onCreateOptionKeydown(event: KeyboardEvent) {
         @mousedown.prevent="requestCreate"
         @keydown="onCreateOptionKeydown"
       >
-        ＋ Create "{{ query.trim() }}"
+        ＋ {{ t('autocomplete.create', { name: query.trim() }) }}
       </li>
     </ul>
   </div>

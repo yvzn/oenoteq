@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { setTestLocale } from '../test/i18n'
 import SuccessToast from './SuccessToast.vue'
 
 afterEach(() => {
@@ -32,5 +33,16 @@ describe('SuccessToast', () => {
 
     expect(wrapper.find('[data-testid="success-toast"]').exists()).toBe(false)
     expect(useSuccessMessage().message.value).toBeNull()
+  })
+})
+
+describe('SuccessToast in French', () => {
+  it('shows the dismiss control in French', async () => {
+    setTestLocale('fr')
+    const wrapper = mount(SuccessToast)
+    useSuccessMessage().show('Vin ajouté.')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-testid="success-toast-dismiss"]').text()).toBe('Fermer')
   })
 })

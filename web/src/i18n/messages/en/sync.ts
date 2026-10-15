@@ -1,0 +1,37 @@
+export default {
+  sync: {
+    title: 'Sync status',
+    retryAll: 'Retry sync',
+    syncing: 'Syncing…',
+    clearQueue: 'Clear queue',
+    offlineNote: "You're offline. Sync will run when you're back online.",
+    showDetails: 'Show details',
+    hideDetails: 'Hide details',
+    nothingPending: 'Nothing pending.',
+    failedTitle: 'Failed items',
+    nothingFailed: 'Nothing failed.',
+    retry: 'Retry',
+    discard: 'Discard',
+    confirmDiscard: "Discard this queued change? It won't be retried.",
+    confirmClear:
+      "Clear the queue? {count} queued change will be lost. This can't be undone. | Clear the queue? {count} queued changes will be lost. This can't be undone.",
+    recreate: 'Recreate it, then retry.',
+    describedItem: '{entity}: {description}',
+    entity: {
+      wine: 'Wine',
+      consumption: 'Consumption',
+      producer: 'Producer',
+      appellation: 'Appellation',
+      meal: 'Meal',
+      mealPairing: 'Meal Pairing',
+    },
+    operation: {
+      quantityAdjustment: 'Quantity adjustment',
+      consumption: 'Consumption',
+      consumptionEdit: 'Consumption edit',
+      pairingAdd: 'Pairing add',
+      create: 'Create',
+      edit: 'Edit',
+    },
+  },
+}

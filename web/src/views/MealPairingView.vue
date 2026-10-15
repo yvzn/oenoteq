@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import type { Color } from '../api/types'
 import AppButton from '../components/AppButton.vue'
@@ -16,6 +17,7 @@ import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { parseColor, parseId } from '../domain/searchFilters'
 
 const route = useRoute()
+const { t } = useI18n()
 
 const {
   appellations,
@@ -136,7 +138,7 @@ async function submitNewMeal(name: string) {
             testid="meal-pairing-appellation"
             :items="appellations"
             :model-value="appellationId"
-            placeholder="Pick an appellation"
+            :placeholder="t('autocomplete.pickAppellation')"
             @update:model-value="(v) => (appellationId = v)"
           />
         </FormField>
@@ -198,7 +200,7 @@ async function submitNewMeal(name: string) {
               testid="add-meal-autocomplete"
               :items="meals"
               :model-value="selectedMealId"
-              placeholder="Add or create a meal"
+              :placeholder="t('autocomplete.addMeal')"
               creatable
               :busy="creatingMeal || mutating"
               @update:model-value="(v) => (selectedMealId = v)"

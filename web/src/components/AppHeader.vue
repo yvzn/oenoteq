@@ -29,7 +29,7 @@ const isManage = computed(() => manageRouteNames.includes(route.name as string))
   <header class="border-line bg-parchment-raised border-b px-6 py-5">
     <a href="/" class="block w-fit">
       <p class="text-muted text-[11px] tracking-widest uppercase">Oenoteq</p>
-      <h1 class="font-display text-ink mt-0.5 text-base leading-none">Wine Cellar Tracker</h1>
+      <h1 class="font-display text-ink mt-0.5 text-base leading-none">{{ t('app.name') }}</h1>
     </a>
     <div class="mt-4 flex items-center justify-between gap-4">
       <nav class="flex gap-6 text-sm">
@@ -38,19 +38,19 @@ const isManage = computed(() => manageRouteNames.includes(route.name as string))
           class="text-muted hover:text-ink border-b-2 pb-1"
           :class="isCellar ? 'text-bordeaux border-bordeaux font-medium' : 'border-transparent'"
         >
-          Cellar
+          {{ t('nav.cellar') }}
         </RouterLink>
         <RouterLink
           to="/manage"
           class="text-muted hover:text-ink border-b-2 pb-1"
           :class="isManage ? 'text-bordeaux border-bordeaux font-medium' : 'border-transparent'"
         >
-          Manage
+          {{ t('nav.manage') }}
         </RouterLink>
       </nav>
       <div class="flex items-center gap-4 text-sm">
         <RouterLink v-if="offlineMode && hasPending" :to="{ name: 'sync-status' }" data-testid="sync-status-indicator" class="text-muted hover:text-ink">
-          <span aria-hidden="true">⏳</span> Sync
+          <span aria-hidden="true">⏳</span> {{ t('nav.sync') }}
         </RouterLink>
         <RouterLink :to="{ name: 'storage' }" data-testid="storage-link" class="text-muted hover:text-ink">
           {{ t('storage.link') }}

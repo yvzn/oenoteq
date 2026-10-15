@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppButton from './AppButton.vue'
 
-const props = withDefaults(
-  defineProps<{
-    open: boolean
-    message: string
-    confirmLabel?: string
-    cancelLabel?: string
-  }>(),
-  { confirmLabel: 'Confirm', cancelLabel: 'Cancel' },
-)
+const props = defineProps<{
+  open: boolean
+  message: string
+  confirmLabel?: string
+  cancelLabel?: string
+}>()
+
+const { t } = useI18n()
 
 const emit = defineEmits<{ confirm: []; cancel: [] }>()
 
@@ -41,10 +41,10 @@ function onDialogClick(event: MouseEvent) {
     <p class="text-ink text-sm">{{ message }}</p>
     <div class="mt-4 flex justify-between">
       <AppButton type="button" variant="ghost" data-testid="confirm-dialog-cancel" @click="emit('cancel')">
-        {{ cancelLabel }}
+        {{ cancelLabel ?? t('actions.cancel') }}
       </AppButton>
       <AppButton type="button" variant="primary" data-testid="confirm-dialog-confirm" @click="emit('confirm')">
-        {{ confirmLabel }}
+        {{ confirmLabel ?? t('actions.confirm') }}
       </AppButton>
     </div>
   </dialog>
