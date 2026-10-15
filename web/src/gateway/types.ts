@@ -65,5 +65,16 @@ export interface DataGateway {
   appellations: NamedEntityGateway<Appellation>
   meals: NamedEntityGateway<Meal>
   mealPairings: MealPairingGateway
+  // The whole filtered, sorted cellar (not paged).
   search(filters: SearchFilters, sort: WineSort): Promise<WineSearchResult[]>
+  // Like `search`, but keeps `onResult` current for as long as the caller
+  // stays subscribed: adapters that can tell the cellar changed (the local
+  // store) call it again, others call it once. `onError` fires when no result
+  // can be produced. Returns the unsubscribe function.
+  watchSearch(
+    filters: SearchFilters,
+    sort: WineSort,
+    onResult: (results: WineSearchResult[]) => void,
+    onError: (error: unknown) => void,
+  ): () => void
 }

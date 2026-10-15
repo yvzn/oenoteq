@@ -46,6 +46,7 @@ export const gateway: DataGateway = {
     remove: (appellationId, color, mealId) => active().mealPairings.remove(appellationId, color, mealId),
   },
   search: (filters, sort) => active().search(filters, sort),
+  watchSearch: (filters, sort, onResult, onError) => active().watchSearch(filters, sort, onResult, onError),
 }
 
 export type { ConsumptionInput, DataGateway } from './types'

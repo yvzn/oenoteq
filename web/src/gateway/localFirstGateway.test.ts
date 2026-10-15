@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '../api/client'
 import { db } from '../db/localDb'
+import { emptySearchFilters } from '../domain/searchFilters'
+import { defaultWineSort } from '../domain/wineSort'
 import { installFakeServer, type FakeServer } from '../test/fakeServer'
 import { describeGatewayContract } from './gatewayContract'
 import { pushChangesInBackground } from '../sync'
@@ -125,5 +127,55 @@ describe('local-first adapter specifics', () => {
     expect(after).toMatchObject({ quantity: 2, consumption_history: [] })
     expect(apiClient.delete).not.toHaveBeenCalled()
     expect(await db.outbox.where('entity').equals('consumption').count()).toBe(0)
+  })
+})
+
+describe('local-first adapter search', () => {
+  const seedStock = async (id: number, quantity: number) => {
+    await db.producers.put({ id: 1, name: 'P' })
+    await db.appellations.put({ id: 1, name: 'A' })
+    await db.wines.put({
+      id,
+      millesime: 2018,
+      appellation_id: 1,
+      producer_id: 1,
+      producer: { id: 1, name: 'P' },
+      color: 'rouge',
+      garde_debut: null,
+      garde_fin: null,
+      quantity,
+      suggested_meals: [],
+      consumption_history: [],
+    })
+  }
+
+  it('reads the local copy without asking the server, even offline', async () => {
+    await seedStock(-1, 2)
+    server.down = true
+
+    const results = await localFirstGateway.search(emptySearchFilters, defaultWineSort)
+
+    expect(results.map((w) => w.id)).toEqual([-1])
+    expect(server.searches).toEqual([])
+  })
+
+  it('watching re-delivers when the local store changes', async () => {
+    await seedStock(-1, 2)
+    const seen: number[][] = []
+    const stop = localFirstGateway.watchSearch(
+      emptySearchFilters,
+      defaultWineSort,
+      (r) => seen.push(r.map((w) => w.id)),
+      vi.fn(),
+    )
+    await vi.waitFor(() => expect(seen).toEqual([[-1]]))
+
+    await seedStock(-2, 1)
+    await vi.waitFor(() => expect(seen.at(-1)).toEqual([-2, -1]))
+    await db.wines.update(-1, { quantity: 0 })
+    await vi.waitFor(() => expect(seen.at(-1)).toEqual([-2]))
+    stop()
+
+    expect(server.searches).toEqual([])
   })
 })

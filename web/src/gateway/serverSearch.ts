@@ -3,7 +3,7 @@ import type { WineSearchResult } from '../api/types'
 import { filtersToQueryParams, type SearchFilters } from '../domain/searchFilters'
 import { sortToQueryParams, type WineSort } from '../domain/wineSort'
 
-// The cellar list always reads the server's search; both adapters share it.
+// The server's search: what the direct adapter serves the cellar list from.
 export function serverSearch(filters: SearchFilters, sort: WineSort): Promise<WineSearchResult[]> {
   const query = new URLSearchParams({
     ...filtersToQueryParams(filters),

@@ -91,4 +91,15 @@ export const directGateway: DataGateway = {
   meals: namedEntityGateway('/meals'),
   mealPairings,
   search: serverSearch,
+
+  watchSearch(filters, sort, onResult, onError) {
+    let active = true
+    serverSearch(filters, sort).then(
+      (results) => active && onResult(results),
+      (e: unknown) => active && onError(e),
+    )
+    return () => {
+      active = false
+    }
+  },
 }

@@ -2,8 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { WineCreateInput } from '../api/types'
-import { emptySearchFilters } from '../domain/searchFilters'
-import { defaultWineSort } from '../domain/wineSort'
 import type { FakeServer } from '../test/fakeServer'
 import type { DataGateway } from './types'
 
@@ -342,56 +340,6 @@ export function describeGatewayContract(name: string, setup: () => GatewayHarnes
         const failure = await h.gateway.mealPairings.list(1, 'rouge').catch((e: unknown) => e)
 
         expect(failure).toBeInstanceOf(ApiError)
-      })
-    })
-
-    describe('search', () => {
-      it('returns results with no filters or sort', async () => {
-        const h = setup()
-        const wine = h.server.seedWine({
-          millesime: 2018,
-          appellation_id: 1,
-          producer_id: h.server.seedProducer('P').id,
-          color: 'rouge',
-          garde_debut: null,
-          garde_fin: null,
-          quantity: 1,
-        })
-        h.server.searchResults = [{ ...wine, garde_status: 'unassessed' }]
-
-        const results = await h.gateway.search(emptySearchFilters, defaultWineSort)
-
-        expect(results).toEqual(h.server.searchResults)
-        expect(h.server.searches).toEqual(['/search'])
-      })
-
-      it('passes every filter and the sort through to the search', async () => {
-        const h = setup()
-
-        await h.gateway.search(
-          { mealId: 7, appellationId: 3, color: 'blanc', readyNow: true },
-          { sortBy: 'producer', sortDir: 'desc' },
-        )
-
-        const query = new URLSearchParams(h.server.searches[0].split('?')[1])
-        expect(Object.fromEntries(query)).toEqual({
-          meal_id: '7',
-          appellation_id: '3',
-          color: 'blanc',
-          ready_now: 'true',
-          sort_by: 'producer',
-          sort_dir: 'desc',
-        })
-      })
-
-      it('surfaces an unreachable server as a friendly error', async () => {
-        const h = setup()
-        h.server.down = true
-
-        const failure = await h.gateway.search(emptySearchFilters, defaultWineSort).catch((e: unknown) => e)
-
-        expect(failure).toBeInstanceOf(ApiError)
-        expect(friendlyErrorMessage(failure)).toContain('unable to reach the server')
       })
     })
   })

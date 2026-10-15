@@ -20,5 +20,8 @@ export const defaultConsent: ConsentState = import.meta.env.TEST_CONSENT === 're
 // offline copy, pending badges): skipped when the suite runs online-only.
 export const itOfflineOnly = defaultConsent === 'granted' ? it : it.skip
 
+// Counterpart: for tests about what only exists without a local store (the server's search).
+export const itOnlineOnly = defaultConsent === 'refused' ? it : it.skip
+
 beforeEach(() => setConsent(defaultConsent))
 afterEach(() => localStorage.clear())

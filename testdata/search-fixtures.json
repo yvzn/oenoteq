@@ -1,0 +1,67 @@
+{
+  "_comment": "Shared by the Go search tests (internal/handlers) and the TypeScript local search tests (web/src/domain). garde_*_offset is relative to the current year so Garde Status stays stable over time. Names exercise binary ordering: uppercase < lowercase < accented. Wine 10 has quantity 0 and never appears.",
+  "appellations": [
+    { "id": 1, "name": "Chinon" },
+    { "id": 2, "name": "Sancerre" },
+    { "id": 3, "name": "Bandol" },
+    { "id": 4, "name": "Éguisheim" }
+  ],
+  "producers": [
+    { "id": 1, "name": "Domaine Alpha" },
+    { "id": 2, "name": "Domaine Beta" },
+    { "id": 3, "name": "château Gamma" },
+    { "id": 4, "name": "Zeta" },
+    { "id": 5, "name": "Émile" }
+  ],
+  "meals": [
+    { "id": 1, "name": "Grilled steak" },
+    { "id": 2, "name": "Oysters" },
+    { "id": 3, "name": "Unpaired dish" }
+  ],
+  "pairings": [
+    { "appellation_id": 1, "color": "rouge", "meal_id": 1 },
+    { "appellation_id": 3, "color": "rose", "meal_id": 1 },
+    { "appellation_id": 2, "color": "blanc", "meal_id": 2 },
+    { "appellation_id": 1, "color": "rouge", "meal_id": 2 }
+  ],
+  "wines": [
+    { "id": 1, "producer_id": 1, "appellation_id": 1, "millesime": 2015, "color": "rouge", "garde_debut_offset": -5, "garde_fin_offset": 5, "quantity": 3 },
+    { "id": 2, "producer_id": 2, "appellation_id": 1, "millesime": 2018, "color": "rouge", "garde_debut_offset": -5, "garde_fin_offset": 5, "quantity": 1 },
+    { "id": 3, "producer_id": 3, "appellation_id": 2, "millesime": null, "color": "blanc", "garde_debut_offset": 2, "garde_fin_offset": 10, "quantity": 2 },
+    { "id": 4, "producer_id": 4, "appellation_id": 2, "millesime": 2020, "color": "blanc", "garde_debut_offset": -10, "garde_fin_offset": -2, "quantity": 1 },
+    { "id": 5, "producer_id": 5, "appellation_id": 3, "millesime": 2012, "color": "rose", "garde_debut_offset": null, "garde_fin_offset": null, "quantity": 4 },
+    { "id": 6, "producer_id": 1, "appellation_id": 2, "millesime": 2015, "color": "blanc", "garde_debut_offset": -3, "garde_fin_offset": 3, "quantity": 2 },
+    { "id": 7, "producer_id": 2, "appellation_id": 1, "millesime": 2018, "color": "rouge", "garde_debut_offset": 1, "garde_fin_offset": 9, "quantity": 5 },
+    { "id": 8, "producer_id": 1, "appellation_id": 4, "millesime": null, "color": "rouge", "garde_debut_offset": -1, "garde_fin_offset": null, "quantity": 1 },
+    { "id": 9, "producer_id": 4, "appellation_id": 1, "millesime": 2010, "color": "rouge", "garde_debut_offset": null, "garde_fin_offset": 4, "quantity": 2 },
+    { "id": 10, "producer_id": 3, "appellation_id": 1, "millesime": 2019, "color": "rouge", "garde_debut_offset": -2, "garde_fin_offset": 6, "quantity": 0 },
+    { "id": 11, "producer_id": 5, "appellation_id": 1, "millesime": 2021, "color": "rouge", "garde_debut_offset": null, "garde_fin_offset": null, "quantity": 1 },
+    { "id": 12, "producer_id": 1, "appellation_id": 1, "millesime": 2016, "color": "rouge", "garde_debut_offset": -9, "garde_fin_offset": 1, "quantity": 1 }
+  ],
+  "cases": [
+    { "name": "no filters, default sort (appellation asc, then producer, then id)", "expected": [5, 1, 12, 2, 7, 9, 11, 6, 4, 3, 8] },
+    { "name": "appellation descending keeps producer ascending as tie-break", "sort_by": "appellation", "sort_dir": "desc", "expected": [8, 6, 4, 3, 1, 12, 2, 7, 9, 11, 5] },
+    { "name": "producer ascending, binary order, id breaks ties", "sort_by": "producer", "expected": [1, 6, 8, 12, 2, 7, 4, 9, 3, 5, 11] },
+    { "name": "producer descending, id still ascending", "sort_by": "producer", "sort_dir": "desc", "expected": [5, 11, 3, 4, 9, 2, 7, 1, 6, 8, 12] },
+    { "name": "millesime ascending, non-vintage last", "sort_by": "millesime", "expected": [9, 5, 1, 6, 12, 2, 7, 4, 11, 8, 3] },
+    { "name": "millesime descending, non-vintage still last", "sort_by": "millesime", "sort_dir": "desc", "expected": [11, 4, 2, 7, 12, 1, 6, 5, 9, 8, 3] },
+    { "name": "status ascending, start year within status, none last", "sort_by": "status", "expected": [7, 3, 12, 1, 2, 6, 8, 9, 4, 5, 11] },
+    { "name": "status descending, start year descending, none still last", "sort_by": "status", "sort_dir": "desc", "expected": [5, 11, 4, 8, 6, 1, 2, 12, 9, 3, 7] },
+    { "name": "appellation filter excludes quantity zero", "appellation_id": 1, "expected": [1, 12, 2, 7, 9, 11] },
+    { "name": "color filter", "color": "blanc", "expected": [6, 4, 3] },
+    { "name": "color filter across appellations", "color": "rouge", "expected": [1, 12, 2, 7, 9, 11, 8] },
+    { "name": "ready now keeps only ready, never unassessed", "ready_now": true, "expected": [1, 12, 2, 9, 6, 8] },
+    { "name": "ready now with an unassessed-only color matches nothing", "color": "rose", "ready_now": true, "expected": [] },
+    { "name": "meal filter matches paired appellation and color", "meal_id": 1, "expected": [5, 1, 12, 2, 7, 9, 11] },
+    { "name": "meal filter, second meal paired with two combinations", "meal_id": 2, "expected": [1, 12, 2, 7, 9, 11, 6, 4, 3] },
+    { "name": "meal with no pairing matches nothing", "meal_id": 3, "expected": [] },
+    { "name": "meal and ready now", "meal_id": 1, "ready_now": true, "expected": [1, 12, 2, 9] },
+    { "name": "meal, color and ready now", "meal_id": 2, "color": "blanc", "ready_now": true, "expected": [6] },
+    { "name": "meal and appellation", "meal_id": 1, "appellation_id": 3, "expected": [5] },
+    { "name": "appellation, color and ready now sorted by millesime descending", "appellation_id": 1, "color": "rouge", "ready_now": true, "sort_by": "millesime", "sort_dir": "desc", "expected": [2, 12, 1, 9] },
+    { "name": "appellation filter with status sort", "appellation_id": 2, "sort_by": "status", "expected": [3, 6, 4] },
+    { "name": "color filter with status sort", "color": "rouge", "sort_by": "status", "expected": [7, 12, 1, 2, 8, 9, 11] },
+    { "name": "meal filter with producer descending", "meal_id": 2, "sort_by": "producer", "sort_dir": "desc", "expected": [11, 3, 4, 9, 2, 7, 1, 6, 12] },
+    { "name": "unknown appellation matches nothing", "appellation_id": 99, "expected": [] }
+  ]
+}

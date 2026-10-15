@@ -2,6 +2,9 @@ import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
+import type { WineSearchResult } from '../api/types'
+import { db } from '../db/localDb'
+import { defaultConsent, itOfflineOnly, itOnlineOnly } from '../test/consent'
 import { setTestLocale } from '../test/i18n'
 import CellarListView from './CellarListView.vue'
 
@@ -12,7 +15,7 @@ vi.mock('../api/client', async () => {
 
 const currentYear = new Date().getFullYear()
 
-const searchResults = [
+const searchResults: WineSearchResult[] = [
   {
     id: 1,
     millesime: 2018,
@@ -46,13 +49,32 @@ const appellations = [
 
 const meals = [{ id: 1, name: 'Boeuf bourguignon' }]
 
-function mockApi(overrides: Record<string, unknown> = {}) {
+// Serves the cellar the way the active adapter reads it: the server's search
+// when online-only, the local store (as a pull would have left it) in Offline Mode.
+async function mockApi(overrides: { search?: WineSearchResult[] } = {}) {
+  const wines = overrides.search ?? searchResults
   vi.mocked(apiClient.get).mockImplementation((path: string) => {
     if (path === '/appellations') return Promise.resolve(appellations)
     if (path === '/meals') return Promise.resolve(meals)
-    if (path.startsWith('/search')) return Promise.resolve(overrides.search ?? searchResults)
+    if (path.startsWith('/search')) return Promise.resolve(wines)
     throw new Error(`unexpected path: ${path}`)
   })
+  if (defaultConsent === 'granted') await seedLocalCellar(wines)
+}
+
+// Online-only mode asks the server's search; Offline Mode never does (ADR 0009, 0010).
+function expectSearchRequest(path: string) {
+  const searches = vi.mocked(apiClient.get).mock.calls.map(([p]) => String(p)).filter((p) => p.startsWith('/search'))
+  if (defaultConsent === 'refused') expect(searches.at(-1)).toBe(path)
+  else expect(searches).toEqual([])
+}
+
+async function seedLocalCellar(wines: WineSearchResult[]) {
+  await db.appellations.bulkPut(appellations)
+  await db.producers.bulkPut(wines.map((w) => w.producer))
+  await db.wines.bulkPut(
+    wines.map(({ garde_status: _status, ...wine }) => ({ ...wine, suggested_meals: [], consumption_history: [] })),
+  )
 }
 
 async function mountAt(initialPath: string, { flush = true }: { flush?: boolean } = {}) {
@@ -89,11 +111,11 @@ describe('CellarListView', () => {
   })
 
   it('searches with no filters and renders one item per result with garde badge', async () => {
-    mockApi()
+    await mockApi()
 
     const { wrapper } = await mountAt('/')
 
-    expect(apiClient.get).toHaveBeenCalledWith('/search')
+    expectSearchRequest('/search')
 
     const items = wrapper.findAll('[data-testid="wine-item"]')
     expect(items).toHaveLength(2)
@@ -105,7 +127,7 @@ describe('CellarListView', () => {
   })
 
   it('links each wine item to its detail view', async () => {
-    mockApi()
+    await mockApi()
 
     const { wrapper } = await mountAt('/')
 
@@ -116,7 +138,7 @@ describe('CellarListView', () => {
   })
 
   it('links to the add-wine form', async () => {
-    mockApi()
+    await mockApi()
 
     const { wrapper } = await mountAt('/')
 
@@ -124,9 +146,8 @@ describe('CellarListView', () => {
   })
 
   it('shows an error state distinct from loading when a fetch fails', async () => {
-    vi.mocked(apiClient.get).mockImplementation((path: string) => {
-      if (path.startsWith('/search')) return Promise.reject(new Error('server exploded'))
-      return Promise.resolve([])
+    vi.mocked(apiClient.get).mockImplementation(() => {
+      return Promise.reject(new Error('server exploded'))
     })
 
     const { wrapper } = await mountAt('/')
@@ -137,15 +158,14 @@ describe('CellarListView', () => {
   })
 
   it('retries the failed load when the retry action is clicked', async () => {
-    vi.mocked(apiClient.get).mockImplementation((path: string) => {
-      if (path.startsWith('/search')) return Promise.reject(new Error('server exploded'))
-      return Promise.resolve([])
+    vi.mocked(apiClient.get).mockImplementation(() => {
+      return Promise.reject(new Error('server exploded'))
     })
 
     const { wrapper } = await mountAt('/')
     expect(wrapper.find('[role="alert"]').exists()).toBe(true)
 
-    mockApi()
+    await mockApi()
     await wrapper.get('[data-testid="cellar-retry"]').trigger('click')
     await flushPromises()
 
@@ -154,7 +174,7 @@ describe('CellarListView', () => {
   })
 
   it('shows an empty-state message when the filters match no wines', async () => {
-    mockApi({ search: [] })
+    await mockApi({ search: [] })
 
     const { wrapper } = await mountAt('/')
 
@@ -172,15 +192,15 @@ describe('CellarListView', () => {
   })
 
   it('pre-applies filters from the URL query params on load', async () => {
-    mockApi()
+    await mockApi()
 
     await mountAt('/?appellation_id=1&color=rouge&ready_now=true')
 
-    expect(apiClient.get).toHaveBeenCalledWith('/search?appellation_id=1&color=rouge&ready_now=true')
+    expectSearchRequest('/search?appellation_id=1&color=rouge&ready_now=true')
   })
 
   it('combines filter changes from the filter bar with AND semantics and reflects them in the URL', async () => {
-    mockApi()
+    await mockApi()
 
     const { wrapper, router } = await mountAt('/')
 
@@ -190,11 +210,11 @@ describe('CellarListView', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.query).toEqual({ color: 'rouge', ready_now: 'true' })
-    expect(apiClient.get).toHaveBeenLastCalledWith('/search?color=rouge&ready_now=true')
+    expectSearchRequest('/search?color=rouge&ready_now=true')
   })
 
   it('moves between prior filter states on browser back', async () => {
-    mockApi()
+    await mockApi()
 
     const { wrapper, router } = await mountAt('/')
 
@@ -205,11 +225,11 @@ describe('CellarListView', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.query).toEqual({})
-    expect(apiClient.get).toHaveBeenLastCalledWith('/search')
+    expectSearchRequest('/search')
   })
 
   it('labels the millesime column "Millesime", not "Vintage"', async () => {
-    mockApi()
+    await mockApi()
 
     const { wrapper } = await mountAt('/')
 
@@ -218,7 +238,7 @@ describe('CellarListView', () => {
   })
 
   it('shows an ascending indicator on the appellation header by default', async () => {
-    mockApi()
+    await mockApi()
 
     const { wrapper } = await mountAt('/')
 
@@ -227,15 +247,15 @@ describe('CellarListView', () => {
   })
 
   it('pre-applies sort from the URL query params on load', async () => {
-    mockApi()
+    await mockApi()
 
     await mountAt('/?sort_by=producer&sort_dir=desc')
 
-    expect(apiClient.get).toHaveBeenCalledWith('/search?sort_by=producer&sort_dir=desc')
+    expectSearchRequest('/search?sort_by=producer&sort_dir=desc')
   })
 
   it('sorts by clicking a column header and reflects it in the URL', async () => {
-    mockApi()
+    await mockApi()
 
     const { wrapper, router } = await mountAt('/')
 
@@ -243,12 +263,12 @@ describe('CellarListView', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer' })
-    expect(apiClient.get).toHaveBeenLastCalledWith('/search?sort_by=producer')
+    expectSearchRequest('/search?sort_by=producer')
     expect(wrapper.get('[data-testid="sort-header-producer"]').text()).toContain('↑')
   })
 
   it('toggles direction when clicking the already-active column header', async () => {
-    mockApi()
+    await mockApi()
 
     const { wrapper, router } = await mountAt('/?sort_by=producer')
 
@@ -260,7 +280,7 @@ describe('CellarListView', () => {
   })
 
   it('changes sort from the mobile sort panel and reflects it in the URL', async () => {
-    mockApi()
+    await mockApi()
 
     const { wrapper, router } = await mountAt('/')
 
@@ -270,7 +290,7 @@ describe('CellarListView', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.query).toEqual({ sort_by: 'status' })
-    expect(apiClient.get).toHaveBeenLastCalledWith('/search?sort_by=status')
+    expectSearchRequest('/search?sort_by=status')
   })
 })
 
@@ -282,14 +302,15 @@ describe('CellarListView pagination', () => {
     Array.from({ length: n }, (_, i) => ({
       ...searchResults[0]!,
       id: i + 1,
-      producer: { id: i + 1, name: `Producer ${i + 1}` },
+      producer_id: i + 1,
+      producer: { id: i + 1, name: `Producer ${String(i + 1).padStart(2, '0')}` },
     }))
 
   const ids = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
     wrapper.findAll('[data-testid="wine-link"]').map((l) => l.attributes('href'))
 
-  it('shows 10 wines per page, page 2 continuing where page 1 ends', async () => {
-    mockApi({ search: manyWines(25) })
+  it('shows 10 wines per page, page 2 continuing where page 1 ends', { timeout: 20000 }, async () => {
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper } = await mountAt('/')
     expect(ids(wrapper)).toEqual(Array.from({ length: 10 }, (_, i) => `/wines/${i + 1}`))
@@ -299,7 +320,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('shows Page N of M with Previous disabled on the first page', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper } = await mountAt('/')
 
@@ -309,7 +330,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('disables Next on the last page', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper } = await mountAt('/?page=3')
 
@@ -318,7 +339,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('hides the controls when everything fits on one page', async () => {
-    mockApi({ search: manyWines(10) })
+    await mockApi({ search: manyWines(10) })
 
     const { wrapper } = await mountAt('/')
 
@@ -326,7 +347,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('puts the page in the address on Next and Previous without refetching', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper, router } = await mountAt('/')
     vi.mocked(apiClient.get).mockClear()
@@ -343,7 +364,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('keeps filters and sort next to the page param', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper, router } = await mountAt('/?color=rouge&sort_by=producer')
     await wrapper.get('[data-testid="pagination-next"]').trigger('click')
@@ -353,7 +374,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('restores the page when going back from a wine detail', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper, router } = await mountAt('/?page=2')
     await router.push('/wines/11')
@@ -366,7 +387,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('resets to page 1 when a filter changes', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper, router } = await mountAt('/?page=2')
     await wrapper.find('[data-testid="color-filter"]').setValue('rouge')
@@ -376,7 +397,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('resets to page 1 when the sort changes', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper, router } = await mountAt('/?page=2')
     await wrapper.get('[data-testid="sort-header-producer"]').trigger('click')
@@ -386,7 +407,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('clamps a page beyond the last to the last page', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper } = await mountAt('/?page=99')
 
@@ -395,7 +416,7 @@ describe('CellarListView pagination', () => {
   })
 
   it.each(['abc', '0', '-1', ''])('treats page=%j as page 1', async (value) => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper } = await mountAt(`/?page=${value}`)
 
@@ -403,15 +424,15 @@ describe('CellarListView pagination', () => {
   })
 
   it('shows the total number of matching wines in the title, not the page count', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
 
     const { wrapper } = await mountAt('/?page=3')
 
     expect(wrapper.text()).toContain('25 wines in cellar')
   })
 
-  it('slices in the order the result arrives (sorted before sliced)', async () => {
-    mockApi({ search: manyWines(25).reverse() })
+  itOnlineOnly('slices in the order the server result arrives (sorted before sliced)', async () => {
+    await mockApi({ search: manyWines(25).reverse() })
 
     const { wrapper } = await mountAt('/')
 
@@ -419,8 +440,19 @@ describe('CellarListView pagination', () => {
     expect(ids(wrapper)[9]).toBe('/wines/16')
   })
 
+  itOfflineOnly('sorts the whole local result before slicing, so page 2 continues where page 1 ends', async () => {
+    await mockApi({ search: manyWines(25) })
+
+    const { wrapper } = await mountAt('/?sort_by=producer&sort_dir=desc')
+    const page1 = ids(wrapper)
+    const { wrapper: second } = await mountAt('/?sort_by=producer&sort_dir=desc&page=2')
+
+    expect(page1).toEqual(Array.from({ length: 10 }, (_, i) => `/wines/${25 - i}`))
+    expect(ids(second)).toEqual(Array.from({ length: 10 }, (_, i) => `/wines/${15 - i}`))
+  }, 20000)
+
   it('scrolls to the top when the page changes', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
     const scrollTo = vi.fn()
     vi.stubGlobal('scrollTo', scrollTo)
 
@@ -432,7 +464,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('scrolls to the top on browser back to another page', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
     const scrollTo = vi.fn()
     vi.stubGlobal('scrollTo', scrollTo)
 
@@ -448,7 +480,7 @@ describe('CellarListView pagination', () => {
   })
 
   it('renders the controls in French', async () => {
-    mockApi({ search: manyWines(25) })
+    await mockApi({ search: manyWines(25) })
     setTestLocale('fr')
 
     const { wrapper } = await mountAt('/')

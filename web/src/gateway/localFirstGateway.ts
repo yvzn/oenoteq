@@ -1,4 +1,4 @@
-import type { Table } from 'dexie'
+import { liveQuery, type Table } from 'dexie'
 import { ApiError, apiClient } from '../api/client'
 import type {
   Color,
@@ -8,6 +8,9 @@ import type {
   WineDetail,
   WineInput,
 } from '../api/types'
+import { searchLocalWines } from '../domain/localSearch'
+import type { SearchFilters } from '../domain/searchFilters'
+import type { WineSort } from '../domain/wineSort'
 import { db } from '../db/localDb'
 import { nextLocalId } from '../db/localId'
 import { sortByName } from '../db/sortByName'
@@ -35,7 +38,6 @@ import {
   pullProducers,
 } from '../sync/producerSync'
 import { enqueueWineCreate, enqueueWineUpdate, patchPendingWineCreate, pullWine } from '../sync/wineSync'
-import { serverSearch } from './serverSearch'
 import type { DataGateway, NamedEntityGateway, MealPairingGateway, WineGateway } from './types'
 
 interface NamedEntityConfig<T extends { id: number; name: string }> {
@@ -295,6 +297,18 @@ const mealPairings: MealPairingGateway = {
   },
 }
 
+// ADR 0009: the cellar list is the local copy, filtered and sorted in memory —
+// the server's search is never asked. Pairings are only read for a meal filter.
+async function readLocalCellar(filters: SearchFilters, sort: WineSort) {
+  const [wines, producers, appellations, pairings] = await Promise.all([
+    db.wines.toArray(),
+    db.producers.toArray(),
+    db.appellations.toArray(),
+    filters.mealId === null ? Promise.resolve([]) : db.mealPairings.toArray(),
+  ])
+  return searchLocalWines({ wines, producers, appellations, pairings }, filters, sort)
+}
+
 export const localFirstGateway: DataGateway = {
   wines,
   producers: namedEntityGateway({
@@ -323,6 +337,15 @@ export const localFirstGateway: DataGateway = {
   }),
   mealPairings,
 
-  // The cellar list still reads the server's search (ADR 0009 not landed).
-  search: serverSearch,
+  search: readLocalCellar,
+
+  // Re-runs whenever anything the list reads changes in the local store, so a
+  // local write or a pull updates the list without navigation.
+  watchSearch(filters, sort, onResult, onError) {
+    const subscription = liveQuery(() => readLocalCellar(filters, sort)).subscribe({
+      next: onResult,
+      error: onError,
+    })
+    return () => subscription.unsubscribe()
+  },
 }
