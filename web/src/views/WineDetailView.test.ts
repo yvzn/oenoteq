@@ -8,6 +8,7 @@ import { db } from '../db/localDb'
 import { enqueue } from '../sync/outbox'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import WineDetailView from './WineDetailView.vue'
+import { itOfflineOnly } from '../test/consent'
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
@@ -98,7 +99,7 @@ afterEach(() => {
 resetSuccessMessageAfterEach()
 
 describe('WineDetailView', () => {
-  it('renders a previously-cached wine from the local store when the network is fully disabled', async () => {
+  itOfflineOnly('renders a previously-cached wine from the local store when the network is fully disabled', async () => {
     await db.wines.put(wineDetail as WineDetail)
     await db.appellations.bulkPut(appellations)
     vi.mocked(apiClient.get).mockRejectedValue(new Error('Network error: unable to reach the server'))
@@ -111,7 +112,7 @@ describe('WineDetailView', () => {
     expect(detail.text()).toContain('Chinon')
   })
 
-  it('never fetches a not-yet-synced (local-only) wine, since it cannot exist on the server yet', async () => {
+  itOfflineOnly('never fetches a not-yet-synced (local-only) wine, since it cannot exist on the server yet', async () => {
     const localOnly = { ...wineDetail, id: -123 } as WineDetail
     await db.wines.put(localOnly)
     vi.mocked(apiClient.get).mockImplementation((path: string) => {
@@ -126,7 +127,7 @@ describe('WineDetailView', () => {
     expect(detail.text()).toContain('Les Garillères')
   })
 
-  it('shows a "not yet synced" badge while this wine still has a queued create in the outbox', async () => {
+  itOfflineOnly('shows a "not yet synced" badge while this wine still has a queued create in the outbox', async () => {
     const localOnly = { ...wineDetail, id: -123 } as WineDetail
     await db.wines.put(localOnly)
     await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: -123, payload: {} })
@@ -149,7 +150,7 @@ describe('WineDetailView', () => {
     expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(false)
   })
 
-  it('redirects to the synced server id when the local id it was opened with has since synced', async () => {
+  itOfflineOnly('redirects to the synced server id when the local id it was opened with has since synced', async () => {
     await db.wines.put(wineDetail as WineDetail)
     await db.idRemap.put({ localId: -123, serverId: 1 })
     mockApi()
@@ -260,7 +261,7 @@ describe('WineDetailView', () => {
     expect(wrapper.find('[data-testid="wine-detail"]').exists()).toBe(true)
   })
 
-  it('records a consumption locally and updates quantity/history immediately, without waiting on the network', async () => {
+  itOfflineOnly('records a consumption locally and updates quantity/history immediately, without waiting on the network', async () => {
     mockApi()
     vi.mocked(apiClient.post).mockReturnValue(neverResolves())
 
@@ -440,7 +441,7 @@ describe('WineDetailView', () => {
     expect(useSuccessMessage().message.value).toMatch(/deleted/i)
   })
 
-  it('cancels a not-yet-synced consumption before it syncs, without calling the API', async () => {
+  itOfflineOnly('cancels a not-yet-synced consumption before it syncs, without calling the API', async () => {
     mockApi()
     vi.mocked(apiClient.post).mockReturnValue(neverResolves())
 
@@ -474,7 +475,7 @@ describe('WineDetailView', () => {
     )
   })
 
-  it('adjusts quantity locally and immediately, without waiting on the network', async () => {
+  itOfflineOnly('adjusts quantity locally and immediately, without waiting on the network', async () => {
     mockApi()
     vi.mocked(apiClient.post).mockReturnValue(neverResolves())
 
@@ -522,7 +523,7 @@ describe('WineDetailView', () => {
     expect(wrapper.get('[data-testid="quantity-adjustment-preview"]').text()).toBe('Currently ×3')
   })
 
-  it('rejects a manual quantity adjustment that would take quantity below zero', async () => {
+  itOfflineOnly('rejects a manual quantity adjustment that would take quantity below zero', async () => {
     mockApi()
 
     const { wrapper } = await mountAt('/wines/1')

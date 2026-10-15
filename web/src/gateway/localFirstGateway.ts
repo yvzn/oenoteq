@@ -7,13 +7,10 @@ import type {
   Producer,
   WineDetail,
   WineInput,
-  WineSearchResult,
 } from '../api/types'
 import { db } from '../db/localDb'
 import { nextLocalId } from '../db/localId'
 import { sortByName } from '../db/sortByName'
-import { filtersToQueryParams } from '../domain/searchFilters'
-import { sortToQueryParams } from '../domain/wineSort'
 import { pushChangesInBackground } from '../sync'
 import {
   enqueueAppellationCreate,
@@ -38,6 +35,7 @@ import {
   pullProducers,
 } from '../sync/producerSync'
 import { enqueueWineCreate, enqueueWineUpdate, patchPendingWineCreate, pullWine } from '../sync/wineSync'
+import { serverSearch } from './serverSearch'
 import type { DataGateway, NamedEntityGateway, MealPairingGateway, WineGateway } from './types'
 
 interface NamedEntityConfig<T extends { id: number; name: string }> {
@@ -326,11 +324,5 @@ export const localFirstGateway: DataGateway = {
   mealPairings,
 
   // The cellar list still reads the server's search (ADR 0009 not landed).
-  async search(filters, sort) {
-    const query = new URLSearchParams({
-      ...filtersToQueryParams(filters),
-      ...sortToQueryParams(sort),
-    }).toString()
-    return apiClient.get<WineSearchResult[]>(query ? `/search?${query}` : '/search')
-  },
+  search: serverSearch,
 }

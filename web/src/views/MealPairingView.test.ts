@@ -6,6 +6,7 @@ import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import MealPairingView from './MealPairingView.vue'
+import { itOfflineOnly } from '../test/consent'
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
@@ -308,7 +309,7 @@ describe('MealPairingView', () => {
     expect(wrapper.find('[data-testid="new-meal-created"]').exists()).toBe(true)
   })
 
-  it('keeps the typed text and shows the error when the local meal create fails', async () => {
+  itOfflineOnly('keeps the typed text and shows the error when the local meal create fails', async () => {
     mockApi()
     const { wrapper } = await mountAt('/meal-pairings')
     await selectAppellationAndColor(wrapper)
@@ -324,7 +325,7 @@ describe('MealPairingView', () => {
 
   // Existing error handling: the created meal is left selected, so the input
   // shows its name and the user can retry with "Add meal".
-  it('leaves the created meal in the input when create succeeds but the pairing add fails', async () => {
+  itOfflineOnly('leaves the created meal in the input when create succeeds but the pairing add fails', async () => {
     mockApi()
     const { wrapper } = await mountAt('/meal-pairings')
     await selectAppellationAndColor(wrapper)
@@ -339,7 +340,7 @@ describe('MealPairingView', () => {
     expect(useSuccessMessage().message.value).toBeNull()
   })
 
-  it('creates and pairs a new meal immediately even when the network rejects the pairing, leaving it queued in the outbox', async () => {
+  itOfflineOnly('creates and pairs a new meal immediately even when the network rejects the pairing, leaving it queued in the outbox', async () => {
     mockApi()
     vi.mocked(apiClient.post).mockImplementation((path: string, body: unknown) => {
       if (path === '/meals') return Promise.resolve({ id: 3, ...(body as object) })
@@ -364,7 +365,7 @@ describe('MealPairingView', () => {
     ])
   })
 
-  it('still queues the pairing (referencing the not-yet-synced meal) even when the meal create itself is rejected', async () => {
+  itOfflineOnly('still queues the pairing (referencing the not-yet-synced meal) even when the meal create itself is rejected', async () => {
     mockApi()
     vi.mocked(apiClient.post).mockImplementation((path: string) => {
       if (path === '/meals') return Promise.reject(new Error('create exploded'))

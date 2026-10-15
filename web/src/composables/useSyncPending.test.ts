@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { db } from '../db/localDb'
 import { discard, enqueue } from '../sync/outbox'
 import { useSyncPending } from './useSyncPending'
+import { itOfflineOnly } from '../test/consent'
 
 async function flushPromises() {
   for (let i = 0; i < 10; i++) {
@@ -20,7 +21,7 @@ describe('useSyncPending', () => {
     expect(pending.value).toBe(false)
   })
 
-  it('is true once a create/update for this entity+id is queued, and flips back once discarded', async () => {
+  itOfflineOnly('is true once a create/update for this entity+id is queued, and flips back once discarded', async () => {
     const id = await enqueue(db.outbox, { entity: 'meal', action: 'update', targetId: 7, payload: {} })
     const { pending } = useSyncPending(
       () => 'meal',

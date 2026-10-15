@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { db } from '../db/localDb'
 import { enqueue } from '../sync/outbox'
+import { setConsent } from '../test/consent'
 import AppHeader from './AppHeader.vue'
 
 const stub = { template: '<div />' }
@@ -80,5 +81,17 @@ describe('AppHeader', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="sync-status-indicator"]').exists()).toBe(true)
+  })
+})
+
+describe('AppHeader without Offline Mode', () => {
+  it('never shows the sync-status indicator', async () => {
+    await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: -1, payload: {} })
+    setConsent('refused')
+
+    const { wrapper } = await mountAt('/')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="sync-status-indicator"]').exists()).toBe(false)
   })
 })

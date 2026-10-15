@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Data gateway prefactor), `.scratch/offline-wine-list/issues/01` (Cellar list pagination)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] A consent module reads, writes and observes one record (choice, consent-text version, timestamp); an absent or unreadable record, or an older version, means "no choice yet"; the current version is a single constant; reading is synchronous at boot; unit-tested
 - [ ] Boot decides the mode from the record before touching any storage: granted starts the local store, sync and service worker as today; refused and no-choice do none of those

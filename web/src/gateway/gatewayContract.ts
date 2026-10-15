@@ -24,7 +24,10 @@ export interface GatewayHarness {
 //    contract treats ids as opaque and only ever feeds them back to the gateway;
 //  - the server may not hold a record the instant create resolves (outbox),
 //    so server state is only asserted after `settle()`;
-//  - "pending / not yet synced" state exists only for local-first.
+//  - "pending / not yet synced" state exists only for local-first;
+//  - the direct adapter has no local copy: it never falls back to one, and a
+//    write fails outright (rather than queueing) when the server can't be reached.
+//    `settle()` is a no-op there because every write has landed when it resolves.
 export function describeGatewayContract(name: string, setup: () => GatewayHarness): void {
   describe(`DataGateway contract — ${name}`, () => {
     const wineInput = (producerId: number, appellationId: number): WineCreateInput => ({

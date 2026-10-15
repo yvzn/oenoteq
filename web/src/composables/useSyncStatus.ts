@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import type { Table } from 'dexie'
 import { friendlyMessageForCode } from '../api/errorMessages'
+import { isOfflineMode } from '../consent/storageConsent'
 import { db } from '../db/localDb'
 import type { WineInput } from '../api/types'
 import { pushChangesInBackground, syncNow } from '../sync'
@@ -152,6 +153,8 @@ function reasonForFailedItem(code: string): string {
 }
 
 async function refresh(): Promise<void> {
+  // No Offline Mode, no local store to read (opening it would store data without consent).
+  if (!isOfflineMode()) return
   const items = await db.outbox.toArray()
   const nextCounts = emptyCounts()
   const nextFailed: FailedSyncItem[] = []

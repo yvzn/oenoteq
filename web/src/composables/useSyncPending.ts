@@ -1,4 +1,5 @@
 import { ref, watch } from 'vue'
+import { isOfflineMode } from '../consent/storageConsent'
 import { db } from '../db/localDb'
 import { isQueued, outboxVersion } from '../sync/outbox'
 
@@ -8,6 +9,8 @@ export function useSyncPending(entity: () => string, targetId: () => number | st
   const pending = ref(false)
 
   async function check(): Promise<void> {
+    // Nothing is ever queued without Offline Mode; don't open the local store to find out.
+    if (!isOfflineMode()) return
     pending.value = await isQueued(db.outbox, entity(), targetId())
   }
 

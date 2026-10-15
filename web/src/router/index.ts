@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { isOfflineMode } from '../consent/storageConsent'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import AppellationFormView from '../views/AppellationFormView.vue'
 import AppellationListView from '../views/AppellationListView.vue'
@@ -31,7 +32,13 @@ const router = createRouter({
     { path: '/producers', name: 'producers', component: ProducerListView },
     { path: '/producers/new', name: 'producer-new', component: ProducerFormView },
     { path: '/producers/:id/edit', name: 'producer-edit', component: ProducerFormView },
-    { path: '/sync-status', name: 'sync-status', component: SyncStatusView },
+    {
+      path: '/sync-status',
+      name: 'sync-status',
+      component: SyncStatusView,
+      // There is no sync without Offline Mode.
+      beforeEnter: () => (isOfflineMode() ? true : { name: 'cellar' }),
+    },
   ],
 })
 

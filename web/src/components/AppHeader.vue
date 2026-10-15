@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { isOfflineMode } from '../consent/storageConsent'
 import { useSyncStatus } from '../composables/useSyncStatus'
 
 const route = useRoute()
 const { hasPending } = useSyncStatus()
+const offlineMode = isOfflineMode()
 
 const manageRouteNames = [
   'manage',
@@ -45,7 +47,7 @@ const isManage = computed(() => manageRouteNames.includes(route.name as string))
         </RouterLink>
       </nav>
       <RouterLink
-        v-if="hasPending"
+        v-if="offlineMode && hasPending"
         :to="{ name: 'sync-status' }"
         data-testid="sync-status-indicator"
         class="text-muted hover:text-ink text-sm"

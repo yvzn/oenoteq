@@ -5,6 +5,7 @@ import { useAppellations } from './useAppellations'
 import { useMealPairings } from './useMealPairings'
 import { useMeals } from './useMeals'
 import { useProducers } from './useProducers'
+import { itOfflineOnly } from '../test/consent'
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
@@ -40,7 +41,7 @@ describe.each(lists)('$label list order', ({ table, use }) => {
     expect(items.value.map((r) => r.name)).toEqual(sortedNames)
   })
 
-  it('is name-ascending when loaded offline from the local store', async () => {
+  itOfflineOnly('is name-ascending when loaded offline from the local store', async () => {
     vi.stubGlobal('navigator', { onLine: false })
     await table.bulkPut(unsorted)
     const { items, load } = use()
@@ -48,7 +49,7 @@ describe.each(lists)('$label list order', ({ table, use }) => {
     expect(items.value.map((r) => r.name)).toEqual(sortedNames)
   })
 
-  it('puts a locally created (negative id) record at its alphabetical position', async () => {
+  itOfflineOnly('puts a locally created (negative id) record at its alphabetical position', async () => {
     vi.stubGlobal('navigator', { onLine: false })
     await table.bulkPut(unsorted)
     const { items, load, create } = use()
@@ -57,7 +58,7 @@ describe.each(lists)('$label list order', ({ table, use }) => {
     expect(items.value.map((r) => r.name)).toEqual(['Beta', 'Gamma', 'Zeta', 'alpha', 'Émile'])
   })
 
-  it('keeps order in memory right after create, without reload', async () => {
+  itOfflineOnly('keeps order in memory right after create, without reload', async () => {
     vi.stubGlobal('navigator', { onLine: false })
     await table.bulkPut(unsorted)
     const { items, load, create } = use()
@@ -68,7 +69,7 @@ describe.each(lists)('$label list order', ({ table, use }) => {
 })
 
 describe('meal pairing list order', () => {
-  it('is name-ascending when read offline from the local store', async () => {
+  itOfflineOnly('is name-ascending when read offline from the local store', async () => {
     vi.stubGlobal('navigator', { onLine: false })
     await db.meals.bulkPut(unsorted)
     await db.mealPairings.bulkPut(unsorted.map((m) => ({ appellationId: 9, color: 'rouge' as const, mealId: m.id })))
@@ -84,7 +85,7 @@ describe('meal pairing list order', () => {
     expect(meals.value.map((m) => m.name)).toEqual(sortedNames)
   })
 
-  it('inserts an added pairing at its alphabetical position', async () => {
+  itOfflineOnly('inserts an added pairing at its alphabetical position', async () => {
     vi.stubGlobal('navigator', { onLine: false })
     await db.meals.bulkPut(unsorted)
     await db.mealPairings.bulkPut([

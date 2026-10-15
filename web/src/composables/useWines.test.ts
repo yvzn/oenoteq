@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, vi } from 'vitest'
 import { apiClient } from '../api/client'
 import type { WineDetail, WineInput } from '../api/types'
 import { db } from '../db/localDb'
 import { useWines } from './useWines'
+import { itOfflineOnly } from '../test/consent'
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
@@ -29,7 +30,7 @@ afterEach(() => {
 })
 
 describe('useWines — load', () => {
-  it('resolves a stale negative id via idRemap once its create has synced', async () => {
+  itOfflineOnly('resolves a stale negative id via idRemap once its create has synced', async () => {
     await db.wines.put(wine)
     await db.idRemap.put({ localId: -123, serverId: 42 })
     vi.mocked(apiClient.get).mockResolvedValue(wine)
@@ -41,7 +42,7 @@ describe('useWines — load', () => {
     expect(current.value).toMatchObject({ id: 42 })
   })
 
-  it('leaves a genuinely not-yet-synced negative id alone, without touching the network', async () => {
+  itOfflineOnly('leaves a genuinely not-yet-synced negative id alone, without touching the network', async () => {
     const localOnly = { ...wine, id: -123 }
     await db.wines.put(localOnly)
 
@@ -55,7 +56,7 @@ describe('useWines — load', () => {
 })
 
 describe('useWines — update', () => {
-  it('redirects an update submitted against a stale negative id to the resolved server id', async () => {
+  itOfflineOnly('redirects an update submitted against a stale negative id to the resolved server id', async () => {
     await db.wines.put(wine)
     await db.idRemap.put({ localId: -123, serverId: 42 })
     const input: WineInput = {
@@ -76,7 +77,7 @@ describe('useWines — update', () => {
     expect(outboxItems[0]).toMatchObject({ action: 'update', targetId: 42 })
   })
 
-  it('stores and queues the server ids when the form still holds local ids whose creates have since synced', async () => {
+  itOfflineOnly('stores and queues the server ids when the form still holds local ids whose creates have since synced', async () => {
     await db.wines.put(wine)
     await db.producers.put({ id: 7, name: 'Domaine Nouveau' })
     await db.idRemap.bulkPut([
@@ -104,7 +105,7 @@ describe('useWines — update', () => {
     expect(outboxItems[0]?.payload).toMatchObject({ appellation_id: 9, producer_id: 7 })
   })
 
-  it('keeps a local id that has not synced yet', async () => {
+  itOfflineOnly('keeps a local id that has not synced yet', async () => {
     await db.wines.put(wine)
     await db.producers.put({ id: -11, name: 'Pending Producer' })
     const input: WineInput = {
@@ -125,7 +126,7 @@ describe('useWines — update', () => {
     })
   })
 
-  it('still folds an edit into a still-pending create when genuinely unsynced', async () => {
+  itOfflineOnly('still folds an edit into a still-pending create when genuinely unsynced', async () => {
     const localOnly = { ...wine, id: -123 }
     await db.wines.put(localOnly)
     await db.outbox.add({
@@ -157,7 +158,7 @@ describe('useWines — update', () => {
 })
 
 describe('useWines — deleteConsumption', () => {
-  it('cancels a not-yet-synced consumption and restores the local quantity', async () => {
+  itOfflineOnly('cancels a not-yet-synced consumption and restores the local quantity', async () => {
     await db.wines.put({
       ...wine,
       quantity: 2,
@@ -187,7 +188,7 @@ describe('useWines — deleteConsumption', () => {
   // between this view rendering and the user clicking delete. Without
   // checking that the outbox item was actually there to cancel, this would
   // otherwise bump quantity for a consumption that already synced.
-  it('does not restore quantity when the consumption already synced before the cancel ran', async () => {
+  itOfflineOnly('does not restore quantity when the consumption already synced before the cancel ran', async () => {
     await db.wines.put({
       ...wine,
       quantity: 1,

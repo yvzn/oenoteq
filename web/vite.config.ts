@@ -66,7 +66,23 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: false,
-    setupFiles: ['./src/test/dialogPolyfill.ts', './src/test/i18n.ts', './src/test/fakeIndexedDb.ts', './src/test/resetLocalDb.ts'],
+    setupFiles: ['./src/test/dialogPolyfill.ts', './src/test/i18n.ts', './src/test/consent.ts', './src/test/fakeIndexedDb.ts', './src/test/resetLocalDb.ts'],
     pool: 'vmThreads',
+    projects: [
+      // Everything, as a user who granted storage (Offline Mode).
+      { extends: true, test: { name: 'offline-mode', env: { TEST_CONSENT: 'granted' } } },
+      // The view and composable suites again, as a user who refused (direct adapter). Suites about
+      // the sync page and its queue only exist with Offline Mode; tests tied to the local store
+      // inside shared suites use itOfflineOnly.
+      {
+        extends: true,
+        test: {
+          name: 'online-only',
+          env: { TEST_CONSENT: 'refused' },
+          include: ['src/views/**/*.test.ts', 'src/composables/**/*.test.ts'],
+          exclude: ['**/node_modules/**', '**/SyncStatusView.test.ts', '**/useSyncStatus.test.ts'],
+        },
+      },
+    ],
   },
 })

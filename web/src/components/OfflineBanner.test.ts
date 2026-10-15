@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
+import { setConsent } from '../test/consent'
 import OfflineBanner from './OfflineBanner.vue'
 
 vi.mock('../api/client', async () => {
@@ -82,5 +83,30 @@ describe('OfflineBanner', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe('sync-status')
+  })
+})
+
+describe.each(['refused', 'no-choice'] as const)('OfflineBanner without Offline Mode (%s)', (state) => {
+  it("says changes can't be saved while offline and does not claim local saving", async () => {
+    setConsent(state)
+    setNavigatorOnLine(false)
+
+    const { wrapper } = await mountBanner()
+
+    const text = wrapper.get('[data-testid="offline-banner"]').text()
+    expect(text).toContain("changes can't be saved")
+    expect(text).not.toContain('saved locally')
+  })
+
+  it('does not link to the sync page', async () => {
+    setConsent(state)
+    setNavigatorOnLine(false)
+    const { wrapper, router } = await mountBanner()
+
+    await wrapper.get('[data-testid="offline-banner"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('button').exists()).toBe(false)
+    expect(router.currentRoute.value.name).toBe('cellar')
   })
 })

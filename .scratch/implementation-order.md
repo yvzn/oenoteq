@@ -10,19 +10,19 @@ Index of the 22 tickets from the real-world-testing feedback, in the order to im
 
 | # | Done | ID | File | Hard blockers (by ID, order #) | Soft |
 |---|---|---|---|---|---|
-| 1 | [ ] | RWF-01 | `real-world-feedback/issues/01-garde-reset-stale-view.md` | none | prerequisite of OWL-03 |
-| 2 | [ ] | RWF-04 | `real-world-feedback/issues/04-status-sort-secondary-garde-debut.md` | none | prerequisite of OWL-03 |
-| 3 | [ ] | RWF-03 | `real-world-feedback/issues/03-offline-banner-small-screen-padding.md` | none | |
-| 4 | [ ] | RWF-02 | `real-world-feedback/issues/02-add-meal-input-not-cleared.md` | none | |
-| 5 | [ ] | RWF-08 | `real-world-feedback/issues/08-alphabetical-referential-lists.md` | none | before SC-01 so the gateway moves already-sorted reads |
-| 6 | [ ] | I18N-01 | `i18n/issues/01-foundation-switchable-language.md` | none | after it, all new text uses keys |
-| 7 | [ ] | OWL-01 | `offline-wine-list/issues/01-pagination.md` | none | |
-| 8 | [ ] | OWL-02 | `offline-wine-list/issues/02-bulk-meal-pairings.md` | none | |
-| 9 | [ ] | SC-01 | `storage-consent/issues/01-data-gateway-prefactor.md` | none | after RWF-08 and other small composable edits, to avoid conflicts |
-| 10 | [ ] | RWF-05 | `real-world-feedback/issues/05-sync-page-retry-all.md` | none | wire to OWL-04's refresh routine when the second of the pair lands (#10 or #17) |
-| 11 | [ ] | RWF-06 | `real-world-feedback/issues/06-sync-page-clear-all.md` | none | creates the discard-everything primitive SC-04 reuses |
-| 12 | [ ] | RWF-09 | `real-world-feedback/issues/09-sync-page-status-details.md` | none | |
-| 13 | [ ] | SC-02 | `storage-consent/issues/02-online-only-mode.md` | SC-01 (#9), OWL-01 (#7) | |
+| 1 | [x] | RWF-01 | `real-world-feedback/issues/01-garde-reset-stale-view.md` | none | prerequisite of OWL-03 |
+| 2 | [x] | RWF-04 | `real-world-feedback/issues/04-status-sort-secondary-garde-debut.md` | none | prerequisite of OWL-03 |
+| 3 | [x] | RWF-03 | `real-world-feedback/issues/03-offline-banner-small-screen-padding.md` | none | |
+| 4 | [x] | RWF-02 | `real-world-feedback/issues/02-add-meal-input-not-cleared.md` | none | |
+| 5 | [x] | RWF-08 | `real-world-feedback/issues/08-alphabetical-referential-lists.md` | none | before SC-01 so the gateway moves already-sorted reads |
+| 6 | [x] | I18N-01 | `i18n/issues/01-foundation-switchable-language.md` | none | after it, all new text uses keys |
+| 7 | [x] | OWL-01 | `offline-wine-list/issues/01-pagination.md` | none | |
+| 8 | [x] | OWL-02 | `offline-wine-list/issues/02-bulk-meal-pairings.md` | none | |
+| 9 | [x] | SC-01 | `storage-consent/issues/01-data-gateway-prefactor.md` | none | after RWF-08 and other small composable edits, to avoid conflicts |
+| 10 | [x] | RWF-05 | `real-world-feedback/issues/05-sync-page-retry-all.md` | none | wire to OWL-04's refresh routine when the second of the pair lands (#10 or #17) |
+| 11 | [x] | RWF-06 | `real-world-feedback/issues/06-sync-page-clear-all.md` | none | creates the discard-everything primitive SC-04 reuses |
+| 12 | [x] | RWF-09 | `real-world-feedback/issues/09-sync-page-status-details.md` | none | |
+| 13 | [x] | SC-02 | `storage-consent/issues/02-online-only-mode.md` | SC-01 (#9), OWL-01 (#7) | |
 | 14 | [ ] | SC-03 | `storage-consent/issues/03-consent-page-gate-and-granting.md` | SC-02 (#13), I18N-01 (#6) | |
 | 15 | [ ] | SC-04 | `storage-consent/issues/04-change-and-withdraw-consent.md` | SC-03 (#14) | reuses RWF-06's primitive (#11) |
 | 16 | [ ] | OWL-03 | `offline-wine-list/issues/03-cellar-list-reads-local-store.md` | OWL-02 (#8), SC-01 (#9), RWF-01 (#1), RWF-04 (#2) | |

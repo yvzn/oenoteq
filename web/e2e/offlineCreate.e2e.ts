@@ -13,6 +13,14 @@ test('a wine created offline reaches the server after reconnecting', async ({ pa
   // so a service-worker cache cannot hide it.
   const serverWines = async () => (await (await request.get('/wines')).json()) as ServerWine[]
 
+  // Storage Consent granted up front (there is no consent page yet): without it the app is online-only.
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'cellar.storage-consent',
+      JSON.stringify({ choice: 'granted', version: 1, timestamp: new Date().toISOString() }),
+    ),
+  )
+
   // Online first visit: service worker installs, reference data loads.
   await page.goto('/')
   await page.evaluate(() => navigator.serviceWorker.ready)

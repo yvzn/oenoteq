@@ -9,6 +9,7 @@ import { pushChangesInBackground } from '../sync'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import WineDetailView from './WineDetailView.vue'
 import WineFormView from './WineFormView.vue'
+import { itOfflineOnly } from '../test/consent'
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
@@ -104,7 +105,7 @@ afterEach(() => {
 resetSuccessMessageAfterEach()
 
 describe('WineFormView — add', () => {
-  it('renders the form from cached appellations/producers when the network is fully disabled', async () => {
+  itOfflineOnly('renders the form from cached appellations/producers when the network is fully disabled', async () => {
     await db.appellations.bulkPut(appellations)
     await db.producers.bulkPut(producers)
     vi.mocked(apiClient.get).mockRejectedValue(new Error('Network error: unable to reach the server'))
@@ -239,7 +240,7 @@ describe('WineFormView — add', () => {
     expect(apiClient.post).not.toHaveBeenCalled()
   })
 
-  it('saves the wine locally and navigates immediately, without waiting on the network', async () => {
+  itOfflineOnly('saves the wine locally and navigates immediately, without waiting on the network', async () => {
     mockGet()
     vi.mocked(apiClient.post).mockReturnValue(new Promise(() => {})) // network never resolves
 
@@ -279,7 +280,7 @@ describe('WineFormView — add', () => {
     })
   })
 
-  it('adds a wine with the network fully disabled, leaving it queued and pending', async () => {
+  itOfflineOnly('adds a wine with the network fully disabled, leaving it queued and pending', async () => {
     mockGet()
     vi.mocked(apiClient.post).mockRejectedValue(new ApiError(0, 'Network error: unable to reach the server'))
 
@@ -339,7 +340,7 @@ describe('WineFormView — add', () => {
     expect(apiClient.post).not.toHaveBeenCalledWith('/wines', expect.anything())
   })
 
-  it('creates a new appellation inline and selects it immediately, with the network fully disabled', async () => {
+  itOfflineOnly('creates a new appellation inline and selects it immediately, with the network fully disabled', async () => {
     mockGet()
     vi.mocked(apiClient.post).mockRejectedValue(new ApiError(0, 'Network error: unable to reach the server'))
 
@@ -409,7 +410,7 @@ describe('WineFormView — add', () => {
     expect(wrapper.find('[data-testid="new-appellation-created"]').exists()).toBe(false)
   })
 
-  it('resolves the real appellation id once a Wine created against an offline inline appellation syncs', async () => {
+  itOfflineOnly('resolves the real appellation id once a Wine created against an offline inline appellation syncs', async () => {
     mockGet()
     vi.mocked(apiClient.post).mockImplementation((path: string) => {
       if (path === '/appellations') return Promise.reject(new ApiError(0, 'Network error: unable to reach the server'))
@@ -499,7 +500,7 @@ describe('WineFormView — add', () => {
 })
 
 describe('WineFormView — edit', () => {
-  it('redirects to the synced server id when opening an edit form for an already-synced negative id', async () => {
+  itOfflineOnly('redirects to the synced server id when opening an edit form for an already-synced negative id', async () => {
     await db.wines.put(existingWine as WineDetail)
     await db.idRemap.put({ localId: -123, serverId: 5 })
     mockGet()
@@ -587,7 +588,7 @@ describe('WineFormView — edit', () => {
     expect(router.currentRoute.value.fullPath).toBe('/wines/5')
   })
 
-  it('navigates on save even when the background sync to the backend fails, leaving the item failed in the outbox', async () => {
+  itOfflineOnly('navigates on save even when the background sync to the backend fails, leaving the item failed in the outbox', async () => {
     mockGet()
     vi.mocked(apiClient.put).mockRejectedValue(new Error('server exploded'))
 

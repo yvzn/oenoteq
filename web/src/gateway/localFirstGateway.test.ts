@@ -34,8 +34,10 @@ async function settle(): Promise<void> {
   })
 }
 
-it('is the active adapter', () => {
-  expect(gateway).toBe(localFirstGateway)
+it('is the active adapter once storage consent is granted', async () => {
+  await gateway.producers.create('Active')
+
+  expect(await db.producers.count()).toBe(1)
 })
 
 describeGatewayContract('local-first adapter', () => ({ gateway: localFirstGateway, server, settle }))

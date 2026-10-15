@@ -1,7 +1,8 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { db } from '../db/localDb'
 import { discard, enqueue } from '../sync/outbox'
+import { setConsent } from '../test/consent'
 import SyncPendingBadge from './SyncPendingBadge.vue'
 
 async function flushPromises() {
@@ -48,5 +49,18 @@ describe('SyncPendingBadge', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(false)
+  })
+})
+
+describe('SyncPendingBadge without Offline Mode', () => {
+  it('never shows and never opens the local store', async () => {
+    setConsent('refused')
+    const openSpy = vi.spyOn(db.outbox, 'where')
+
+    const wrapper = mount(SyncPendingBadge, { props: { entity: 'producer', targetId: -1 } })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="sync-pending-badge"]').exists()).toBe(false)
+    expect(openSpy).not.toHaveBeenCalled()
   })
 })

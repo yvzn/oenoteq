@@ -8,6 +8,7 @@ import { enqueue } from '../sync/outbox'
 import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMessageRouter'
 import MealFormView from './MealFormView.vue'
 import MealListView from './MealListView.vue'
+import { itOfflineOnly } from '../test/consent'
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
@@ -92,7 +93,7 @@ describe('MealFormView — add', () => {
     expect(router.currentRoute.value.fullPath).toBe('/meals')
   })
 
-  it('saves and navigates even when the background sync to the backend is rejected, leaving the item failed in the outbox', async () => {
+  itOfflineOnly('saves and navigates even when the background sync to the backend is rejected, leaving the item failed in the outbox', async () => {
     vi.mocked(apiClient.post).mockRejectedValue(new Error('already_exists'))
 
     const { wrapper, router } = await mountAt('/meals/new')
@@ -159,7 +160,7 @@ describe('MealFormView — edit', () => {
     expect(router.currentRoute.value.fullPath).toBe('/meals')
   })
 
-  it('saves and navigates even with the network fully disabled, leaving the edit queued and pending', async () => {
+  itOfflineOnly('saves and navigates even with the network fully disabled, leaving the edit queued and pending', async () => {
     mockGet()
     vi.mocked(apiClient.put).mockRejectedValue(new ApiError(0, 'Network error: unable to reach the server'))
 
@@ -185,7 +186,7 @@ describe('MealFormView — edit', () => {
     expect(router.currentRoute.value.fullPath).toBe('/meals')
   })
 
-  it('shows a "not yet synced" badge while this meal still has a queued edit in the outbox', async () => {
+  itOfflineOnly('shows a "not yet synced" badge while this meal still has a queued edit in the outbox', async () => {
     mockGet()
     await enqueue(db.outbox, { entity: 'meal', action: 'update', targetId: 2, payload: { name: 'x' } })
 
