@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-agent
+**Status:** done
 **Category:** enhancement
 
 ## Comments
@@ -24,10 +24,10 @@ After a back navigation (history pop) to the list, the scroll offset is restored
 - Router scroll behavior; the list loads asynchronously, so restoration must wait until results are rendered (or saved offset must be re-applied after load)
 
 **Acceptance criteria:**
-- [ ] Test: scroll, open detail, go back → offset restored after results render
-- [ ] Test: forward navigation to the list from elsewhere starts at top
-- [ ] Changing filter/sort resets scroll to top
-- [ ] Pagination (planned: 10 per page, `?page=` in the URL, client-side slice) is not required here, but don't preclude it: the page lives in the URL, so back navigation already returns to the right page and this ticket only restores the scroll offset within it. Ideally schedule this ticket after pagination lands
+- [x] Test: scroll, open detail, go back → offset restored after results render
+- [x] Test: forward navigation to the list from elsewhere starts at top
+- [x] Changing filter/sort resets scroll to top
+- [x] Pagination (planned: 10 per page, `?page=` in the URL, client-side slice) is not required here, but don't preclude it: the page lives in the URL, so back navigation already returns to the right page and this ticket only restores the scroll offset within it. Ideally schedule this ticket after pagination lands
 
 **Out of scope:**
 - Pagination itself
