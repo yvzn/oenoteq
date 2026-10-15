@@ -500,7 +500,7 @@ describe('CellarListView pagination', () => {
 // operations (each a macrotask under fake-indexeddb), so a couple of
 // ticks isn't always enough to observe it settle.
 async function flushPromises() {
-  for (let i = 0; i < 30; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 0))
+  for (let i = 0; i < 100; i++) {
+    await new Promise((resolve) => setImmediate(resolve))
   }
 }

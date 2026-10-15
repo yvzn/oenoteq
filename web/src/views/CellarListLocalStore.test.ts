@@ -91,7 +91,7 @@ const listText = (w: Wrapper) => w.get('[data-testid="wine-list"]').text()
 
 // Each Dexie/IndexedDB step is a macrotask under fake-indexeddb.
 async function settle() {
-  for (let i = 0; i < 30; i++) await new Promise((resolve) => setTimeout(resolve, 0))
+  for (let i = 0; i < 100; i++) await new Promise((resolve) => setImmediate(resolve))
 }
 
 const input = (over: Partial<WineInput> = {}): WineInput => ({
