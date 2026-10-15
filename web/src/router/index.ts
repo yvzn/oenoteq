@@ -5,6 +5,7 @@ import { useSuccessMessage } from '../composables/useSuccessMessage'
 import AppellationFormView from '../views/AppellationFormView.vue'
 import AppellationListView from '../views/AppellationListView.vue'
 import CellarListView from '../views/CellarListView.vue'
+import ConsentChangeView from '../views/ConsentChangeView.vue'
 import ConsentView from '../views/ConsentView.vue'
 import ManageHubView from '../views/ManageHubView.vue'
 import MealFormView from '../views/MealFormView.vue'
@@ -21,6 +22,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     history,
     routes: [
       { path: '/consent', name: 'consent', component: ConsentView },
+      { path: '/storage', name: 'storage', component: ConsentChangeView },
       { path: '/', name: 'cellar', component: CellarListView },
       { path: '/wines/new', name: 'wine-new', component: WineFormView },
       { path: '/wines/:id', name: 'wine-detail', component: WineDetailView },

@@ -13,6 +13,7 @@ function makeRouter(): Router {
       { path: '/appellations', name: 'appellations', component: { template: '<div />' } },
       { path: '/producers', name: 'producers', component: { template: '<div />' } },
       { path: '/meal-pairings', name: 'meal-pairings', component: { template: '<div />' } },
+      { path: '/storage', name: 'storage', component: { template: '<div />' } },
     ],
   })
 }
@@ -47,6 +48,16 @@ describe('ManageHubView', () => {
     const mealPairingsLink = wrapper.get('[data-testid="manage-link-meal-pairings"]')
     expect(mealPairingsLink.text()).toContain('Meal pairings')
     expect(mealPairingsLink.attributes('href')).toBe('/meal-pairings')
+  })
+
+  it('links to the storage choice, in French too', async () => {
+    const { wrapper } = await mountAt('/manage')
+    const link = wrapper.get('[data-testid="manage-link-storage"]')
+    expect(link.text()).toContain('Storage on this device')
+    expect(link.attributes('href')).toBe('/storage')
+
+    await wrapper.get('[data-testid="language-fr"]').trigger('click')
+    expect(wrapper.get('[data-testid="manage-link-storage"]').text()).toContain('Stockage sur cet appareil')
   })
 
   it('lists each language by its own name', async () => {

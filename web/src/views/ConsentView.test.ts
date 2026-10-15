@@ -2,29 +2,41 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
 import { CONSENT_STORAGE_KEY, readConsent } from '../consent/storageConsent'
+import { deleteLocalData } from '../consent/deleteLocalData'
 import { reloadInto } from '../consent/reload'
+import { db } from '../db/localDb'
 import { LOCALE_STORAGE_KEY } from '../i18n/localePreference'
 import { registerPwaUpdates } from '../registerPwa'
 import { createAppRouter } from '../router'
 import { syncNow } from '../sync'
+import { enqueue } from '../sync/outbox'
 import { setConsent } from '../test/consent'
 import App from '../App.vue'
 
 vi.mock('../consent/reload', () => ({ reloadInto: vi.fn() }))
+vi.mock('../consent/deleteLocalData', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../consent/deleteLocalData')>()),
+  deleteLocalData: vi.fn().mockResolvedValue(undefined),
+}))
 vi.mock('../registerPwa', () => ({ registerPwaUpdates: vi.fn() }))
 vi.mock('../sync', () => ({ syncNow: vi.fn(), startSync: vi.fn() }))
 
 let openSpy: ReturnType<typeof vi.spyOn>
 
-beforeEach(() => {
+beforeEach(async () => {
   setConsent('no-choice')
+  await db.delete() // a first visit: no local store yet
   openSpy = vi.spyOn(indexedDB, 'open')
   vi.mocked(syncNow).mockReset().mockResolvedValue(undefined)
   vi.mocked(reloadInto).mockClear()
   vi.mocked(registerPwaUpdates).mockClear()
+  vi.mocked(deleteLocalData).mockClear()
 })
 
-afterEach(() => openSpy.mockRestore())
+afterEach(async () => {
+  openSpy.mockRestore()
+  await db.open() // the shared store is closed by the first-visit setup; other hooks clear it
+})
 
 async function mountAt(path: string) {
   const router = createAppRouter(createMemoryHistory())
@@ -74,6 +86,7 @@ describe('ConsentView', () => {
   it('refusing records the refusal and reloads into the intended destination, online-only', async () => {
     const wrapper = await mountAt('/wines/7')
     await wrapper.get('[data-testid="consent-refuse"]').trigger('click')
+    await flushPromises()
     expect(readConsent()).toBe('refused')
     expect(reloadInto).toHaveBeenCalledWith('/wines/7')
     expect(registerPwaUpdates).not.toHaveBeenCalled()
@@ -124,6 +137,7 @@ describe('ConsentView', () => {
     await wrapper.get('[data-testid="consent-allow"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-testid="consent-refuse"]').trigger('click')
+    await flushPromises()
     expect(readConsent()).toBe('refused')
     expect(reloadInto).toHaveBeenCalledWith('/')
   })
@@ -132,6 +146,7 @@ describe('ConsentView', () => {
     const wrapper = await mountAt('/')
     await wrapper.get('[data-testid="language-fr"]').trigger('click')
     await wrapper.get('[data-testid="consent-refuse"]').trigger('click')
+    await flushPromises()
     expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBeNull()
   })
 
@@ -139,6 +154,94 @@ describe('ConsentView', () => {
     localStorage.setItem(LOCALE_STORAGE_KEY, 'fr')
     const wrapper = await mountAt('/')
     await wrapper.get('[data-testid="consent-refuse"]').trigger('click')
+    await flushPromises()
     expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBeNull()
+  })
+
+  it('refusing on a first visit has no store to delete or sync', async () => {
+    const wrapper = await mountAt('/')
+    await wrapper.get('[data-testid="consent-refuse"]').trigger('click')
+    await flushPromises()
+    expect(syncNow).not.toHaveBeenCalled()
+    expect(openSpy).not.toHaveBeenCalled()
+  })
+})
+
+const queued = { entity: 'wine', action: 'create', targetId: -1, payload: {} } as const
+
+// A tester from before consent existed: a populated store and no record.
+async function existingInstall() {
+  await db.open()
+  await db.wines.put({ id: 1 } as never)
+  await enqueue(db.outbox, queued)
+  openSpy.mockClear()
+}
+
+describe('ConsentView on an existing install', () => {
+  it.each([
+    ['no record', () => setConsent('no-choice')],
+    ['a record for an older consent text', () => localStorage.setItem(CONSENT_STORAGE_KEY, JSON.stringify({ choice: 'granted', version: 0, timestamp: '2025-01-01T00:00:00.000Z' }))],
+  ])('with %s, shows the page and leaves the store alone until the user answers', async (_label, arrange) => {
+    await existingInstall()
+    arrange()
+    const wrapper = await mountAt('/wines/1')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="consent-choices"]').exists()).toBe(true)
+    expect(openSpy).not.toHaveBeenCalled()
+    expect(syncNow).not.toHaveBeenCalled()
+    expect(deleteLocalData).not.toHaveBeenCalled()
+  })
+
+  it('granting keeps every record and queued item', async () => {
+    await existingInstall()
+    const wrapper = await mountAt('/')
+    await wrapper.get('[data-testid="consent-allow"]').trigger('click')
+    await flushPromises()
+    expect(reloadInto).toHaveBeenCalledWith('/')
+    expect(deleteLocalData).not.toHaveBeenCalled()
+    expect(await db.wines.count()).toBe(1)
+    expect(await db.outbox.count()).toBe(1)
+  })
+
+  it('refusing with nothing unsent syncs, deletes the local data and reloads without asking', async () => {
+    await db.open()
+    await db.wines.put({ id: 1 } as never)
+    const wrapper = await mountAt('/manage')
+    await wrapper.get('[data-testid="consent-refuse"]').trigger('click')
+    await flushPromises()
+    expect(syncNow).toHaveBeenCalledOnce()
+    expect(wrapper.find('[data-testid="confirm-dialog"][open]').exists()).toBe(false)
+    expect(deleteLocalData).toHaveBeenCalledOnce()
+    expect(readConsent()).toBe('refused')
+    expect(reloadInto).toHaveBeenCalledWith('/manage')
+  })
+
+  it('refusing with unsent changes asks first, and cancelling changes nothing', async () => {
+    await existingInstall()
+    const wrapper = await mountAt('/')
+    await wrapper.get('[data-testid="consent-refuse"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="confirm-dialog"]').text()).toContain('1 change has not been sent')
+    expect(deleteLocalData).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="confirm-dialog-cancel"]').trigger('click')
+    await flushPromises()
+    expect(readConsent()).toBe('no-choice')
+    expect(deleteLocalData).not.toHaveBeenCalled()
+    expect(reloadInto).not.toHaveBeenCalled()
+    expect(await db.outbox.count()).toBe(1)
+    expect(wrapper.find('[data-testid="consent-choices"]').exists()).toBe(true)
+  })
+
+  it('refusing with unsent changes deletes everything once the user confirms', async () => {
+    await existingInstall()
+    const wrapper = await mountAt('/')
+    await wrapper.get('[data-testid="consent-refuse"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="confirm-dialog-confirm"]').trigger('click')
+    await flushPromises()
+    expect(deleteLocalData).toHaveBeenCalledOnce()
+    expect(readConsent()).toBe('refused')
+    expect(reloadInto).toHaveBeenCalledWith('/')
   })
 })

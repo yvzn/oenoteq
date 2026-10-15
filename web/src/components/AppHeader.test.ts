@@ -19,6 +19,7 @@ function makeRouter(): Router {
       { path: '/appellations', name: 'appellations', component: stub },
       { path: '/meal-pairings', name: 'meal-pairings', component: stub },
       { path: '/sync-status', name: 'sync-status', component: stub },
+      { path: '/storage', name: 'storage', component: stub },
     ],
   })
 }
@@ -81,6 +82,14 @@ describe('AppHeader', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="sync-status-indicator"]').exists()).toBe(true)
+  })
+})
+
+describe('AppHeader storage link', () => {
+  it.each(['granted', 'refused'] as const)('leads to the change-of-choice screen with %s', async (choice) => {
+    setConsent(choice)
+    const { wrapper } = await mountAt('/')
+    expect(wrapper.get('[data-testid="storage-link"]').attributes('href')).toBe('/storage')
   })
 })
 

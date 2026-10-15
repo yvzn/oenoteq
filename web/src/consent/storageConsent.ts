@@ -50,18 +50,26 @@ export function writeConsent(choice: ConsentChoice): void {
   for (const listener of listeners) listener(choice)
 }
 
-// Fires for a change made in this tab and, through storage events, in any other.
-export function onConsentChange(listener: (state: ConsentState) => void): () => void {
-  listeners.add(listener)
+function listenToStorage(listener: (state: ConsentState) => void): () => void {
   const onStorage = (event: StorageEvent) => {
     if (event.key === null || event.key === CONSENT_STORAGE_KEY) listener(readConsent())
   }
   window.addEventListener('storage', onStorage)
+  return () => window.removeEventListener('storage', onStorage)
+}
+
+// Fires for a change made in this tab and, through storage events, in any other.
+export function onConsentChange(listener: (state: ConsentState) => void): () => void {
+  listeners.add(listener)
+  const stopListening = listenToStorage(listener)
   return () => {
     listeners.delete(listener)
-    window.removeEventListener('storage', onStorage)
+    stopListening()
   }
 }
+
+// Only changes made in another tab (the browser fires storage events nowhere else).
+export const onOtherTabConsentChange = listenToStorage
 
 // Offline Mode (local store, outbox, sync, service worker) exists only with consent.
 export function isOfflineMode(): boolean {

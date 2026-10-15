@@ -10,6 +10,7 @@ const links = [
   { to: { name: 'appellations' }, testid: 'manage-link-appellations', area: 'appellations' },
   { to: { name: 'producers' }, testid: 'manage-link-producers', area: 'producers' },
   { to: { name: 'meal-pairings' }, testid: 'manage-link-meal-pairings', area: 'mealPairings' },
+  { to: { name: 'storage' }, testid: 'manage-link-storage', area: 'storage' },
 ]
 </script>
 

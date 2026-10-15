@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 (Consent page, route gate and granting)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] A change-of-choice screen reachable from the Manage hub and from the header shows the current choice with the same explanations as the consent page and a button to switch it
 - [ ] Granting later records the choice and runs Offline Mode's first pull as in ticket 03
@@ -17,3 +17,9 @@
 - [ ] Tests: each withdrawal path (empty queue, pending items, failed items, offline, cancel, confirm), existing-install gate and refusal, version bump, two-tab behavior, with browser storage and service worker APIs faked at the boundary
 - [ ] All text uses translation keys in English and French
 - [ ] No API, schema or `api.http` change
+
+## Notes
+
+- The discard primitive: `sync/clearQueue.ts` (already landed with real-world-feedback 06) is the queue-discard step Clear queue uses. Withdrawal deletes the whole store, so it never needs to roll items back; it uses `consent/deleteLocalData.ts` instead. They share the outbox as the thing being discarded but not code, because Clear queue must keep the store.
+- Offline with an empty outbox withdraws without asking (nothing to lose); any queued item asks.
+- Known gap: background sync is not stopped in the withdrawing tab, so a sync could touch the store between deletion and the reload.

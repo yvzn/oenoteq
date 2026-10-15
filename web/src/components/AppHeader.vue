@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
 import { isOfflineMode } from '../consent/storageConsent'
 import { useSyncStatus } from '../composables/useSyncStatus'
 
+const { t } = useI18n()
 const route = useRoute()
 const { hasPending } = useSyncStatus()
 const offlineMode = isOfflineMode()
@@ -46,14 +48,14 @@ const isManage = computed(() => manageRouteNames.includes(route.name as string))
           Manage
         </RouterLink>
       </nav>
-      <RouterLink
-        v-if="offlineMode && hasPending"
-        :to="{ name: 'sync-status' }"
-        data-testid="sync-status-indicator"
-        class="text-muted hover:text-ink text-sm"
-      >
-        <span aria-hidden="true">⏳</span> Sync
-      </RouterLink>
+      <div class="flex items-center gap-4 text-sm">
+        <RouterLink v-if="offlineMode && hasPending" :to="{ name: 'sync-status' }" data-testid="sync-status-indicator" class="text-muted hover:text-ink">
+          <span aria-hidden="true">⏳</span> Sync
+        </RouterLink>
+        <RouterLink :to="{ name: 'storage' }" data-testid="storage-link" class="text-muted hover:text-ink">
+          {{ t('storage.link') }}
+        </RouterLink>
+      </div>
     </div>
   </header>
 </template>
