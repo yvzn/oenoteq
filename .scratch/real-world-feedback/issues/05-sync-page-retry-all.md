@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-agent
+**Status:** done
 **Category:** enhancement
 
 ## Comments
@@ -25,11 +25,11 @@ A single "Retry sync" action on the page replays the whole outbox and refreshes 
 - The sync-status view and its composable
 
 **Acceptance criteria:**
-- [ ] Button visible on the page; click triggers a full push + pull
-- [ ] Busy/disabled while in flight, no double-trigger
-- [ ] Counts and failed list update after completion
-- [ ] Behavior when offline is defined and tested
-- [ ] Component test covers click, busy, completion
+- [x] Button visible on the page; click triggers a full push + pull
+- [x] Busy/disabled while in flight, no double-trigger
+- [x] Counts and failed list update after completion
+- [x] Behavior when offline is defined and tested
+- [x] Component test covers click, busy, completion
 
 **Cellar list refresh:**
 The offline wine list effort (`.scratch/offline-wine-list/issues/04`) defines one background refresh routine (push outbox, then pull) that this action should call, so "Retry sync" also refreshes the cellar list. Whichever ticket lands second wires it in.

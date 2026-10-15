@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-agent
+**Status:** done
 **Category:** enhancement
 
 ## Comments
@@ -28,13 +28,13 @@ The summary counts remain the default, unchanged. A control on the page ("Show d
 - Sync-status view: toggle and list
 
 **Acceptance criteria:**
-- [ ] Default render shows counts only; no pending list in the DOM until requested
-- [ ] Toggle reveals one row per pending item with label, operation and queued time; toggling again hides it
-- [ ] Items already in the outbox without a timestamp still render
-- [ ] Failed items are not duplicated in the pending list
-- [ ] Empty outbox: toggle hidden or shows an "Nothing pending" message
-- [ ] List updates live as items sync (same reactivity as the counts)
-- [ ] Component and composable tests
+- [x] Default render shows counts only; no pending list in the DOM until requested
+- [x] Toggle reveals one row per pending item with label, operation and queued time; toggling again hides it
+- [x] Items already in the outbox without a timestamp still render
+- [x] Failed items are not duplicated in the pending list
+- [x] Empty outbox: toggle hidden or shows an "Nothing pending" message
+- [x] List updates live as items sync (same reactivity as the counts)
+- [x] Component and composable tests
 
 **Out of scope:**
 - Per-item retry/discard for pending items (failed items only, as today)

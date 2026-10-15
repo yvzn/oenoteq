@@ -2,7 +2,7 @@
 
 **Blocked by:** None
 
-**Status:** ready-for-agent
+**Status:** done
 **Category:** enhancement
 
 ## Comments
@@ -26,11 +26,11 @@ A "Clear queue" action discards every outbox item (pending and failed) after a c
 - Existing `ConfirmDialog`
 
 **Acceptance criteria:**
-- [ ] Confirm dialog shows item count; cancel changes nothing
-- [ ] Confirm empties the outbox, counts show 0, header indicator hides
-- [ ] Local-only (negative id) records created by discarded items disappear after the follow-up pull; offline, that cleanup is deferred and tested/documented
-- [ ] Queued Consumption/quantity adjustments for discarded items are removed too, with the local quantity corrected or re-pulled
-- [ ] Component + unit tests
+- [x] Confirm dialog shows item count; cancel changes nothing
+- [x] Confirm empties the outbox, counts show 0, header indicator hides
+- [x] Local-only (negative id) records created by discarded items disappear after the follow-up pull; offline, that cleanup is deferred and tested/documented
+- [x] Queued Consumption/quantity adjustments for discarded items are removed too, with the local quantity corrected or re-pulled
+- [x] Component + unit tests
 
 **Consent note (ADR 0010):**
 Offline Mode only: the sync page and this action are hidden without Storage Consent. Revoking consent later reuses the same discard-all primitive behind its own flow (sync first, count and confirm if anything remains), so keep the primitive separate from this page's button and confirm dialog.
