@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
@@ -15,6 +15,7 @@ import { useSearch } from '../composables/useSearch'
 import { pageToQueryParams, paginate, parsePage } from '../domain/pagination'
 import { filtersToQueryParams, queryParamsToFilters, type SearchFilters } from '../domain/searchFilters'
 import { nextSort, queryParamsToSort, sortToQueryParams, type SortBy, type WineSort } from '../domain/wineSort'
+import { setCellarListRendered } from '../router/listScroll'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -99,18 +100,16 @@ const searchKey = computed(() =>
   new URLSearchParams({ ...filtersToQueryParams(filters.value), ...sortToQueryParams(sort.value) }).toString(),
 )
 
-// Any page change (buttons, browser back/forward, edited address) starts at the top.
-watch(
-  () => parsePage(route.query.page),
-  () => window.scrollTo({ top: 0 }),
-)
-
 // The filter options could not be read while nothing was downloaded; read them once something is.
 watch(neverDownloaded, (never, wasNever) => {
   if (wasNever && !never) loadFilterOptions()
 })
 
 watch(searchKey, () => search(filters.value, sort.value), { immediate: true })
+
+// The router restores the scroll offset on back navigation once told the rows are there.
+watch(loading, (isLoading) => setCellarListRendered(!isLoading), { immediate: true, flush: 'post' })
+onBeforeUnmount(() => setCellarListRendered(false))
 
 onMounted(loadFilterOptions)
 </script>

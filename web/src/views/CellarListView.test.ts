@@ -1,9 +1,10 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { createMemoryHistory, createRouter, type RouteLocationNormalized, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
 import type { WineSearchResult } from '../api/types'
 import { FIRST_PULL_KEY, db } from '../db/localDb'
+import { scrollBehavior, setCellarListRendered } from '../router/listScroll'
 import { defaultConsent, itOfflineOnly, itOnlineOnly } from '../test/consent'
 import { setTestLocale } from '../test/i18n'
 import CellarListView from './CellarListView.vue'
@@ -12,6 +13,8 @@ vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
   return { ...actual, apiClient: { get: vi.fn(), post: vi.fn() } }
 })
+
+const route = (name: string) => ({ name }) as RouteLocationNormalized
 
 const currentYear = new Date().getFullYear()
 
@@ -462,32 +465,24 @@ describe('CellarListView pagination', () => {
     expect(ids(second)).toEqual(Array.from({ length: 10 }, (_, i) => `/wines/${15 - i}`))
   }, 20000)
 
-  it('scrolls to the top when the page changes', async () => {
+  it('tells the router when the results have rendered, and when the list is gone', async () => {
     await mockApi({ search: manyWines(25) })
-    const scrollTo = vi.fn()
-    vi.stubGlobal('scrollTo', scrollTo)
-
     const { wrapper } = await mountAt('/')
-    await wrapper.get('[data-testid="pagination-next"]').trigger('click')
-    await flushPromises()
 
-    expect(scrollTo).toHaveBeenCalledWith({ top: 0 })
-  })
+    await vi.waitFor(() => expect(wrapper.findAll('[data-testid="wine-item"]')).toHaveLength(10))
+    expect(await scrollBehavior(route('cellar'), route('wine-detail'), { left: 0, top: 300 })).toEqual({
+      left: 0,
+      top: 300,
+    })
 
-  it('scrolls to the top on browser back to another page', async () => {
-    await mockApi({ search: manyWines(25) })
-    const scrollTo = vi.fn()
-    vi.stubGlobal('scrollTo', scrollTo)
-
-    const { router } = await mountAt('/?page=2')
-    expect(scrollTo).not.toHaveBeenCalled()
-    await router.push('/')
-    await flushPromises()
-    scrollTo.mockClear()
-    await router.back()
-    await flushPromises()
-
-    expect(scrollTo).toHaveBeenCalledWith({ top: 0 })
+    wrapper.unmount()
+    // Gone again: a later restore waits for the next list instead of scrolling an empty page.
+    const pending = Promise.race([
+      Promise.resolve(scrollBehavior(route('cellar'), route('wine-detail'), { left: 0, top: 300 })).then(() => 'restored'),
+      flushPromises().then(() => 'waiting'),
+    ])
+    expect(await pending).toBe('waiting')
+    setCellarListRendered(true)
   })
 
   it('renders the controls in French', async () => {

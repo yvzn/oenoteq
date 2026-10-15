@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
 import { isOfflineMode } from '../consent/storageConsent'
 import { consentGuard } from './consentGuard'
+import { scrollBehavior } from './listScroll'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import AppellationFormView from '../views/AppellationFormView.vue'
 import AppellationListView from '../views/AppellationListView.vue'
@@ -20,6 +21,7 @@ import WineFormView from '../views/WineFormView.vue'
 export function createAppRouter(history: RouterHistory = createWebHistory()) {
   const router = createRouter({
     history,
+    scrollBehavior,
     routes: [
       { path: '/consent', name: 'consent', component: ConsentView },
       { path: '/storage', name: 'storage', component: ConsentChangeView },
