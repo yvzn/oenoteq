@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { ApiError, apiClient } from '../api/client'
@@ -9,6 +10,7 @@ import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMess
 import ProducerFormView from './ProducerFormView.vue'
 import ProducerListView from './ProducerListView.vue'
 import { itOfflineOnly } from '../test/consent'
+import { setTestLocale } from '../test/i18n'
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
@@ -212,3 +214,16 @@ async function flushPromises() {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }
+
+describe('ProducerFormView — French', () => {
+  it('shows the title and the validation error in French', async () => {
+    const { wrapper } = await mountAt('/producers/new')
+    await wrapper.get('[data-testid="producer-form"]').trigger('submit.prevent')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Ajouter un producteur')
+    expect(wrapper.get('[data-testid="producer-name-error"]').text()).toBe('Le nom est obligatoire')
+  })
+})

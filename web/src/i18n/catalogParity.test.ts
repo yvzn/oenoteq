@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { messages } from '.'
+import { createAppI18n, messages } from '.'
 
 type Tree = { [key: string]: string | Tree }
 
@@ -28,5 +28,19 @@ describe('catalog parity', () => {
       (k) => k in fr && placeholders(en[k]).join() !== placeholders(fr[k]).join(),
     )
     expect(mismatched).toEqual([])
+  })
+})
+
+describe('missing key fallback', () => {
+  it('shows the English text, never the raw key, when French lacks a key', () => {
+    const frCommon = messages.fr as unknown as { actions: Record<string, string> }
+    const saved = frCommon.actions.apply
+    delete frCommon.actions.apply
+    try {
+      const i18n = createAppI18n('fr')
+      expect(i18n.global.t('actions.apply')).toBe(messages.en.actions.apply)
+    } finally {
+      frCommon.actions.apply = saved
+    }
   })
 })

@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { ApiError, apiClient } from '../api/client'
@@ -9,6 +10,7 @@ import { resetSuccessMessageAfterEach, withAutoClear } from '../test/successMess
 import AppellationFormView from './AppellationFormView.vue'
 import AppellationListView from './AppellationListView.vue'
 import { itOfflineOnly } from '../test/consent'
+import { setTestLocale } from '../test/i18n'
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
@@ -212,3 +214,16 @@ async function flushPromises() {
     await new Promise((resolve) => setTimeout(resolve, 0))
   }
 }
+
+describe('AppellationFormView — French', () => {
+  it('shows the title and the validation error in French', async () => {
+    const { wrapper } = await mountAt('/appellations/new')
+    await wrapper.get('[data-testid="appellation-form"]').trigger('submit.prevent')
+
+    setTestLocale('fr')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('Ajouter une appellation')
+    expect(wrapper.get('[data-testid="appellation-name-error"]').text()).toBe('Le nom est obligatoire')
+  })
+})
