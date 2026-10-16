@@ -240,6 +240,42 @@ describe('AppHeader sync pill', () => {
   })
 })
 
+describe('AppHeader language toggle', () => {
+  const option = (wrapper: ReturnType<typeof mount>, code: 'en' | 'fr') => wrapper.get(`[data-testid="language-${code}"]`)
+
+  it('shows plain FR | EN with the active language marked', async () => {
+    const { wrapper } = await mountAt('/')
+
+    const toggle = wrapper.get('[data-testid="language-toggle"]')
+    expect(toggle.text()).toBe('FR|EN')
+    expect(option(wrapper, 'en').attributes('aria-pressed')).toBe('true')
+    expect(option(wrapper, 'fr').attributes('aria-pressed')).toBe('false')
+    expect(option(wrapper, 'en').classes()).toContain('font-bold')
+    expect(option(wrapper, 'fr').classes()).not.toContain('font-bold')
+  })
+
+  it('names each option in its own language', async () => {
+    const { wrapper } = await mountAt('/')
+
+    expect(option(wrapper, 'en').attributes('aria-label')).toBe('English')
+    expect(option(wrapper, 'en').attributes('lang')).toBe('en')
+    expect(option(wrapper, 'fr').attributes('aria-label')).toBe('Français')
+    expect(option(wrapper, 'fr').attributes('lang')).toBe('fr')
+  })
+
+  it('switches the header to French in place, then back', async () => {
+    const { wrapper } = await mountAt('/')
+
+    await option(wrapper, 'fr').trigger('click')
+    expect(wrapper.get('nav').findAll('a').map((link) => link.text())).toEqual(['Cave', 'Gérer'])
+    expect(option(wrapper, 'fr').attributes('aria-pressed')).toBe('true')
+    expect(option(wrapper, 'fr').classes()).toContain('font-bold')
+
+    await option(wrapper, 'en').trigger('click')
+    expect(wrapper.get('nav').findAll('a').map((link) => link.text())).toEqual(['Cellar', 'Manage'])
+  })
+})
+
 describe('AppHeader storage link', () => {
   it.each(['granted', 'refused'] as const)('leads to the change-of-choice screen with %s', async (choice) => {
     setConsent(choice)

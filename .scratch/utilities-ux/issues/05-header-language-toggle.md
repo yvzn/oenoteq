@@ -4,10 +4,10 @@
 
 **Blocked by:** 04 (shares the header; forced order 04 → 05 → 07)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `FR | EN` plain text at the top right of the header row on both layouts; active language bold, separator muted
-- [ ] Each option is a focusable button named in its own language, active one marked for assistive tech
-- [ ] Switching updates the UI in place
-- [ ] Manage hub switcher removed
-- [ ] Tests (existing header and Manage hub seams): switching changes language, active one marked, hub has no switcher
+- [x] `FR | EN` plain text at the top right of the header row on both layouts; active language bold, separator muted
+- [x] Each option is a focusable button named in its own language, active one marked for assistive tech
+- [x] Switching updates the UI in place
+- [x] Manage hub switcher removed
+- [x] Tests (existing header and Manage hub seams): switching changes language, active one marked, hub has no switcher

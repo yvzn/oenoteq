@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 import PageHeader from '../components/PageHeader.vue'
 
 const { t } = useI18n()
@@ -31,8 +30,6 @@ const links = [
           </RouterLink>
         </li>
       </ul>
-
-      <div class="mt-6"><LanguageSwitcher /></div>
     </div>
   </section>
 </template>

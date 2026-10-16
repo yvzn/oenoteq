@@ -5,6 +5,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { isOfflineMode } from '../consent/storageConsent'
 import { useConnectivity } from '../composables/useConnectivity'
 import { useSyncStatus } from '../composables/useSyncStatus'
+import LanguageToggle from './LanguageToggle.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -63,13 +64,12 @@ const isManage = computed(() => manageRouteNames.includes(route.name as string))
     >
       {{ pill.label }}
     </RouterLink>
-    <RouterLink
-      :to="{ name: 'storage' }"
-      data-testid="storage-link"
-      class="text-muted hover:text-ink col-start-3 row-start-1 text-sm"
-    >
-      {{ t('storage.link') }}
-    </RouterLink>
+    <div class="col-start-3 row-start-1 flex items-center gap-4">
+      <RouterLink :to="{ name: 'storage' }" data-testid="storage-link" class="text-muted hover:text-ink text-sm">
+        {{ t('storage.link') }}
+      </RouterLink>
+      <LanguageToggle />
+    </div>
     <div class="col-start-1 row-start-2 mt-4">
       <nav class="flex gap-6 text-sm">
         <RouterLink

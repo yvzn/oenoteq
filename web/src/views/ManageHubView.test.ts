@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { setTestLocale } from '../test/i18n'
@@ -56,30 +57,16 @@ describe('ManageHubView', () => {
     expect(link.text()).toContain('Storage on this device')
     expect(link.attributes('href')).toBe('/storage')
 
-    await wrapper.get('[data-testid="language-fr"]').trigger('click')
+    setTestLocale('fr')
+    await nextTick()
     expect(wrapper.get('[data-testid="manage-link-storage"]').text()).toContain('Stockage sur cet appareil')
   })
 
-  it('lists each language by its own name', async () => {
-    const { wrapper } = await mountAt('/manage')
-    expect(wrapper.get('[data-testid="language-en"]').text()).toBe('English')
-    expect(wrapper.get('[data-testid="language-fr"]').text()).toBe('Français')
-  })
-
-  it('switches the whole hub to French in place, then back, without touching links', async () => {
+  it('has no language switcher', async () => {
     const { wrapper } = await mountAt('/manage')
 
-    await wrapper.get('[data-testid="language-fr"]').trigger('click')
-
-    expect(wrapper.text()).toContain('Gérer')
-    const pairings = wrapper.get('[data-testid="manage-link-meal-pairings"]')
-    expect(pairings.text()).toContain('Accords mets-vin')
-    expect(pairings.attributes('href')).toBe('/meal-pairings')
-    expect(wrapper.get('[data-testid="language-fr"]').attributes('aria-pressed')).toBe('true')
-    expect(wrapper.get('[data-testid="language-en"]').attributes('aria-pressed')).toBe('false')
-
-    await wrapper.get('[data-testid="language-en"]').trigger('click')
-    expect(wrapper.text()).toContain('Manage')
+    expect(wrapper.find('[data-testid="language-switcher"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="language-fr"]').exists()).toBe(false)
   })
 
   it('renders in French when the locale is French', async () => {
