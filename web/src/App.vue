@@ -14,15 +14,15 @@ useDocumentLocale()
 </script>
 
 <template>
-  <div class="border-line/70 mx-auto min-h-screen max-w-[920px] border-x bg-parchment">
+  <div class="border-line/70 bg-parchment mx-auto flex min-h-screen max-w-[920px] flex-col border-x">
     <AppHeader v-if="route.name !== 'consent'" />
     <SuccessToast />
     <OfflineToast />
     <LiveAnnouncer />
-    <main>
+    <main class="flex-1">
       <router-view />
     </main>
     <AppFooter v-if="route.name !== 'consent'" />
-    <div v-if="message" aria-hidden="true" class="h-20" />
+    <div v-if="message" aria-hidden="true" class="h-20" :class="{ 'bg-desk/50': route.name !== 'consent' }" />
   </div>
 </template>

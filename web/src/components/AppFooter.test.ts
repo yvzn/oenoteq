@@ -4,7 +4,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { setTestLocale } from '../test/i18n'
 import AppFooter from './AppFooter.vue'
 
-async function mountFooter() {
+async function mountFooter(path = '/') {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -12,7 +12,7 @@ async function mountFooter() {
       { path: '/storage', name: 'storage', component: { template: '<div />' } },
     ],
   })
-  await router.push('/')
+  await router.push(path)
   await router.isReady()
   return mount(AppFooter, { global: { plugins: [router] } })
 }
@@ -28,5 +28,10 @@ describe('AppFooter', () => {
     setTestLocale('fr')
     await wrapper.vm.$nextTick()
     expect(wrapper.get('a').text()).toBe('Préférences cookies')
+  })
+
+  it('has no link on the consent settings page itself', async () => {
+    const wrapper = await mountFooter('/storage')
+    expect(wrapper.find('a').exists()).toBe(false)
   })
 })
