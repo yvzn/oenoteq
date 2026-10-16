@@ -5,7 +5,7 @@ import { useRoute } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
 import ConsentDownload from '../components/ConsentDownload.vue'
 import ConsentExplanation from '../components/ConsentExplanation.vue'
-import LanguageSwitcher from '../components/LanguageSwitcher.vue'
+import LanguageToggle from '../components/LanguageToggle.vue'
 import PageHeader from '../components/PageHeader.vue'
 import WithdrawalDialogs from '../components/WithdrawalDialogs.vue'
 import { useGranting } from '../consent/useGranting'
@@ -23,6 +23,13 @@ const withdrawal = useWithdrawal(() => destination.value)
 </script>
 
 <template>
+  <header data-testid="consent-header" class="border-line bg-parchment-raised flex items-center justify-between border-b px-6 py-5">
+    <div>
+      <p class="text-muted text-[11px] tracking-widest uppercase">Oenoteq</p>
+      <h1 class="font-display text-ink mt-0.5 text-base leading-none">{{ t('app.name') }}</h1>
+    </div>
+    <LanguageToggle />
+  </header>
   <section class="px-6 py-6">
     <div class="mx-auto max-w-2xl">
       <PageHeader :title="t('consent.title')" />
@@ -59,7 +66,6 @@ const withdrawal = useWithdrawal(() => destination.value)
         @retry="withdrawal.start"
       />
 
-      <div class="mt-6"><LanguageSwitcher /></div>
     </div>
   </section>
 </template>

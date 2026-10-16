@@ -4,9 +4,9 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Own header with brand + `FR | EN` toggle; no tabs, no pill
-- [ ] No global header or footer on the consent page
-- [ ] The in-page language switcher on the consent page is replaced by the header toggle
-- [ ] Tests (existing consent view seam): toggle present and switches language before a choice is made
+- [x] Own header with brand + `FR | EN` toggle; no tabs, no pill
+- [x] No global header or footer on the consent page
+- [x] The in-page language switcher on the consent page is replaced by the header toggle
+- [x] Tests (existing consent view seam): toggle present and switches language before a choice is made

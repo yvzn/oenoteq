@@ -63,6 +63,17 @@ describe('ConsentView', () => {
       expect(text).toContain(part)
   })
 
+  it('has its own minimal header: brand and language toggle, no tabs, pill or storage link', async () => {
+    const wrapper = await mountAt('/')
+    const header = wrapper.get('[data-testid="consent-header"]')
+    expect(header.find('[data-testid="language-toggle"]').exists()).toBe(true)
+    expect(wrapper.findAll('header')).toHaveLength(1)
+    expect(wrapper.find('nav').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="sync-pill"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="storage-link"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="language-switcher"]').exists()).toBe(false)
+  })
+
   it('switches language before any choice, storing nothing', async () => {
     const wrapper = await mountAt('/')
     await wrapper.get('[data-testid="language-fr"]').trigger('click')
