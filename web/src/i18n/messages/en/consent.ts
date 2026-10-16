@@ -14,7 +14,7 @@ export default {
     refuse: 'Nothing is kept on this device. You cannot use the app offline and cannot install it on your home screen; changes need a network connection to be saved.',
     signIn: 'Signing in is handled by the hosting platform and is not covered by this choice.',
     necessary: 'The only thing kept before you choose is your choice itself, which the app needs to remember it.',
-    later: 'You can change your mind at any time from the Manage page.',
+    later: 'You can change your mind at any time from the "Cookie preferences" link at the bottom of every page.',
     allow: 'Keep my cellar on this device',
     allowHint: 'Turns on offline use and home-screen install.',
     refuseAction: 'Continue without',

@@ -65,9 +65,6 @@ const isManage = computed(() => manageRouteNames.includes(route.name as string))
       {{ pill.label }}
     </RouterLink>
     <div class="col-start-3 row-start-1 flex items-center gap-4">
-      <RouterLink :to="{ name: 'storage' }" data-testid="storage-link" class="text-muted hover:text-ink text-sm">
-        {{ t('storage.link') }}
-      </RouterLink>
       <LanguageToggle />
     </div>
     <div class="col-start-1 row-start-2 mt-4">

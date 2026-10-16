@@ -67,13 +67,13 @@ describe('ConsentChangeView', () => {
     expect(wrapper.find('[data-testid="storage-grant"]').exists()).toBe(true)
   })
 
-  it('is reachable from the header, and written in French when the language is French', async () => {
+  it('is reachable from the footer, and written in French when the language is French', async () => {
     setConsent('refused')
     setTestLocale('fr')
     const wrapper = await mountStorage()
-    expect(wrapper.get('h2').text()).toBe('Stockage sur cet appareil')
+    expect(wrapper.get('h2').text()).toBe('Préférences cookies')
     expect(wrapper.get('[data-testid="storage-current"]').text()).toContain("rien n'est conservé")
-    expect(wrapper.get('[data-testid="storage-link"]').text()).toBe('Stockage')
+    expect(wrapper.get('[data-testid="cookie-preferences-link"]').text()).toBe('Préférences cookies')
   })
 
   describe('granting later', () => {

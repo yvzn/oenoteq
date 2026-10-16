@@ -2,6 +2,7 @@
 import { useRoute } from 'vue-router'
 import { useDocumentLocale } from './i18n/useDocumentLocale'
 import { useSuccessMessage } from './composables/useSuccessMessage'
+import AppFooter from './components/AppFooter.vue'
 import AppHeader from './components/AppHeader.vue'
 import LiveAnnouncer from './components/LiveAnnouncer.vue'
 import OfflineToast from './components/OfflineToast.vue'
@@ -21,6 +22,7 @@ useDocumentLocale()
     <main>
       <router-view />
     </main>
+    <AppFooter v-if="route.name !== 'consent'" />
     <div v-if="message" aria-hidden="true" class="h-20" />
   </div>
 </template>

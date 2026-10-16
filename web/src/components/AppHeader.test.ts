@@ -277,10 +277,11 @@ describe('AppHeader language toggle', () => {
 })
 
 describe('AppHeader storage link', () => {
-  it.each(['granted', 'refused'] as const)('leads to the change-of-choice screen with %s', async (choice) => {
+  it.each(['granted', 'refused'] as const)('has no Storage link with %s (the footer is the way in)', async (choice) => {
     setConsent(choice)
     const { wrapper } = await mountAt('/')
-    expect(wrapper.get('[data-testid="storage-link"]').attributes('href')).toBe('/storage')
+    expect(wrapper.find('[data-testid="storage-link"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/storage"]').exists()).toBe(false)
   })
 })
 

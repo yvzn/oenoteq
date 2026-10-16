@@ -1,7 +1,7 @@
 export default {
   storage: {
-    title: 'Stockage sur cet appareil',
-    link: 'Stockage',
+    title: 'Préférences cookies',
+    link: 'Préférences cookies',
     currentGranted: 'Choix actuel : votre cave est conservée sur cet appareil (usage hors ligne activé).',
     currentRefused: "Choix actuel : rien n'est conservé sur cet appareil (en ligne uniquement).",
     withdraw: 'Ne plus conserver ma cave sur cet appareil',

@@ -39,7 +39,6 @@ export default {
       },
     },
     mealPairings: { label: 'Accords mets-vin', description: 'Associer des vins à des plats.' },
-    storage: { label: 'Stockage sur cet appareil', description: 'Conserver votre cave sur cet appareil pour un usage hors ligne, ou arrêter.' },
     common: {
       loading: 'Chargement…',
       formLoadError: 'Impossible de charger : {error}',

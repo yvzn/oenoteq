@@ -14,7 +14,6 @@ function makeRouter(): Router {
       { path: '/appellations', name: 'appellations', component: { template: '<div />' } },
       { path: '/producers', name: 'producers', component: { template: '<div />' } },
       { path: '/meal-pairings', name: 'meal-pairings', component: { template: '<div />' } },
-      { path: '/storage', name: 'storage', component: { template: '<div />' } },
     ],
   })
 }
@@ -51,15 +50,10 @@ describe('ManageHubView', () => {
     expect(mealPairingsLink.attributes('href')).toBe('/meal-pairings')
   })
 
-  it('links to the storage choice, in French too', async () => {
+  it('has no storage entry', async () => {
     const { wrapper } = await mountAt('/manage')
-    const link = wrapper.get('[data-testid="manage-link-storage"]')
-    expect(link.text()).toContain('Storage on this device')
-    expect(link.attributes('href')).toBe('/storage')
-
-    setTestLocale('fr')
-    await nextTick()
-    expect(wrapper.get('[data-testid="manage-link-storage"]').text()).toContain('Stockage sur cet appareil')
+    expect(wrapper.find('[data-testid="manage-link-storage"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/storage"]').exists()).toBe(false)
   })
 
   it('has no language switcher', async () => {

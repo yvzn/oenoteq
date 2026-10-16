@@ -1,7 +1,7 @@
 export default {
   storage: {
-    title: 'Storage on this device',
-    link: 'Storage',
+    title: 'Cookie preferences',
+    link: 'Cookie preferences',
     currentGranted: 'Current choice: your cellar is kept on this device (offline use is on).',
     currentRefused: 'Current choice: nothing is kept on this device (online only).',
     withdraw: 'Stop keeping my cellar on this device',

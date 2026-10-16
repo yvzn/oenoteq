@@ -59,18 +59,18 @@ describe('ConsentView', () => {
 
   it('explains what is stored, why, what refusing costs, sign-in and changing later, in English', async () => {
     const text = (await mountAt('/')).text()
-    for (const part of ['copy of your cellar', 'queue of changes', 'app cache', 'Why', 'offline', 'home screen', 'hosting platform', 'Manage page'])
+    for (const part of ['copy of your cellar', 'queue of changes', 'app cache', 'Why', 'offline', 'home screen', 'hosting platform', 'Cookie preferences'])
       expect(text).toContain(part)
   })
 
-  it('has its own minimal header: brand and language toggle, no tabs, pill or storage link', async () => {
+  it('has its own minimal header: brand and language toggle, no tabs, pill or footer', async () => {
     const wrapper = await mountAt('/')
     const header = wrapper.get('[data-testid="consent-header"]')
     expect(header.find('[data-testid="language-toggle"]').exists()).toBe(true)
     expect(wrapper.findAll('header')).toHaveLength(1)
     expect(wrapper.find('nav').exists()).toBe(false)
     expect(wrapper.find('[data-testid="sync-pill"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="storage-link"]').exists()).toBe(false)
+    expect(wrapper.find('footer').exists()).toBe(false)
     expect(wrapper.find('[data-testid="language-switcher"]').exists()).toBe(false)
   })
 

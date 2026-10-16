@@ -39,7 +39,6 @@ export default {
       },
     },
     mealPairings: { label: 'Meal pairings', description: 'Pair Wines with Meals.' },
-    storage: { label: 'Storage on this device', description: 'Keep your cellar on this device for offline use, or stop.' },
     common: {
       loading: 'Loading…',
       formLoadError: "Couldn't load: {error}",

@@ -14,7 +14,7 @@ export default {
     refuse: "Rien n'est conservé sur cet appareil. Vous ne pouvez pas utiliser l'application hors ligne ni l'installer sur votre écran d'accueil ; les modifications nécessitent une connexion pour être enregistrées.",
     signIn: "La connexion est gérée par la plateforme d'hébergement et n'est pas concernée par ce choix.",
     necessary: "La seule chose conservée avant votre choix est ce choix lui-même, dont l'application a besoin pour s'en souvenir.",
-    later: 'Vous pouvez changer d\'avis à tout moment depuis la page Gérer.',
+    later: 'Vous pouvez changer d\'avis à tout moment depuis le lien « Préférences cookies » en bas de chaque page.',
     allow: 'Conserver ma cave sur cet appareil',
     allowHint: "Active l'usage hors ligne et l'installation sur l'écran d'accueil.",
     refuseAction: 'Continuer sans',
