@@ -1,6 +1,15 @@
 export default {
   sync: {
-    title: 'Sync status',
+    title: 'Changes to sync',
+    pill: {
+      failedRetry: 'Sync failed · Retry',
+      failed: 'Sync failed',
+      offline: 'Offline',
+      offlineSaved: 'Offline · {count} change saved | Offline · {count} changes saved',
+      syncing: 'Syncing…',
+      pending: '{count} change to sync | {count} changes to sync',
+      synced: 'Synced',
+    },
     retryAll: 'Retry sync',
     syncing: 'Syncing…',
     clearQueue: 'Clear queue',

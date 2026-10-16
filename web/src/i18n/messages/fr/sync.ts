@@ -1,6 +1,15 @@
 export default {
   sync: {
-    title: 'État de la synchronisation',
+    title: 'Modifications à synchroniser',
+    pill: {
+      failedRetry: 'Échec de la synchro · Réessayer',
+      failed: 'Échec de la synchro',
+      offline: 'Hors ligne',
+      offlineSaved: 'Hors ligne · {count} modification enregistrée | Hors ligne · {count} modifications enregistrées',
+      syncing: 'Synchronisation…',
+      pending: '{count} modification à synchroniser | {count} modifications à synchroniser',
+      synced: 'Synchronisé',
+    },
     retryAll: 'Relancer la synchro',
     syncing: 'Synchronisation…',
     clearQueue: "Vider la file d'attente",

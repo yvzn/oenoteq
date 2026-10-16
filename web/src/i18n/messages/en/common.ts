@@ -11,7 +11,6 @@ export default {
   nav: {
     cellar: 'Cellar',
     manage: 'Manage',
-    sync: 'Sync',
   },
   actions: {
     dismiss: 'Dismiss',

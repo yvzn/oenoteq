@@ -1,13 +1,41 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { apiClient } from '../api/client'
+import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { useSyncStatus } from '../composables/useSyncStatus'
 import { db } from '../db/localDb'
+import { syncNow } from '../sync'
 import { enqueue } from '../sync/outbox'
 import { setConsent } from '../test/consent'
 import { setTestLocale } from '../test/i18n'
 import AppHeader from './AppHeader.vue'
 
+vi.mock('../sync', async () => {
+  const actual = await vi.importActual<typeof import('../sync')>('../sync')
+  return { ...actual, pushChangesInBackground: vi.fn(), syncNow: vi.fn() }
+})
+
+vi.mock('../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
+  return { ...actual, apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }
+})
+
 const stub = { template: '<div />' }
+
+const setNavigatorOnLine = (value: boolean) =>
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value })
+
+beforeEach(() => {
+  vi.mocked(syncNow).mockReset()
+  vi.mocked(syncNow).mockResolvedValue()
+  vi.mocked(apiClient.get).mockResolvedValue({})
+})
+
+afterEach(() => {
+  setNavigatorOnLine(true)
+  useSuccessMessage().clear()
+})
 
 function makeRouter(): Router {
   return createRouter({
@@ -36,8 +64,22 @@ async function mountAt(initialPath: string) {
   router.push(initialPath)
   await router.isReady()
 
+  // Shared status state doesn't see the db reset or direct outbox writes between tests.
+  await useSyncStatus().refresh()
   const wrapper = mount(AppHeader, { global: { plugins: [router] } })
+  await flushPromises()
   return { wrapper, router }
+}
+
+const pill = (wrapper: ReturnType<typeof mount>) => wrapper.get('[data-testid="sync-pill"]')
+
+async function queueChange() {
+  await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: -1, payload: {} })
+}
+
+async function queueFailedChange() {
+  const id = await enqueue(db.outbox, { entity: 'producer', action: 'create', targetId: -1, payload: {} })
+  await db.outbox.update(id, { status: 'failed', error: 'already_exists' })
 }
 
 describe('AppHeader', () => {
@@ -58,31 +100,143 @@ describe('AppHeader', () => {
     const manageLink = wrapper.get('nav').findAll('a')[1]!
     expect(manageLink.classes()).toContain('text-bordeaux')
   })
+})
 
-  it('hides the sync-status indicator when the outbox is empty', async () => {
+describe('AppHeader sync pill', () => {
+  it('shows a quiet Synced when nothing is pending', async () => {
     const { wrapper } = await mountAt('/')
 
-    expect(wrapper.find('[data-testid="sync-status-indicator"]').exists()).toBe(false)
+    expect(pill(wrapper).text()).toBe('Synced')
+    expect(pill(wrapper).attributes('href')).toBe('/sync-status')
   })
 
-  it('shows the sync-status indicator whenever an item is pending, even offline', async () => {
-    await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: -1, payload: {} })
+  it('counts queued changes, singular and plural', async () => {
+    await queueChange()
+    expect(pill((await mountAt('/')).wrapper).text()).toBe('1 change to sync')
 
-    const { wrapper } = await mountAt('/')
-    await flushPromises()
-
-    const indicator = wrapper.get('[data-testid="sync-status-indicator"]')
-    expect(indicator.attributes('href')).toBe('/sync-status')
+    await queueChange()
+    expect(pill((await mountAt('/')).wrapper).text()).toBe('2 changes to sync')
   })
 
-  it('shows the sync-status indicator for a failed item too', async () => {
-    const id = await enqueue(db.outbox, { entity: 'producer', action: 'create', targetId: -1, payload: {} })
-    await db.outbox.update(id, { status: 'failed', error: 'already_exists' })
+  it('says Offline with the saved count while offline', async () => {
+    setNavigatorOnLine(false)
+    await queueChange()
+    await queueChange()
 
     const { wrapper } = await mountAt('/')
+
+    expect(pill(wrapper).text()).toBe('Offline · 2 changes saved')
+  })
+
+  it('says just Offline when offline with nothing saved', async () => {
+    setNavigatorOnLine(false)
+
+    const { wrapper } = await mountAt('/')
+
+    expect(pill(wrapper).text()).toBe('Offline')
+  })
+
+  it('says Syncing… while a sync runs', async () => {
+    await queueChange()
+    let release!: () => void
+    vi.mocked(syncNow).mockReturnValue(new Promise<void>((resolve) => (release = resolve)))
+    const { wrapper } = await mountAt('/')
+
+    await pill(wrapper).trigger('click')
+    await flushPromises()
+    expect(pill(wrapper).text()).toBe('Syncing…')
+
+    release()
+    await flushPromises()
+  })
+
+  it('offers Retry for a failed change while online', async () => {
+    await queueFailedChange()
+
+    const { wrapper } = await mountAt('/')
+
+    expect(pill(wrapper).text()).toBe('Sync failed · Retry')
+  })
+
+  it('drops Retry for a failed change while offline', async () => {
+    setNavigatorOnLine(false)
+    await queueFailedChange()
+
+    const { wrapper } = await mountAt('/')
+
+    expect(pill(wrapper).text()).toBe('Sync failed')
+  })
+
+  it('shows failed over offline over pending', async () => {
+    setNavigatorOnLine(false)
+    await queueChange()
+    await queueFailedChange()
+    expect(pill((await mountAt('/')).wrapper).text()).toBe('Sync failed')
+
+    await db.outbox.clear()
+    await queueChange()
+    expect(pill((await mountAt('/')).wrapper).text()).toBe('Offline · 1 change saved')
+  })
+
+  it('opens the page and starts one sync from "N changes to sync", even when clicked twice', async () => {
+    await queueChange()
+    let release!: () => void
+    vi.mocked(syncNow).mockReturnValue(new Promise<void>((resolve) => (release = resolve)))
+    const { wrapper, router } = await mountAt('/')
+
+    await pill(wrapper).trigger('click')
+    await pill(wrapper).trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="sync-status-indicator"]').exists()).toBe(true)
+    expect(router.currentRoute.value.name).toBe('sync-status')
+    expect(syncNow).toHaveBeenCalledTimes(1)
+
+    release()
+    await flushPromises()
+  })
+
+  it('opens the page and retries from "Sync failed · Retry"', async () => {
+    await queueFailedChange()
+    const { wrapper, router } = await mountAt('/')
+
+    await pill(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('sync-status')
+    expect(syncNow).toHaveBeenCalledTimes(1)
+  })
+
+  it('only opens the page when failed while offline', async () => {
+    setNavigatorOnLine(false)
+    await queueFailedChange()
+    const { wrapper, router } = await mountAt('/')
+
+    await pill(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('sync-status')
+    expect(syncNow).not.toHaveBeenCalled()
+  })
+
+  it('only opens the page when synced', async () => {
+    const { wrapper, router } = await mountAt('/')
+
+    await pill(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('sync-status')
+    expect(syncNow).not.toHaveBeenCalled()
+  })
+
+  it('never raises a toast when sync fails', async () => {
+    await queueChange()
+    vi.mocked(syncNow).mockRejectedValue(new Error('boom'))
+    const { wrapper } = await mountAt('/')
+
+    await pill(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(useSuccessMessage().message.value).toBeNull()
   })
 })
 
@@ -95,27 +249,25 @@ describe('AppHeader storage link', () => {
 })
 
 describe('AppHeader without Offline Mode', () => {
-  it('never shows the sync-status indicator', async () => {
-    await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: -1, payload: {} })
+  it('never shows the sync pill', async () => {
+    await queueChange()
     setConsent('refused')
 
     const { wrapper } = await mountAt('/')
-    await flushPromises()
 
-    expect(wrapper.find('[data-testid="sync-status-indicator"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="sync-pill"]').exists()).toBe(false)
   })
 })
 
 describe('AppHeader in French', () => {
-  it('shows the nav, tagline and sync indicator in French', async () => {
+  it('shows the nav, tagline and sync pill in French', async () => {
     setTestLocale('fr')
-    await enqueue(db.outbox, { entity: 'wine', action: 'create', targetId: -1, payload: {} })
+    await queueChange()
 
     const { wrapper } = await mountAt('/')
-    await flushPromises()
 
     expect(wrapper.get('nav').findAll('a').map((link) => link.text())).toEqual(['Cave', 'Gérer'])
     expect(wrapper.get('h1').text()).toBe('Suivi de cave à vin')
-    expect(wrapper.get('[data-testid="sync-status-indicator"]').text()).toContain('Synchro')
+    expect(pill(wrapper).text()).toBe('1 modification à synchroniser')
   })
 })

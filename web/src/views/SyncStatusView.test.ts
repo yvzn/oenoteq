@@ -358,13 +358,21 @@ describe('SyncStatusView', () => {
   })
 })
 
+describe('SyncStatusView title', () => {
+  it('is "Changes to sync"', async () => {
+    const wrapper = await mountView()
+
+    expect(wrapper.get('h2').text()).toBe('Changes to sync')
+  })
+})
+
 describe('SyncStatusView in French', () => {
   it('translates the page, the entity names and the actions', async () => {
     setTestLocale('fr')
 
     const wrapper = await mountView()
 
-    expect(wrapper.get('h2').text()).toBe('État de la synchronisation')
+    expect(wrapper.get('h2').text()).toBe('Modifications à synchroniser')
     expect(wrapper.findAll('[data-testid="sync-status-count"]').map((row) => row.text())).toEqual([
       'Vin0',
       'Consommation0',

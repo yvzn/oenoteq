@@ -11,7 +11,6 @@ export default {
   nav: {
     cellar: 'Cave',
     manage: 'Gérer',
-    sync: 'Synchro',
   },
   actions: {
     dismiss: 'Fermer',
