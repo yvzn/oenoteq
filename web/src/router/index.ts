@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
 import { isOfflineMode } from '../consent/storageConsent'
 import { consentGuard } from './consentGuard'
 import { scrollBehavior } from './listScroll'
+import { useHighlight } from '../composables/useHighlight'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import AppellationFormView from '../views/AppellationFormView.vue'
 import AppellationListView from '../views/AppellationListView.vue'
@@ -52,6 +53,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
 
   router.beforeEach(consentGuard)
   useSuccessMessage().attachAutoClear(router)
+  useHighlight().attachAutoClear(router)
   return router
 }
 

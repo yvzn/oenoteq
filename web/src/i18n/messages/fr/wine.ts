@@ -28,7 +28,7 @@ export default {
       loadError: 'Impossible de charger ce vin : {error}',
       gardeWindow: '{label} {start}–{end}',
       suggestedMeals: 'Plats suggérés',
-      managePairings: 'Gérer',
+      managePairings: 'Modifier les accords',
       noSuggestions: 'Aucune suggestion pour le moment.',
       history: 'Historique des consommations',
       noHistory: 'Aucune consommation enregistrée.',

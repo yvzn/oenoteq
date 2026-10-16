@@ -28,7 +28,7 @@ export default {
       loadError: "Couldn't load this wine: {error}",
       gardeWindow: '{label} {start}–{end}',
       suggestedMeals: 'Suggested meals',
-      managePairings: 'Manage',
+      managePairings: 'Edit pairings',
       noSuggestions: 'No suggestions yet.',
       history: 'Consumption history',
       noHistory: 'No consumptions recorded yet.',

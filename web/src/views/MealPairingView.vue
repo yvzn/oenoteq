@@ -13,6 +13,7 @@ import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useMealPairings } from '../composables/useMealPairings'
 import { useMeals } from '../composables/useMeals'
+import { useHighlight } from '../composables/useHighlight'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { parseColor, parseId } from '../domain/searchFilters'
 
@@ -54,6 +55,7 @@ const selectedMealId = ref<number | null>(null)
 const addMealAutocomplete = ref<InstanceType<typeof AutocompleteField> | null>(null)
 
 const pairingSuccess = useSuccessMessage()
+const { highlight, isHighlighted, clear: clearHighlights } = useHighlight()
 const createdMeal = ref<{ id: number; name: string } | null>(null)
 
 const selectionReady = computed(() => appellationId.value !== null && color.value !== '')
@@ -66,6 +68,7 @@ const hasLoadError = computed(() => loadError.value !== '')
 
 watch([appellationId, color], ([nextAppellationId, nextColor]) => {
   pairingSuccess.clear()
+  clearHighlights()
   createdMeal.value = null
   if (nextAppellationId !== null && nextColor !== '') {
     loadPairings(nextAppellationId, nextColor as Color)
@@ -84,10 +87,11 @@ onMounted(() => {
 
 async function addMeal() {
   if (!selectionReady.value || selectedMealId.value === null) return
-  await addPairing(appellationId.value as number, color.value as Color, selectedMealId.value)
+  const mealId = selectedMealId.value
+  await addPairing(appellationId.value as number, color.value as Color, mealId)
   if (!mutateError.value) {
+    highlight(`pairing-${mealId}`, t('pairing.added'))
     selectedMealId.value = null
-    pairingSuccess.show(t('pairing.added'))
   }
 }
 
@@ -114,7 +118,7 @@ async function submitNewMeal(name: string) {
     selectedMealId.value = created.id
   } else {
     addMealAutocomplete.value?.clear()
-    pairingSuccess.show(t('pairing.added'))
+    highlight(`pairing-${created.id}`, t('pairing.added'))
   }
 }
 </script>
@@ -175,7 +179,9 @@ async function submitNewMeal(name: string) {
               v-for="meal in pairedMeals"
               :key="meal.id"
               data-testid="paired-meal"
+              :data-highlighted="isHighlighted(`pairing-${meal.id}`) || undefined"
               class="flex items-center gap-3 text-sm"
+              :class="isHighlighted(`pairing-${meal.id}`) ? 'bg-gold-soft rounded px-2 py-1' : ''"
             >
               <span class="text-ink">{{ meal.name }}</span>
               <AppButton

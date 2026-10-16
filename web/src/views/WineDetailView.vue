@@ -13,7 +13,7 @@ import NumberStepper from '../components/NumberStepper.vue'
 import StatusLine from '../components/StatusLine.vue'
 import SyncPendingBadge from '../components/SyncPendingBadge.vue'
 import { useAppellations } from '../composables/useAppellations'
-import { useSuccessMessage } from '../composables/useSuccessMessage'
+import { useHighlight } from '../composables/useHighlight'
 import { useWines } from '../composables/useWines'
 import { computeGardeStatus } from '../domain/gardeStatus'
 import { formatDate, formatYear } from '../i18n/formatters'
@@ -54,9 +54,12 @@ const consumptionDate = ref('')
 const consumptionRating = ref('')
 const consumptionNotes = ref('')
 
-const consumptionSuccess = useSuccessMessage()
+const { highlight, isHighlighted } = useHighlight()
+
+const highlightClass = 'bg-gold-soft text-ink rounded px-1'
 
 async function submitConsumption() {
+  const knownIds = new Set(wine.value?.consumption_history.map((c) => c.id))
   await recordConsumption(id.value, {
     date: consumptionDate.value,
     rating: consumptionRating.value === '' ? null : Number(consumptionRating.value),
@@ -66,7 +69,8 @@ async function submitConsumption() {
     consumptionDate.value = ''
     consumptionRating.value = ''
     consumptionNotes.value = ''
-    consumptionSuccess.show(t('wine.detail.recorded'))
+    const added = wine.value?.consumption_history.filter((c) => !knownIds.has(c.id)) ?? []
+    highlight(['quantity', ...added.map((c) => `consumption-${c.id}`)], t('wine.detail.recorded'))
   }
 }
 
@@ -95,7 +99,7 @@ async function submitEdit(consumptionId: number) {
   })
   if (ok) {
     editingConsumptionId.value = null
-    consumptionSuccess.show(t('wine.detail.updated'))
+    highlight(`consumption-${consumptionId}`, t('wine.detail.updated'))
   }
 }
 
@@ -115,7 +119,7 @@ async function submitQuantityAdjustment() {
   if (ok) {
     quantityDelta.value = ''
     quantityDialogOpen.value = false
-    consumptionSuccess.show(t('wine.detail.quantityAdjusted'))
+    highlight('quantity', t('wine.detail.quantityAdjusted'))
   }
 }
 
@@ -149,7 +153,7 @@ async function confirmDeleteConsumption() {
   const consumptionId = pendingDeleteConsumption.value.id
   pendingDeleteConsumption.value = null
   const ok = await deleteConsumption(id.value, consumptionId)
-  if (ok) consumptionSuccess.show(t('wine.detail.deleted'))
+  if (ok) highlight('quantity', t('wine.detail.deleted'))
 }
 
 const loading = computed(() => wineLoading.value || appellationsLoading.value)
@@ -257,6 +261,8 @@ function retry() {
           type="button"
           data-testid="quantity-adjustment-trigger"
           class="text-ink-soft -m-1 cursor-pointer p-1 tabular-nums"
+          :class="isHighlighted('quantity') ? highlightClass : ''"
+          :data-highlighted="isHighlighted('quantity') || undefined"
           @click="quantityDialogOpen = true"
         >
           ×{{ wine.quantity }}
@@ -300,8 +306,12 @@ function retry() {
               v-for="(consumption, index) in wine.consumption_history"
               :key="consumption.id"
               data-testid="consumption-entry"
+              :data-highlighted="isHighlighted(`consumption-${consumption.id}`) || undefined"
               class="flex flex-col gap-2 py-[11px]"
-              :class="index < wine.consumption_history.length - 1 ? 'border-line border-b' : ''"
+              :class="[
+                index < wine.consumption_history.length - 1 ? 'border-line border-b' : '',
+                isHighlighted(`consumption-${consumption.id}`) ? 'bg-gold-soft' : '',
+              ]"
             >
               <form
                 v-if="editingConsumptionId === consumption.id"

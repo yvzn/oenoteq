@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
+import { useHighlight } from '../composables/useHighlight'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
 import { setTestLocale } from '../test/i18n'
@@ -138,7 +139,9 @@ describe('MealPairingView', () => {
       color: 'rouge',
       meal_id: 2,
     })
-    expect(useSuccessMessage().message.value).toMatch(/added/i)
+    expect(useHighlight().isHighlighted('pairing-2')).toBe(true)
+    expect(useSuccessMessage().message.value).toBeNull()
+    expect(useHighlight().announcement.value).toMatch(/added/i)
   })
 
   it('removes a meal from the pairing', async () => {
@@ -288,7 +291,9 @@ describe('MealPairingView', () => {
     const items = wrapper.findAll('[data-testid="paired-meal"]')
     expect(items.some((i) => i.text().includes('Tartiflette'))).toBe(true)
     expect(wrapper.find('[data-testid="add-meal-autocomplete-create-option"]').exists()).toBe(false)
-    expect(useSuccessMessage().message.value).toMatch(/added/i)
+    expect(wrapper.findAll('[data-testid="paired-meal"][data-highlighted]').some((i) => i.text().includes('Tartiflette'))).toBe(true)
+    expect(useSuccessMessage().message.value).toBeNull()
+    expect(useHighlight().announcement.value).toMatch(/added/i)
   })
 
   it('clears the add-meal input after a successful "+create" and automatic pairing', async () => {
@@ -355,7 +360,9 @@ describe('MealPairingView', () => {
     await createNewMeal(wrapper, 'Tartiflette')
     await flushPromises()
 
-    expect(useSuccessMessage().message.value).toMatch(/added/i)
+    expect(wrapper.findAll('[data-testid="paired-meal"][data-highlighted]').some((i) => i.text().includes('Tartiflette'))).toBe(true)
+    expect(useSuccessMessage().message.value).toBeNull()
+    expect(useHighlight().announcement.value).toMatch(/added/i)
     expect(wrapper.find('[data-testid="add-meal-autocomplete-create-option"]').exists()).toBe(false)
     const items = wrapper.findAll('[data-testid="paired-meal"]')
     expect(items.some((i) => i.text().includes('Tartiflette'))).toBe(true)
@@ -379,7 +386,7 @@ describe('MealPairingView', () => {
     await createNewMeal(wrapper, 'Tartiflette')
     await flushPromises()
 
-    expect(useSuccessMessage().message.value).toMatch(/added/i)
+    expect(useHighlight().announcement.value).toMatch(/added/i)
     const outboxItems = await db.outbox.toArray()
     expect(outboxItems).toMatchObject([
       { entity: 'meal', action: 'create', status: 'failed' },

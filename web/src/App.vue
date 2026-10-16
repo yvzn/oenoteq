@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import { useDocumentLocale } from './i18n/useDocumentLocale'
 import { useSuccessMessage } from './composables/useSuccessMessage'
 import AppHeader from './components/AppHeader.vue'
+import LiveAnnouncer from './components/LiveAnnouncer.vue'
 import OfflineBanner from './components/OfflineBanner.vue'
 import SuccessToast from './components/SuccessToast.vue'
 
@@ -16,6 +17,7 @@ useDocumentLocale()
     <AppHeader v-if="route.name !== 'consent'" />
     <SuccessToast />
     <OfflineBanner />
+    <LiveAnnouncer />
     <main>
       <router-view />
     </main>

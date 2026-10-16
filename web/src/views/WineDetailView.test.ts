@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { apiClient } from '../api/client'
 import type { WineDetail } from '../api/types'
+import { useHighlight } from '../composables/useHighlight'
 import { useSuccessMessage } from '../composables/useSuccessMessage'
 import { db } from '../db/localDb'
 import { enqueue } from '../sync/outbox'
@@ -99,6 +100,13 @@ afterEach(() => {
 })
 
 resetSuccessMessageAfterEach()
+
+function expectHighlighted(wrapper: ReturnType<typeof mount>, testid: string, indexes?: number[]) {
+  const els = wrapper.findAll(`[data-testid="${testid}"]`)
+  const marked = els.map((e, i) => (e.attributes('data-highlighted') !== undefined ? i : -1)).filter((i) => i >= 0)
+  if (indexes) expect(marked).toEqual(indexes)
+  else expect(marked.length).toBeGreaterThan(0)
+}
 
 describe('WineDetailView', () => {
   itOfflineOnly('renders a previously-cached wine from the local store when the network is fully disabled', async () => {
@@ -212,6 +220,14 @@ describe('WineDetailView', () => {
     expect(wrapper.get('[data-testid="edit-wine-link"]').attributes('href')).toBe('/wines/1/edit')
   })
 
+  it('labels the pairing button "Edit pairings"', async () => {
+    mockApi()
+
+    const { wrapper } = await mountAt('/wines/1')
+
+    expect(wrapper.get('[data-testid="manage-pairings-link"]').text()).toBe('Edit pairings')
+  })
+
   it('links to meal pairing admin pre-filled with this wine\'s appellation and color', async () => {
     mockApi()
 
@@ -276,7 +292,10 @@ describe('WineDetailView', () => {
     const detail = wrapper.get('[data-testid="wine-detail"]')
     expect(detail.text()).toContain('×2')
     expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(3)
-    expect(useSuccessMessage().message.value).toMatch(/recorded/i)
+    expectHighlighted(wrapper, 'quantity-adjustment-trigger')
+    expectHighlighted(wrapper, 'consumption-entry', [2])
+    expect(useSuccessMessage().message.value).toBeNull()
+    expect(useHighlight().announcement.value).toMatch(/recorded/i)
   })
 
   it('queues the consumption create and syncs it to the backend with a client_id once online', async () => {
@@ -313,12 +332,14 @@ describe('WineDetailView', () => {
     fillConsumptionForm(wrapper, { date: '2026-03-01' })
     await wrapper.get('[data-testid="consumption-form"]').trigger('submit.prevent')
     await flushPromises()
-    expect(useSuccessMessage().message.value).not.toBeNull()
+    expect(useHighlight().isHighlighted('quantity')).toBe(true)
 
     await router.push('/wines/2')
     await flushPromises()
 
-    expect(useSuccessMessage().message.value).toBeNull()
+    expect(useHighlight().isHighlighted('quantity')).toBe(false)
+    expect(useHighlight().announcement.value).toBeNull()
+    expect(wrapper.find('[data-highlighted]').exists()).toBe(false)
   })
 
   it('edits a consumption entry inline and refreshes the history on success', async () => {
@@ -373,7 +394,9 @@ describe('WineDetailView', () => {
     expect(wrapper.find('[data-testid="consumption-edit-form"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('5 January 2026')
     expect(wrapper.text()).toContain('Even better than remembered')
-    expect(useSuccessMessage().message.value).toMatch(/updated/i)
+    expectHighlighted(wrapper, 'consumption-entry', [0])
+    expect(useSuccessMessage().message.value).toBeNull()
+    expect(useHighlight().announcement.value).toMatch(/updated/i)
   })
 
   it('cancels an inline edit without calling the API', async () => {
@@ -440,7 +463,9 @@ describe('WineDetailView', () => {
     expect(wrapper.findAll('[data-testid="consumption-entry"]')).toHaveLength(1)
     const detail = wrapper.get('[data-testid="wine-detail"]')
     expect(detail.text()).toContain('×4')
-    expect(useSuccessMessage().message.value).toMatch(/deleted/i)
+    expectHighlighted(wrapper, 'quantity-adjustment-trigger')
+    expect(useSuccessMessage().message.value).toBeNull()
+    expect(useHighlight().announcement.value).toMatch(/deleted/i)
   })
 
   itOfflineOnly('cancels a not-yet-synced consumption before it syncs, without calling the API', async () => {
@@ -489,7 +514,9 @@ describe('WineDetailView', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="wine-detail"]').text()).toContain('×6')
-    expect(useSuccessMessage().message.value).toMatch(/adjusted/i)
+    expectHighlighted(wrapper, 'quantity-adjustment-trigger')
+    expect(useSuccessMessage().message.value).toBeNull()
+    expect(useHighlight().announcement.value).toMatch(/adjusted/i)
   })
 
   it('queues the manual quantity adjustment and syncs it with a client_id once online', async () => {
