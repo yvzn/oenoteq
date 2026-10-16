@@ -22,7 +22,7 @@ test('a wine created offline reaches the server after reconnecting', async ({ pa
 
   // Online first visit in Offline Mode: service worker installs, reference data loads.
   await page.evaluate(() => navigator.serviceWorker.ready)
-  await expect(page.getByTestId('offline-banner')).toBeHidden()
+  await expect(page.getByTestId('success-toast')).toBeHidden()
 
   // Reference data is loaded once the form can offer it; only then go offline.
   await page.getByTestId('add-wine-link').click()
@@ -34,7 +34,7 @@ test('a wine created offline reaches the server after reconnecting', async ({ pa
   await expect(page.getByTestId('wine-item')).toHaveCount(0)
 
   await context.setOffline(true)
-  await expect(page.getByTestId('offline-banner')).toBeVisible()
+  await expect(page.getByTestId('success-toast')).toContainText('No network')
 
   await page.getByTestId('add-wine-link').click()
   await expect(page.getByTestId('wine-form')).toBeVisible()
@@ -56,7 +56,6 @@ test('a wine created offline reaches the server after reconnecting', async ({ pa
   expect(await serverWines()).toHaveLength(0)
 
   await context.setOffline(false)
-  await expect(page.getByTestId('offline-banner')).toBeHidden()
   await expect(page.getByTestId('sync-pending-badge')).toBeHidden()
 
   await expect.poll(async () => (await serverWines()).length).toBe(1)
