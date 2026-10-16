@@ -51,7 +51,6 @@ Only if running agents in parallel: #3 with #4, #7 with #8, #20 with #21. Everyt
 ## TODO next
 
 - consumption list
-- utilities UX
 - sync status page UX
 - consent /storage page copy and UX
 - typecheck setImmediate
