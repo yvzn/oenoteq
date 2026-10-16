@@ -1,5 +1,4 @@
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 import { setTestLocale } from '../test/i18n'

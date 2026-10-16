@@ -68,6 +68,9 @@ export default defineConfig({
     globals: false,
     setupFiles: ['./src/test/dialogPolyfill.ts', './src/test/autoUnmount.ts', './src/test/i18n.ts', './src/test/consent.ts', './src/test/fakeIndexedDb.ts', './src/test/resetLocalDb.ts'],
     pool: 'vmThreads',
+    // One worker per core starves the machine (memory pressure), stalling single IndexedDB
+    // round trips for seconds and timing out liveQuery tests; half the cores is no slower.
+    maxWorkers: '50%',
     // The first test of a view suite pays the cold import of the component graph; with every
     // worker busy that can pass the 5s default.
     testTimeout: 15000,
