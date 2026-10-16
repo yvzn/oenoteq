@@ -59,11 +59,15 @@ export async function pushMeals(): Promise<void> {
 // Full replication of the current server Meal state. Dataset is
 // personal-cellar scale, so a full replace each pull stays simple.
 export async function pullMeals(): Promise<void> {
+  // Only ids already local when the GET was issued can be judged against its
+  // snapshot: a push that lands mid-flight swaps a local id for a server id
+  // the snapshot predates, and must not be mistaken for a server-side delete.
+  const knownBefore = new Set((await db.meals.toArray()).map((m) => m.id))
   const meals = await apiClient.get<Meal[]>('/meals')
   await db.meals.bulkPut(meals)
   const serverIds = new Set(meals.map((m) => m.id))
   const local = await db.meals.toArray()
   for (const m of local) {
-    if (m.id > 0 && !serverIds.has(m.id)) await db.meals.delete(m.id)
+    if (m.id > 0 && knownBefore.has(m.id) && !serverIds.has(m.id)) await db.meals.delete(m.id)
   }
 }

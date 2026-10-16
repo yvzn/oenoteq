@@ -48,6 +48,23 @@ describe('pullAppellations', () => {
   })
 })
 
+describe('pullAppellations racing a push', () => {
+  it('keeps an appellation whose create synced while the GET was in flight', async () => {
+    await db.appellations.put({ id: -1, name: 'Bordeaux' })
+    await enqueueAppellationCreate(-1, { name: 'Bordeaux', client_id: 'abc' })
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 42, name: 'Bordeaux' })
+    let resolveGet!: (v: unknown) => void
+    vi.mocked(apiClient.get).mockReturnValue(new Promise((r) => (resolveGet = r)))
+
+    const pulling = pullAppellations()
+    await pushAppellations()
+    resolveGet([]) // snapshot taken before the create reached the server
+    await pulling
+
+    expect((await db.appellations.toArray()).map((a) => a.name)).toEqual(['Bordeaux'])
+  })
+})
+
 describe('pushAppellations', () => {
   it('replaces the local temp record with the server one on a successful create', async () => {
     await db.appellations.put({ id: -1, name: 'Pending Appellation' })

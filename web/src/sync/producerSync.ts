@@ -64,11 +64,15 @@ export async function pushProducers(): Promise<void> {
 // Full replication of the current server Producer state. Dataset is
 // personal-cellar scale, so a full replace each pull stays simple.
 export async function pullProducers(): Promise<void> {
+  // Only ids already local when the GET was issued can be judged against its
+  // snapshot: a push that lands mid-flight swaps a local id for a server id
+  // the snapshot predates, and must not be mistaken for a server-side delete.
+  const knownBefore = new Set((await db.producers.toArray()).map((p) => p.id))
   const producers = await apiClient.get<Producer[]>('/producers')
   await db.producers.bulkPut(producers)
   const serverIds = new Set(producers.map((p) => p.id))
   const local = await db.producers.toArray()
   for (const p of local) {
-    if (p.id > 0 && !serverIds.has(p.id)) await db.producers.delete(p.id)
+    if (p.id > 0 && knownBefore.has(p.id) && !serverIds.has(p.id)) await db.producers.delete(p.id)
   }
 }

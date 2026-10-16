@@ -42,6 +42,23 @@ describe('pullMeals', () => {
   })
 })
 
+describe('pullMeals racing a push', () => {
+  it('keeps a meal whose create synced while the GET was in flight', async () => {
+    await db.meals.put({ id: -1, name: 'Cheese' })
+    await enqueueMealCreate(-1, { name: 'Cheese', client_id: 'abc' })
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 42, name: 'Cheese' })
+    let resolveGet!: (v: unknown) => void
+    vi.mocked(apiClient.get).mockReturnValue(new Promise((r) => (resolveGet = r)))
+
+    const pulling = pullMeals()
+    await pushMeals()
+    resolveGet([]) // snapshot taken before the create reached the server
+    await pulling
+
+    expect((await db.meals.toArray()).map((x) => x.name)).toEqual(['Cheese'])
+  })
+})
+
 describe('pushMeals', () => {
   it('replaces the local temp record with the server one on a successful create', async () => {
     await db.meals.put({ id: -1, name: 'Pending Meal' })

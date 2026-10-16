@@ -68,11 +68,15 @@ export async function pushAppellations(): Promise<void> {
 // Full replication of the current server Appellation state. Dataset is
 // personal-cellar scale, so a full replace each pull stays simple.
 export async function pullAppellations(): Promise<void> {
+  // Only ids already local when the GET was issued can be judged against its
+  // snapshot: a push that lands mid-flight swaps a local id for a server id
+  // the snapshot predates, and must not be mistaken for a server-side delete.
+  const knownBefore = new Set((await db.appellations.toArray()).map((a) => a.id))
   const appellations = await apiClient.get<Appellation[]>('/appellations')
   await db.appellations.bulkPut(appellations)
   const serverIds = new Set(appellations.map((a) => a.id))
   const local = await db.appellations.toArray()
   for (const a of local) {
-    if (a.id > 0 && !serverIds.has(a.id)) await db.appellations.delete(a.id)
+    if (a.id > 0 && knownBefore.has(a.id) && !serverIds.has(a.id)) await db.appellations.delete(a.id)
   }
 }

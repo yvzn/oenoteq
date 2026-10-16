@@ -75,6 +75,23 @@ describe('pullProducers', () => {
   })
 })
 
+describe('pullProducers racing a push', () => {
+  it('keeps a producer whose create synced while the GET was in flight', async () => {
+    await db.producers.put({ id: -1, name: 'Domaine X' })
+    await enqueueProducerCreate(-1, { name: 'Domaine X', client_id: 'abc' })
+    vi.mocked(apiClient.post).mockResolvedValue({ id: 42, name: 'Domaine X' })
+    let resolveGet!: (v: unknown) => void
+    vi.mocked(apiClient.get).mockReturnValue(new Promise((r) => (resolveGet = r)))
+
+    const pulling = pullProducers()
+    await pushProducers()
+    resolveGet([]) // snapshot taken before the create reached the server
+    await pulling
+
+    expect((await db.producers.toArray()).map((x) => x.name)).toEqual(['Domaine X'])
+  })
+})
+
 describe('pushProducers', () => {
   it('replaces the local temp record with the server one on a successful create', async () => {
     await db.producers.put({ id: -1, name: 'Pending Domaine' })
