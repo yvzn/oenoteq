@@ -37,13 +37,28 @@ describe('useSuccessMessage', () => {
     expect(message.value).toBeNull()
   })
 
-  it('replaces the message when shown again', () => {
-    const { message, show } = useSuccessMessage()
+  it('queues messages first-in first-out instead of replacing', () => {
+    const { message, show, dismiss } = useSuccessMessage()
 
     show('First.')
     show('Second.')
+    expect(message.value).toBe('First.')
 
+    dismiss()
     expect(message.value).toBe('Second.')
+
+    dismiss()
+    expect(message.value).toBeNull()
+  })
+
+  it('clears every queued message when clear is called', () => {
+    const { message, show, clear } = useSuccessMessage()
+
+    show('First.')
+    show('Second.')
+    clear()
+
+    expect(message.value).toBeNull()
   })
 
   it('survives the navigation triggered by showAndNavigate', async () => {
@@ -82,6 +97,48 @@ describe('useSuccessMessage', () => {
     expect(message.value).toBe('Consumption recorded.')
 
     await router.push({ name: 'b', params: { id: '1' } })
+
+    expect(message.value).toBeNull()
+  })
+
+  it('drops queued messages but keeps the carried one on navigation', async () => {
+    const router = makeRouter()
+    router.push('/a')
+    await router.isReady()
+
+    const { message, show, showAndNavigate, dismiss } = useSuccessMessage()
+    show('Stale.')
+    await showAndNavigate('Wine added.', { name: 'b', params: { id: '1' } }, router)
+
+    expect(message.value).toBe('Wine added.')
+    dismiss()
+    expect(message.value).toBeNull()
+  })
+
+  it('clears every queued message on navigation', async () => {
+    const router = makeRouter()
+    router.push('/a')
+    await router.isReady()
+
+    const { message, show } = useSuccessMessage()
+    show('First.')
+    show('Second.')
+
+    await router.push({ name: 'b', params: { id: '1' } })
+
+    expect(message.value).toBeNull()
+  })
+
+  it('does not bring back a carried message that was dismissed before navigation', async () => {
+    const router = makeRouter()
+    router.push('/a')
+    await router.isReady()
+
+    const { message, showAndNavigate, dismiss } = useSuccessMessage()
+    const pending = showAndNavigate('Wine added.', { name: 'b', params: { id: '1' } }, router)
+    dismiss()
+    await pending
+    await router.push({ name: 'b', params: { id: '2' } })
 
     expect(message.value).toBeNull()
   })

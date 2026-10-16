@@ -11,3 +11,5 @@ Saving a wine redirects to its detail page; the success confirmation needs to su
 - **In-memory singleton (chosen)**: simplest, correct for SPA-only navigation, gone on hard refresh (never needed to survive one).
 - **sessionStorage**: same behavior plus survives hard refresh/back-forward restore — persistence beyond what any current flow requires.
 - **Query param (`?flash=...`)**: visible in the URL and browser history, needs explicit strip-after-read to avoid re-showing on refresh/back.
+
+_Amended (2026-10-16): the singleton is now a FIFO queue of messages, shown one at a time at the bottom center and kept until dismissed. Navigation clears the queue except the message carried by `showAndNavigate`, which survives exactly one navigation. The in-memory, no-persistence choice is unchanged._

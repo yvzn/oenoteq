@@ -36,6 +36,26 @@ describe('SuccessToast', () => {
   })
 })
 
+describe('SuccessToast queue', () => {
+  it('shows one message at a time and advances on dismiss', async () => {
+    const wrapper = mount(SuccessToast)
+    useSuccessMessage().show('First.')
+    useSuccessMessage().show('Second.')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('[data-testid="success-toast"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="success-toast"]').text()).toContain('First.')
+
+    await wrapper.get('[data-testid="success-toast-dismiss"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="success-toast"]').text()).toContain('Second.')
+
+    await wrapper.get('[data-testid="success-toast-dismiss"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="success-toast"]').exists()).toBe(false)
+  })
+})
+
 describe('SuccessToast in French', () => {
   it('shows the dismiss control in French', async () => {
     setTestLocale('fr')
