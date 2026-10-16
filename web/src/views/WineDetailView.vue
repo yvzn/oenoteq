@@ -220,7 +220,7 @@ function retry() {
 </script>
 
 <template>
-  <section class="px-6 py-6">
+  <section class="px-6 py-6 sm:px-8 sm:py-10">
     <StatusLine v-if="loading">{{ t('wine.detail.loading') }}</StatusLine>
     <StatusLine v-else-if="hasError" tone="error">
       {{ t('wine.detail.loadError', { error }) }}

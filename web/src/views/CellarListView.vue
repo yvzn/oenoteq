@@ -131,7 +131,7 @@ onMounted(loadFilterOptions)
       @update:sort="updateSort"
     />
 
-    <div class="mx-auto max-w-2xl px-6 py-6">
+    <div class="mx-auto max-w-2xl px-6 py-6 sm:px-8 sm:py-10">
       <PageHeader :title="listTitle">
         <template #actions>
           <AppButton :to="{ name: 'wine-new' }" data-testid="add-wine-link">{{ t('cellar.list.add') }}</AppButton>

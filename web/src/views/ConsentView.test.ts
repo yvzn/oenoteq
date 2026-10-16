@@ -47,20 +47,37 @@ async function mountAt(path: string) {
 }
 
 describe('ConsentView', () => {
-  it('is a full page with two equal, unselected choices, any route landing on it', async () => {
+  it('is a full page with two unselected one-tap choices, refusing outlined at the same size, any route landing on it', async () => {
     const wrapper = await mountAt('/wines/7')
     const allow = wrapper.get('[data-testid="consent-allow"]')
     const refuse = wrapper.get('[data-testid="consent-refuse"]')
-    expect(allow.classes()).toEqual(refuse.classes())
+    for (const choice of [allow, refuse]) {
+      expect(choice.element.tagName).toBe('BUTTON')
+      expect(choice.attributes('disabled')).toBeUndefined()
+    }
+    expect(allow.classes()).toEqual(expect.arrayContaining(['bg-bordeaux', 'px-5', 'py-3']))
+    // Outlined, with primary's footprint: padding 1px short to fit the border.
+    expect(refuse.classes()).toEqual(expect.arrayContaining(['border', 'px-[19px]', 'py-[11px]']))
     expect(wrapper.find('[role="dialog"], dialog').exists()).toBe(false)
     expect(wrapper.findAll('input[type="radio"], input[type="checkbox"]')).toHaveLength(0)
     expect(wrapper.find('nav').exists()).toBe(false) // the rest of the app is not reachable
   })
 
-  it('explains what is stored, why, what refusing costs, sign-in and changing later, in English', async () => {
-    const text = (await mountAt('/')).text()
-    for (const part of ['copy of your cellar', 'queue of changes', 'app cache', 'Why', 'offline', 'home screen', 'hosting platform', 'Cookie preferences'])
-      expect(text).toContain(part)
+  it('leads with cookies and no tracking, labelling each choice by its outcome', async () => {
+    const wrapper = await mountAt('/')
+    expect(wrapper.get('h2').text()).toBe('Cookies? Only one kind.')
+    expect(wrapper.text()).toContain('No ads. No tracking.')
+    expect(wrapper.get('[data-testid="consent-allow"]').text()).toBe('Allow offline mode')
+    expect(wrapper.get('[data-testid="consent-refuse"]').text()).toBe('Online only')
+    expect(wrapper.text()).toContain('Cookie preferences')
+  })
+
+  it('folds what is stored, what refusing costs and sign-in into a closed disclosure', async () => {
+    const details = (await mountAt('/')).get('[data-testid="consent-details"]')
+    expect(details.attributes('open')).toBeUndefined()
+    expect(details.get('summary').text()).toBe('What exactly is saved?')
+    for (const part of ['Your wines', 'Changes you made offline', 'The app itself', 'Nothing is saved', 'sign-in is separate', 'your choice'])
+      expect(details.text()).toContain(part)
   })
 
   it('has its own minimal header: brand and language toggle, no tabs, pill or footer', async () => {
@@ -77,7 +94,7 @@ describe('ConsentView', () => {
   it('switches language before any choice, storing nothing', async () => {
     const wrapper = await mountAt('/')
     await wrapper.get('[data-testid="language-fr"]').trigger('click')
-    expect(wrapper.text()).toContain('Conserver votre cave')
+    expect(wrapper.text()).toContain('Pas de pub. Pas de pistage.')
     expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBeNull()
   })
 

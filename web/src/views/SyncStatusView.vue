@@ -68,7 +68,7 @@ async function confirm() {
 </script>
 
 <template>
-  <section class="px-6 py-6">
+  <section class="px-6 py-6 sm:px-8 sm:py-10">
     <div class="mx-auto max-w-2xl">
       <PageHeader :title="t('sync.title')" />
 

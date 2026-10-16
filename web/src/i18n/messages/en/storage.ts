@@ -2,10 +2,13 @@ export default {
   storage: {
     title: 'Cookie preferences',
     link: 'Cookie preferences',
-    currentGranted: 'Current choice: your cellar is kept on this device (offline use is on).',
-    currentRefused: 'Current choice: nothing is kept on this device (online only).',
-    withdraw: 'Stop keeping my cellar on this device',
-    grant: 'Keep my cellar on this device',
+    offlineMode: 'Offline mode',
+    on: 'On',
+    off: 'Off',
+    currentGranted: 'Your cellar is saved on this device and works without network.',
+    currentRefused: 'Nothing is saved on this device. The app works online only.',
+    withdraw: 'Turn off offline mode',
+    grant: 'Turn on offline mode',
   },
   withdraw: {
     unsent: '{count} change has not been sent to the server yet. Continuing will delete it for good. | {count} changes have not been sent to the server yet. Continuing will delete them for good.',

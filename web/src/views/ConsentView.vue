@@ -30,24 +30,27 @@ const withdrawal = useWithdrawal(() => destination.value)
     </div>
     <LanguageToggle />
   </header>
-  <section class="px-6 py-6">
+  <section class="px-6 py-6 sm:px-8 sm:py-10">
     <div class="mx-auto max-w-2xl">
       <PageHeader :title="t('consent.title')" />
 
       <div v-if="granting.phase.value === 'idle'" data-testid="consent-choices">
-        <ConsentExplanation />
+        <p class="text-ink mt-4 text-sm">{{ t('consent.lead') }}</p>
 
-        <!-- Equal weight on purpose: same variant, same size, neither pre-selected. -->
-        <div class="mt-6 flex flex-col gap-4 sm:flex-row">
-          <div class="flex flex-1 flex-col gap-1">
+        <!-- One obvious action, refusing just as easy: same size, one tap, neither pre-selected (ADR 0010). -->
+        <div class="mt-6 flex flex-col gap-6 sm:flex-row sm:gap-16">
+          <div class="flex flex-col items-start gap-1.5">
             <AppButton variant="primary" data-testid="consent-allow" @click="granting.allow">{{ t('consent.allow') }}</AppButton>
             <p class="text-muted text-xs">{{ t('consent.allowHint') }}</p>
           </div>
-          <div class="flex flex-1 flex-col gap-1">
-            <AppButton variant="primary" data-testid="consent-refuse" @click="withdrawal.start">{{ t('consent.refuseAction') }}</AppButton>
+          <div class="flex flex-col items-start gap-1.5">
+            <AppButton variant="outline" data-testid="consent-refuse" @click="withdrawal.start">{{ t('consent.refuseAction') }}</AppButton>
             <p class="text-muted text-xs">{{ t('consent.refuseHint') }}</p>
           </div>
         </div>
+
+        <ConsentExplanation />
+        <p class="text-muted mt-4 text-sm">{{ t('consent.later') }}</p>
       </div>
 
       <ConsentDownload

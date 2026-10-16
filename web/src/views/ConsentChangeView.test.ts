@@ -49,22 +49,38 @@ async function withdraw(wrapper: Awaited<ReturnType<typeof mountStorage>>) {
 const dialog = '[data-testid="confirm-dialog"]'
 
 describe('ConsentChangeView', () => {
-  it('shows a granted choice with the consent explanations and a button to withdraw', async () => {
+  it('shows offline mode on, the folded details and a button to turn it off', async () => {
     setConsent('granted')
     const wrapper = await mountStorage()
-    expect(wrapper.get('[data-testid="storage-current"]').text()).toContain('kept on this device')
-    for (const part of ['copy of your cellar', 'queue of changes', 'app cache', 'hosting platform'])
-      expect(wrapper.text()).toContain(part)
+    const current = wrapper.get('[data-testid="storage-current"]').text()
+    expect(current).toContain('Offline mode')
+    expect(current).toContain('On')
+    expect(current).toContain('saved on this device')
+    const details = wrapper.get('[data-testid="consent-details"]')
+    expect(details.attributes('open')).toBeUndefined()
+    for (const part of ['Your wines', 'Changes you made offline', 'The app itself', 'sign-in is separate'])
+      expect(details.text()).toContain(part)
+    expect(wrapper.get('[data-testid="storage-withdraw"]').text()).toBe('Turn off offline mode')
     expect(wrapper.find('[data-testid="storage-grant"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="storage-withdraw"]').exists()).toBe(true)
   })
 
-  it('shows a refused choice with a button to grant', async () => {
+  it('shows offline mode off with a button to turn it on', async () => {
     setConsent('refused')
     const wrapper = await mountStorage()
-    expect(wrapper.get('[data-testid="storage-current"]').text()).toContain('nothing is kept')
+    const current = wrapper.get('[data-testid="storage-current"]').text()
+    expect(current).toContain('Off')
+    expect(current).toContain('Nothing is saved')
     expect(wrapper.find('[data-testid="storage-withdraw"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="storage-grant"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="storage-grant"]').text()).toBe('Turn on offline mode')
+  })
+
+  it('gives turning on and turning off the same weight', async () => {
+    setConsent('refused')
+    const grant = (await mountStorage()).get('[data-testid="storage-grant"]').classes()
+    setConsent('granted')
+    const withdrawButton = (await mountStorage()).get('[data-testid="storage-withdraw"]').classes()
+    expect(grant).toEqual(withdrawButton)
   })
 
   it('is written in French, with no footer link to itself when the language is French', async () => {
@@ -72,7 +88,10 @@ describe('ConsentChangeView', () => {
     setTestLocale('fr')
     const wrapper = await mountStorage()
     expect(wrapper.get('h2').text()).toBe('Préférences cookies')
-    expect(wrapper.get('[data-testid="storage-current"]').text()).toContain("rien n'est conservé")
+    const current = wrapper.get('[data-testid="storage-current"]').text()
+    expect(current).toContain('Mode hors ligne')
+    expect(current).toContain('Désactivé')
+    expect(current).toContain("Rien n'est conservé")
     expect(wrapper.find('[data-testid="cookie-preferences-link"]').exists()).toBe(false)
   })
 

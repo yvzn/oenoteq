@@ -86,7 +86,7 @@ async function submit() {
 </script>
 
 <template>
-  <section class="px-6 py-6">
+  <section class="px-6 py-6 sm:px-8 sm:py-10">
    <div class="mx-auto max-w-2xl">
     <PageHeader :title="isEdit ? t('manage.producers.form.renameTitle') : t('manage.producers.form.addTitle')" />
     <SyncPendingBadge v-if="isEdit" entity="producer" :target-id="editId as number" class="mt-3" />
