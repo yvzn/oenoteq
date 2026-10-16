@@ -24,14 +24,14 @@ Index of the 22 tickets from the real-world-testing feedback, in the order to im
 | 12 | [x] | RWF-09 | `real-world-feedback/issues/09-sync-page-status-details.md` | none | |
 | 13 | [x] | SC-02 | `storage-consent/issues/02-online-only-mode.md` | SC-01 (#9), OWL-01 (#7) | |
 | 14 | [x] | SC-03 | `storage-consent/issues/03-consent-page-gate-and-granting.md` | SC-02 (#13), I18N-01 (#6) | |
-| 15 | [ ] | SC-04 | `storage-consent/issues/04-change-and-withdraw-consent.md` | SC-03 (#14) | reuses RWF-06's primitive (#11) |
-| 16 | [ ] | OWL-03 | `offline-wine-list/issues/03-cellar-list-reads-local-store.md` | OWL-02 (#8), SC-01 (#9), RWF-01 (#1), RWF-04 (#2) | |
-| 17 | [ ] | OWL-04 | `offline-wine-list/issues/04-background-refresh-and-first-launch.md` | OWL-03 (#16) | wires RWF-05 (#10) to the refresh routine |
-| 18 | [ ] | RWF-07 | `real-world-feedback/issues/07-restore-list-scroll.md` | none | after OWL-01 (#7), best after OWL-04 (#17) |
-| 19 | [ ] | I18N-02 | `i18n/issues/02-shell-sync-surfaces-and-errors.md` | I18N-01 (#6) | last so legacy text is extracted once |
-| 20 | [ ] | I18N-03 | `i18n/issues/03-cellar-list-and-wine-detail.md` | I18N-02 (#19) | |
-| 21 | [ ] | I18N-04 | `i18n/issues/04-forms-and-management.md` | I18N-02 (#19) | |
-| 22 | [ ] | I18N-05 | `i18n/issues/05-audit-and-contract.md` | I18N-03 (#20), I18N-04 (#21) | |
+| 15 | [x] | SC-04 | `storage-consent/issues/04-change-and-withdraw-consent.md` | SC-03 (#14) | reuses RWF-06's primitive (#11) |
+| 16 | [x] | OWL-03 | `offline-wine-list/issues/03-cellar-list-reads-local-store.md` | OWL-02 (#8), SC-01 (#9), RWF-01 (#1), RWF-04 (#2) | |
+| 17 | [x] | OWL-04 | `offline-wine-list/issues/04-background-refresh-and-first-launch.md` | OWL-03 (#16) | wires RWF-05 (#10) to the refresh routine |
+| 18 | [x] | RWF-07 | `real-world-feedback/issues/07-restore-list-scroll.md` | none | after OWL-01 (#7), best after OWL-04 (#17) |
+| 19 | [x] | I18N-02 | `i18n/issues/02-shell-sync-surfaces-and-errors.md` | I18N-01 (#6) | last so legacy text is extracted once |
+| 20 | [x] | I18N-03 | `i18n/issues/03-cellar-list-and-wine-detail.md` | I18N-02 (#19) | |
+| 21 | [x] | I18N-04 | `i18n/issues/04-forms-and-management.md` | I18N-02 (#19) | |
+| 22 | [x] | I18N-05 | `i18n/issues/05-audit-and-contract.md` | I18N-03 (#20), I18N-04 (#21) | |
 
 ## Phases
 
@@ -47,3 +47,11 @@ Phases D and E are independent of each other; swap them if the offline list is w
 ## Parallel option
 
 Only if running agents in parallel: #3 with #4, #7 with #8, #20 with #21. Everything else touches overlapping files.
+
+## TODO next
+
+- consumption list
+- utilities UX
+- sync status page UX
+- consent /storage page copy and UX
+- typecheck setImmediate
