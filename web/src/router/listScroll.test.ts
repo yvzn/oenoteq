@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RouteLocationNormalized } from 'vue-router'
-import { scrollBehavior, setCellarListRendered } from './listScroll'
+import { scrollBehavior, setListRendered } from './listScroll'
 
 const to = (name: string) => ({ name }) as RouteLocationNormalized
 const from = to('wine-detail')
@@ -11,7 +11,7 @@ describe('router scroll behavior', () => {
   })
 
   it('restores the saved offset on the cellar list only once its results have rendered', async () => {
-    setCellarListRendered(false)
+    setListRendered(false)
     let resolved = false
     const result = Promise.resolve(scrollBehavior(to('cellar'), from, { left: 0, top: 640 })).then((r) => {
       resolved = true
@@ -20,18 +20,33 @@ describe('router scroll behavior', () => {
     await Promise.resolve()
     expect(resolved).toBe(false)
 
-    setCellarListRendered(true)
+    setListRendered(true)
 
     expect(await result).toEqual({ left: 0, top: 640 })
   })
 
+  it('waits for the rows on the consumption history too', async () => {
+    setListRendered(false)
+    let resolved = false
+    const result = Promise.resolve(scrollBehavior(to('history'), from, { left: 0, top: 320 })).then((r) => {
+      resolved = true
+      return r
+    })
+    await Promise.resolve()
+    expect(resolved).toBe(false)
+
+    setListRendered(true)
+
+    expect(await result).toEqual({ left: 0, top: 320 })
+  })
+
   it('restores at once when the list is already rendered', async () => {
-    setCellarListRendered(true)
+    setListRendered(true)
     expect(await scrollBehavior(to('cellar'), from, { left: 0, top: 90 })).toEqual({ left: 0, top: 90 })
   })
 
   it('does not wait for the list on other pages', async () => {
-    setCellarListRendered(false)
+    setListRendered(false)
     expect(await scrollBehavior(to('wine-detail'), to('cellar'), { left: 0, top: 5 })).toEqual({ left: 0, top: 5 })
   })
 })

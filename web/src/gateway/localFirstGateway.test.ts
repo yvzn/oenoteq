@@ -179,3 +179,44 @@ describe('local-first adapter search', () => {
     expect(server.searches).toEqual([])
   })
 })
+
+describe('local-first adapter consumption history', () => {
+  it('is online-only: never falls back to consumptions held in the local copy', async () => {
+    await db.producers.put({ id: 1, name: 'P' })
+    await db.wines.put({
+      id: 1,
+      millesime: 2018,
+      appellation_id: 1,
+      producer_id: 1,
+      producer: { id: 1, name: 'P' },
+      color: 'rouge',
+      garde_debut: null,
+      garde_fin: null,
+      quantity: 0,
+      suggested_meals: [],
+      consumption_history: [{ id: 1, wine_id: 1, date: '2026-01-02', rating: null, notes: null }],
+    })
+    server.down = true
+
+    await expect(localFirstGateway.consumptionHistory()).rejects.toThrow()
+  })
+
+  it('leaves the local store untouched', async () => {
+    server.consumptionHistory = [
+      {
+        id: 7,
+        wine_id: 3,
+        date: '2026-02-01',
+        producer: { id: 2, name: 'P' },
+        appellation_id: 5,
+        color: 'rouge',
+        millesime: 2018,
+      },
+    ]
+
+    await localFirstGateway.consumptionHistory()
+
+    expect(await db.wines.count()).toBe(0)
+    expect(await db.producers.count()).toBe(0)
+  })
+})

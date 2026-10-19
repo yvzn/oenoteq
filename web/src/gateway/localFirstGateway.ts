@@ -38,6 +38,7 @@ import {
   pullProducers,
 } from '../sync/producerSync'
 import { enqueueWineCreate, enqueueWineUpdate, patchPendingWineCreate, pullWine } from '../sync/wineSync'
+import { serverConsumptionHistory } from './serverConsumptionHistory'
 import type { DataGateway, NamedEntityGateway, MealPairingGateway, WineGateway } from './types'
 
 interface NamedEntityConfig<T extends { id: number; name: string }> {
@@ -348,4 +349,8 @@ export const localFirstGateway: DataGateway = {
     })
     return () => subscription.unsubscribe()
   },
+
+  // Online-only: the local store lacks Consumptions of Wines never pulled in
+  // detail, so it is neither read nor written here.
+  consumptionHistory: serverConsumptionHistory,
 }

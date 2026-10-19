@@ -1362,3 +1362,55 @@ func (d *DB) ListConsumptions(ctx context.Context, wineID int) ([]Consumption, e
 
 	return consumptions, nil
 }
+
+type ConsumptionHistoryProducer struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// ConsumptionHistoryEntry is one Consumption joined with its Wine's current
+// display fields. Rating and notes are left out: the Consumption History
+// page doesn't show them.
+type ConsumptionHistoryEntry struct {
+	ID            int                        `json:"id"`
+	WineID        int                        `json:"wine_id"`
+	Date          string                     `json:"date"`
+	Producer      ConsumptionHistoryProducer `json:"producer"`
+	AppellationID int                        `json:"appellation_id"`
+	Color         string                     `json:"color"`
+	Millesime     *int                       `json:"millesime"`
+}
+
+// ListConsumptionHistory returns every Consumption across all Wines, newest
+// first (higher id first on equal date). Unlike SearchWines, Wines with
+// quantity 0 are included: their past Consumptions stay in the history.
+func (d *DB) ListConsumptionHistory(ctx context.Context) ([]ConsumptionHistoryEntry, error) {
+	rows, err := d.QueryContext(ctx, `
+		SELECT consumption.id, consumption.wine_id, consumption.date, producer.id, producer.name, wine.appellation_id, wine.color, wine.millesime
+		FROM consumption
+		JOIN wine ON wine.id = consumption.wine_id
+		JOIN producer ON producer.id = wine.producer_id
+		ORDER BY consumption.date DESC, consumption.id DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("querying consumption history: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []ConsumptionHistoryEntry
+	for rows.Next() {
+		var e ConsumptionHistoryEntry
+		var date time.Time
+		if err := rows.Scan(&e.ID, &e.WineID, &date, &e.Producer.ID, &e.Producer.Name, &e.AppellationID, &e.Color, &e.Millesime); err != nil {
+			return nil, fmt.Errorf("scanning consumption history entry: %w", err)
+		}
+		e.Date = date.Format("2006-01-02")
+		entries = append(entries, e)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating consumption history: %w", err)
+	}
+
+	return entries, nil
+}

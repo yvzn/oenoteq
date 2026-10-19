@@ -31,7 +31,7 @@ import {
 } from '../domain/wineSort'
 import { formatYear } from '../i18n/formatters'
 import type { Locale } from '../i18n/locales'
-import { setCellarListRendered } from '../router/listScroll'
+import { setListRendered } from '../router/listScroll'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -133,8 +133,8 @@ watch(neverDownloaded, (never, wasNever) => {
 watch(searchKey, () => search(filters.value, sort.value), { immediate: true })
 
 // The router restores the scroll offset on back navigation once told the rows are there.
-watch(loading, (isLoading) => setCellarListRendered(!isLoading), { immediate: true, flush: 'post' })
-onBeforeUnmount(() => setCellarListRendered(false))
+watch(loading, (isLoading) => setListRendered(!isLoading), { immediate: true, flush: 'post' })
+onBeforeUnmount(() => setListRendered(false))
 
 onMounted(loadFilterOptions)
 </script>

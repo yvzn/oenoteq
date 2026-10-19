@@ -43,6 +43,7 @@ function makeRouter(): Router {
     routes: [
       { path: '/', name: 'cellar', component: stub },
       { path: '/wines/:id', name: 'wine-detail', component: stub },
+      { path: '/history', name: 'history', component: stub },
       { path: '/manage', name: 'manage', component: stub },
       { path: '/meals', name: 'meals', component: stub },
       { path: '/appellations', name: 'appellations', component: stub },
@@ -83,21 +84,31 @@ async function queueFailedChange() {
 }
 
 describe('AppHeader', () => {
-  it('shows exactly Cellar and Manage as top-level nav items', async () => {
+  it('shows exactly Cellar, History and Manage as top-level nav items', async () => {
     const { wrapper } = await mountAt('/')
 
     const nav = wrapper.get('nav')
     expect(nav.text()).not.toContain('Meal pairings')
 
     const links = nav.findAll('a')
-    expect(links.map((link) => link.text())).toEqual(['Cellar', 'Manage'])
-    expect(links[1]!.attributes('href')).toBe('/manage')
+    expect(links.map((link) => link.text())).toEqual(['Cellar', 'History', 'Manage'])
+    expect(links[1]!.attributes('href')).toBe('/history')
+    expect(links[2]!.attributes('href')).toBe('/manage')
+  })
+
+  it('highlights History, and only History, on the history page', async () => {
+    const { wrapper } = await mountAt('/history')
+
+    const [cellarLink, historyLink, manageLink] = wrapper.get('nav').findAll('a')
+    expect(historyLink!.classes()).toContain('text-bordeaux')
+    expect(cellarLink!.classes()).not.toContain('text-bordeaux')
+    expect(manageLink!.classes()).not.toContain('text-bordeaux')
   })
 
   it('highlights Manage when on a management subpage', async () => {
     const { wrapper } = await mountAt('/meals')
 
-    const manageLink = wrapper.get('nav').findAll('a')[1]!
+    const manageLink = wrapper.get('nav').findAll('a')[2]!
     expect(manageLink.classes()).toContain('text-bordeaux')
   })
 })
@@ -267,12 +278,12 @@ describe('AppHeader language toggle', () => {
     const { wrapper } = await mountAt('/')
 
     await option(wrapper, 'fr').trigger('click')
-    expect(wrapper.get('nav').findAll('a').map((link) => link.text())).toEqual(['Cave', 'Gérer'])
+    expect(wrapper.get('nav').findAll('a').map((link) => link.text())).toEqual(['Cave', 'Historique', 'Gérer'])
     expect(option(wrapper, 'fr').attributes('aria-pressed')).toBe('true')
     expect(option(wrapper, 'fr').classes()).toContain('font-bold')
 
     await option(wrapper, 'en').trigger('click')
-    expect(wrapper.get('nav').findAll('a').map((link) => link.text())).toEqual(['Cellar', 'Manage'])
+    expect(wrapper.get('nav').findAll('a').map((link) => link.text())).toEqual(['Cellar', 'History', 'Manage'])
   })
 })
 
@@ -303,7 +314,7 @@ describe('AppHeader in French', () => {
 
     const { wrapper } = await mountAt('/')
 
-    expect(wrapper.get('nav').findAll('a').map((link) => link.text())).toEqual(['Cave', 'Gérer'])
+    expect(wrapper.get('nav').findAll('a').map((link) => link.text())).toEqual(['Cave', 'Historique', 'Gérer'])
     expect(wrapper.get('h1').text()).toBe('Suivi de cave à vin')
     expect(pill(wrapper).text()).toBe('1 modification à synchroniser')
   })

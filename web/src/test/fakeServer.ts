@@ -1,6 +1,15 @@
 import { vi } from 'vitest'
 import { ApiError, apiClient } from '../api/client'
-import type { Appellation, Color, Consumption, Meal, Producer, Wine, WineSearchResult } from '../api/types'
+import type {
+  Appellation,
+  Color,
+  Consumption,
+  ConsumptionHistoryEntry,
+  Meal,
+  Producer,
+  Wine,
+  WineSearchResult,
+} from '../api/types'
 
 type Named = { id: number; name: string }
 
@@ -20,6 +29,8 @@ export interface FakeServer {
   pairings: { appellation_id: number; color: Color; meal_id: number }[]
   searches: string[]
   searchResults: WineSearchResult[]
+  consumptionHistoryRequests: string[]
+  consumptionHistory: ConsumptionHistoryEntry[]
   down: boolean
   seedProducer(name: string): Producer
   seedAppellation(name: string): Appellation
@@ -42,6 +53,8 @@ export function installFakeServer(): FakeServer {
     pairings: [],
     searches: [],
     searchResults: [],
+    consumptionHistoryRequests: [],
+    consumptionHistory: [],
     down: false,
     seedProducer(name) {
       const p = { id: nextId++, name }
@@ -105,6 +118,10 @@ export function installFakeServer(): FakeServer {
     if (path.startsWith('/search')) {
       s.searches.push(path)
       return s.searchResults as never
+    }
+    if (path === '/consumptions' || path.startsWith('/consumptions?')) {
+      s.consumptionHistoryRequests.push(path)
+      return structuredClone(s.consumptionHistory) as never
     }
     if (path === '/health') return undefined as never
     return notFound('not_found')

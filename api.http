@@ -202,6 +202,9 @@ Content-Type: application/json
   "client_id": "a1b2c3d4-0000-0000-0000-000000000005"
 }
 
+### List Consumption History (every Consumption across all Wines, including Wines at quantity 0; each entry carries id, wine_id, date, producer, appellation_id, color, millesime — no rating/notes; ordered by date desc, higher id first on equal date)
+GET {{baseUrl}}/consumptions
+
 ### Edit a Consumption (date/rating/notes only, wine_id is not editable)
 PUT {{baseUrl}}/consumptions/1
 Content-Type: application/json

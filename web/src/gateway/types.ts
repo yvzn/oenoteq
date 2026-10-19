@@ -1,6 +1,7 @@
 import type {
   Appellation,
   Color,
+  ConsumptionHistoryEntry,
   Meal,
   Producer,
   WineCreateInput,
@@ -77,4 +78,7 @@ export interface DataGateway {
     onResult: (results: WineSearchResult[]) => void,
     onError: (error: unknown) => void,
   ): () => void
+  // Every Consumption across all Wines, newest first (not paged). Always asks
+  // the server, in both adapters.
+  consumptionHistory(): Promise<ConsumptionHistoryEntry[]>
 }

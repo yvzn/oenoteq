@@ -121,6 +121,7 @@ func (h *Handler) Register(mux *http.ServeMux, spa http.Handler) {
 	mux.HandleFunc("PUT /wines/{id}", h.UpdateWine)
 	mux.HandleFunc("POST /wines/{id}/quantity-adjustments", h.CreateQuantityAdjustment)
 	mux.HandleFunc("POST /wines/{id}/consumptions", h.CreateConsumption)
+	mux.HandleFunc("GET /consumptions", h.ListConsumptionHistory)
 	mux.HandleFunc("PUT /consumptions/{id}", h.UpdateConsumption)
 	mux.HandleFunc("DELETE /consumptions/{id}", h.DeleteConsumption)
 	mux.HandleFunc("POST /meal-pairings", h.CreateMealPairing)
@@ -637,6 +638,22 @@ func (h *Handler) UpdateConsumption(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(consumption)
+}
+
+func (h *Handler) ListConsumptionHistory(w http.ResponseWriter, r *http.Request) {
+	entries, err := h.db.ListConsumptionHistory(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, dbErrorCode(err))
+		return
+	}
+
+	if entries == nil {
+		entries = []db.ConsumptionHistoryEntry{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(entries)
 }
 
 func (h *Handler) DeleteConsumption(w http.ResponseWriter, r *http.Request) {

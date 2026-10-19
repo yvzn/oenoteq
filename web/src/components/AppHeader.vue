@@ -45,6 +45,7 @@ const manageRouteNames = [
 ]
 
 const isCellar = computed(() => route.name === 'cellar' || route.name === 'wine-detail')
+const isHistory = computed(() => route.name === 'history')
 const isManage = computed(() => manageRouteNames.includes(route.name as string))
 </script>
 
@@ -75,6 +76,13 @@ const isManage = computed(() => manageRouteNames.includes(route.name as string))
           :class="isCellar ? 'text-bordeaux border-bordeaux font-medium' : 'border-transparent'"
         >
           {{ t('nav.cellar') }}
+        </RouterLink>
+        <RouterLink
+          to="/history"
+          class="text-muted hover:text-ink border-b-2 pb-1"
+          :class="isHistory ? 'text-bordeaux border-bordeaux font-medium' : 'border-transparent'"
+        >
+          {{ t('nav.history') }}
         </RouterLink>
         <RouterLink
           to="/manage"

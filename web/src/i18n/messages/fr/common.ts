@@ -10,6 +10,7 @@ export default {
   },
   nav: {
     cellar: 'Cave',
+    history: 'Historique',
     manage: 'Gérer',
   },
   actions: {

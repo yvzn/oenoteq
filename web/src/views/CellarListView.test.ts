@@ -5,7 +5,7 @@ import { createMemoryHistory, createRouter, type RouteLocationNormalized, type R
 import { apiClient } from '../api/client'
 import type { WineSearchResult } from '../api/types'
 import { FIRST_PULL_KEY, db } from '../db/localDb'
-import { scrollBehavior, setCellarListRendered } from '../router/listScroll'
+import { scrollBehavior, setListRendered } from '../router/listScroll'
 import { defaultConsent, itOfflineOnly, itOnlineOnly } from '../test/consent'
 import { setTestLocale } from '../test/i18n'
 import CellarListView from './CellarListView.vue'
@@ -487,7 +487,7 @@ describe('CellarListView pagination', () => {
       flushPromises().then(() => 'waiting'),
     ])
     expect(await pending).toBe('waiting')
-    setCellarListRendered(true)
+    setListRendered(true)
   })
 
   it('renders the controls in French', async () => {

@@ -53,6 +53,17 @@ export interface Consumption {
   notes: string | null
 }
 
+// One Consumption with its Wine's current display fields (no rating/notes).
+export interface ConsumptionHistoryEntry {
+  id: number
+  wine_id: number
+  date: string
+  producer: Producer
+  appellation_id: number
+  color: Color
+  millesime: number | null
+}
+
 export interface WineDetail extends Wine {
   suggested_meals: Meal[]
   consumption_history: Consumption[]

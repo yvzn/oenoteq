@@ -1,6 +1,7 @@
 import { apiClient } from '../api/client'
 import type { Color, Meal, WineDetail } from '../api/types'
 import { sortByName } from '../db/sortByName'
+import { serverConsumptionHistory } from './serverConsumptionHistory'
 import { serverSearch } from './serverSearch'
 import type { DataGateway, MealPairingGateway, NamedEntityGateway, WineGateway } from './types'
 
@@ -102,4 +103,6 @@ export const directGateway: DataGateway = {
       active = false
     }
   },
+
+  consumptionHistory: serverConsumptionHistory,
 }

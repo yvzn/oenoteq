@@ -10,6 +10,7 @@ export default {
   },
   nav: {
     cellar: 'Cellar',
+    history: 'History',
     manage: 'Manage',
   },
   actions: {

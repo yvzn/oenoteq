@@ -342,5 +342,36 @@ export function describeGatewayContract(name: string, setup: () => GatewayHarnes
         expect(failure).toBeInstanceOf(ApiError)
       })
     })
+
+    describe('consumption history', () => {
+      it("returns the server's consumption history", async () => {
+        const h = setup()
+        h.server.consumptionHistory = [
+          {
+            id: 7,
+            wine_id: 3,
+            date: '2026-02-01',
+            producer: { id: 2, name: 'Les Vignerons' },
+            appellation_id: 5,
+            color: 'rouge',
+            millesime: 2018,
+          },
+        ]
+
+        const history = await h.gateway.consumptionHistory()
+
+        expect(history).toEqual(h.server.consumptionHistory)
+        expect(h.server.consumptionHistoryRequests).toEqual(['/consumptions'])
+      })
+
+      it('rejects with an error when the server is unreachable', async () => {
+        const h = setup()
+        h.server.down = true
+
+        const failure = await h.gateway.consumptionHistory().catch((e: unknown) => e)
+
+        expect(failure).toBeInstanceOf(ApiError)
+      })
+    })
   })
 }

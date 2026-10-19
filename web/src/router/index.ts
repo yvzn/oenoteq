@@ -9,6 +9,7 @@ import AppellationListView from '../views/AppellationListView.vue'
 import CellarListView from '../views/CellarListView.vue'
 import ConsentChangeView from '../views/ConsentChangeView.vue'
 import ConsentView from '../views/ConsentView.vue'
+import ConsumptionHistoryView from '../views/ConsumptionHistoryView.vue'
 import ManageHubView from '../views/ManageHubView.vue'
 import MealFormView from '../views/MealFormView.vue'
 import MealListView from '../views/MealListView.vue'
@@ -27,6 +28,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
       { path: '/consent', name: 'consent', component: ConsentView },
       { path: '/storage', name: 'storage', component: ConsentChangeView },
       { path: '/', name: 'cellar', component: CellarListView },
+      { path: '/history', name: 'history', component: ConsumptionHistoryView },
       { path: '/wines/new', name: 'wine-new', component: WineFormView },
       { path: '/wines/:id', name: 'wine-detail', component: WineDetailView },
       { path: '/wines/:id/edit', name: 'wine-edit', component: WineFormView },
