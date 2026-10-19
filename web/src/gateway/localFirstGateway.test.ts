@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '../api/client'
 import { db } from '../db/localDb'
+import { defaultConsumptionHistorySort } from '../domain/consumptionHistorySort'
 import { emptySearchFilters } from '../domain/searchFilters'
 import { defaultWineSort } from '../domain/wineSort'
 import { installFakeServer, type FakeServer } from '../test/fakeServer'
@@ -198,7 +199,7 @@ describe('local-first adapter consumption history', () => {
     })
     server.down = true
 
-    await expect(localFirstGateway.consumptionHistory()).rejects.toThrow()
+    await expect(localFirstGateway.consumptionHistory(defaultConsumptionHistorySort)).rejects.toThrow()
   })
 
   it('leaves the local store untouched', async () => {
@@ -214,7 +215,7 @@ describe('local-first adapter consumption history', () => {
       },
     ]
 
-    await localFirstGateway.consumptionHistory()
+    await localFirstGateway.consumptionHistory(defaultConsumptionHistorySort)
 
     expect(await db.wines.count()).toBe(0)
     expect(await db.producers.count()).toBe(0)

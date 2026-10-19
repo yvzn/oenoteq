@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { ConsumptionHistoryEntry } from '../api/types'
+import type { ConsumptionHistorySort } from '../domain/consumptionHistorySort'
 import { gateway } from '../gateway'
 
 // Online-only, in both consent modes: a failure leaves nothing to show.
@@ -9,11 +10,11 @@ export function useConsumptionHistory() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function load() {
+  async function load(sort: ConsumptionHistorySort) {
     loading.value = true
     error.value = null
     try {
-      entries.value = await gateway.consumptionHistory()
+      entries.value = await gateway.consumptionHistory(sort)
     } catch (e) {
       entries.value = []
       error.value = friendlyErrorMessage(e)

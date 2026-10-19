@@ -6,6 +6,7 @@ export default {
     loadError: "Couldn't load your consumption history: {error}",
     empty: 'No consumption recorded yet.',
     columns: { date: 'Date' },
+    sort: { date: 'Consumption date' },
     pagination: { label: 'History pages' },
   },
 }

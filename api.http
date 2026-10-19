@@ -205,6 +205,9 @@ Content-Type: application/json
 ### List Consumption History (every Consumption across all Wines, including Wines at quantity 0; each entry carries id, wine_id, date, producer, appellation_id, color, millesime — no rating/notes; ordered by date desc, higher id first on equal date)
 GET {{baseUrl}}/consumptions
 
+### List Consumption History sorted (sort_by: producer | appellation | millesime | date, default date; sort_dir: asc | desc, default desc; equal dates put higher id first, ties on other columns fall back to date desc then id desc; NV last in both directions; invalid values → 400 invalid_sort)
+GET {{baseUrl}}/consumptions?sort_by=producer&sort_dir=asc
+
 ### Edit a Consumption (date/rating/notes only, wine_id is not editable)
 PUT {{baseUrl}}/consumptions/1
 Content-Type: application/json

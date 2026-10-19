@@ -60,7 +60,7 @@ async function mockApi(overrides: { history?: ConsumptionHistoryEntry[] } = {}) 
   const entries = overrides.history ?? history
   vi.mocked(apiClient.get).mockImplementation((path: string) => {
     if (path === '/appellations') return Promise.resolve(appellations)
-    if (path === '/consumptions') return Promise.resolve(entries)
+    if (path === '/consumptions' || path.startsWith('/consumptions?')) return Promise.resolve(entries)
     throw new Error(`unexpected path: ${path}`)
   })
   if (defaultConsent === 'granted') await db.appellations.bulkPut(appellations)
@@ -135,19 +135,6 @@ describe('ConsumptionHistoryView', () => {
     expect(wrapper.get('[data-testid="consumption-item-mobile-meta"]').text()).toBe('2018 · 12 March 2026')
   })
 
-  it('has a non-interactive column header row', async () => {
-    await mockApi()
-
-    const { wrapper } = await mountAt('/history')
-
-    const header = wrapper.get('[data-testid="consumption-columns"]')
-    expect(header.text()).toContain('Producer')
-    expect(header.text()).toContain('Appellation')
-    expect(header.text()).toContain('Vintage')
-    expect(header.text()).toContain('Date')
-    expect(header.findAll('button')).toHaveLength(0)
-  })
-
   it("links each row to its wine's detail page, including a wine drunk twice", async () => {
     await mockApi({ history: [...history, { ...history[0]!, id: 10, date: '2025-12-24' }] })
 
@@ -217,6 +204,119 @@ describe('ConsumptionHistoryView', () => {
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
     expect(wrapper.findAll('[data-testid="consumption-item"]')).toHaveLength(2)
+  })
+})
+
+describe('ConsumptionHistoryView sort', () => {
+  // Sorting restarts the load, which hides the header until the request settles.
+  async function waitForHeader(wrapper: ReturnType<typeof mount>) {
+    await flushPromises()
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="sort-header-date"]').exists()).toBe(true))
+  }
+
+  it('offers producer, appellation, vintage and date column headers as sort buttons', async () => {
+    await mockApi()
+
+    const { wrapper } = await mountAt('/history')
+
+    expect(wrapper.get('[data-testid="sort-header-producer"]').text()).toContain('Producer')
+    expect(wrapper.get('[data-testid="sort-header-appellation"]').text()).toContain('Appellation')
+    expect(wrapper.get('[data-testid="sort-header-millesime"]').text()).toContain('Vintage')
+    expect(wrapper.get('[data-testid="sort-header-date"]').text()).toContain('Date')
+  })
+
+  it('sorts by date descending by default, with the indicator on the date header', async () => {
+    await mockApi()
+
+    const { wrapper } = await mountAt('/history')
+
+    expect(historyRequests()).toEqual(['/consumptions'])
+    expect(wrapper.get('[data-testid="sort-header-date"]').text()).toContain('↓')
+    expect(wrapper.get('[data-testid="sort-header-producer"]').text()).not.toMatch(/[↑↓]/)
+  })
+
+  it('pre-applies sort from the URL query params on load', async () => {
+    await mockApi()
+
+    const { wrapper } = await mountAt('/history?sort_by=appellation&sort_dir=asc')
+
+    expect(historyRequests()).toEqual(['/consumptions?sort_by=appellation&sort_dir=asc'])
+    expect(wrapper.get('[data-testid="sort-header-appellation"]').text()).toContain('↑')
+  })
+
+  it('sorts by clicking a column header and reflects it in the URL and the request', async () => {
+    await mockApi()
+
+    const { wrapper, router } = await mountAt('/history')
+    await wrapper.get('[data-testid="sort-header-producer"]').trigger('click')
+    await waitForHeader(wrapper)
+
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer', sort_dir: 'asc' })
+    expect(historyRequests()).toEqual(['/consumptions', '/consumptions?sort_by=producer&sort_dir=asc'])
+    expect(wrapper.get('[data-testid="sort-header-producer"]').text()).toContain('↑')
+  })
+
+  it('toggles direction when clicking the already-active column header', async () => {
+    await mockApi()
+
+    const { wrapper, router } = await mountAt('/history')
+    await wrapper.get('[data-testid="sort-header-date"]').trigger('click')
+    await waitForHeader(wrapper)
+
+    expect(router.currentRoute.value.query).toEqual({ sort_dir: 'asc' })
+    expect(historyRequests()).toEqual(['/consumptions', '/consumptions?sort_dir=asc'])
+    expect(wrapper.get('[data-testid="sort-header-date"]').text()).toContain('↑')
+  })
+
+  it('lists producer, appellation, vintage and date in the mobile sort panel', async () => {
+    await mockApi()
+
+    const { wrapper } = await mountAt('/history')
+
+    const axes = wrapper.get('[data-testid="sort-panel"]').findAll('label').map((l) => l.text())
+    expect(axes).toEqual(['Producer', 'Appellation', 'Vintage', 'Consumption date'])
+    expect(wrapper.find('[data-testid="ready-now-filter"]').exists()).toBe(false)
+  })
+
+  it('changes sort from the mobile sort panel and reflects it in the URL and the request', async () => {
+    await mockApi()
+
+    const { wrapper, router } = await mountAt('/history')
+    await wrapper.get('[data-testid="sort-toggle-button"]').trigger('click')
+    await wrapper.get('[data-testid="sort-axis-millesime"]').setValue(true)
+    await wrapper.get('[data-testid="sort-direction-desc"]').trigger('click')
+    await waitForHeader(wrapper)
+
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'millesime' })
+    expect(historyRequests()).toEqual(['/consumptions', '/consumptions?sort_by=millesime'])
+  })
+
+  it('resets to page 1 when the sort changes', async () => {
+    await mockApi({ history: manyEntries(25) })
+
+    const { wrapper, router } = await mountAt('/history?page=2')
+    await wrapper.get('[data-testid="sort-header-producer"]').trigger('click')
+    await waitForHeader(wrapper)
+
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer', sort_dir: 'asc' })
+    expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 1 of 3')
+  })
+
+  it('keeps sort and page when paging and when going back from a wine detail', async () => {
+    await mockApi({ history: manyEntries(25) })
+
+    const { wrapper, router } = await mountAt('/history?sort_by=producer')
+    await wrapper.get('[data-testid="pagination-next"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer', page: '2' })
+
+    await router.push('/wines/11')
+    await flushPromises()
+    await router.back()
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer', page: '2' })
+    expect(historyRequests().at(-1)).toBe('/consumptions?sort_by=producer')
   })
 })
 
@@ -315,6 +415,16 @@ describe('ConsumptionHistoryView in French', () => {
     expect(items[0]!.text()).toContain('12 mars 2026')
     expect(items[1]!.text()).toContain('SA')
     expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 1 sur 2')
+  })
+
+  it('labels the sort panel axes in French', async () => {
+    await mockApi()
+    setTestLocale('fr')
+
+    const { wrapper } = await mountAt('/history')
+
+    const axes = wrapper.get('[data-testid="sort-panel"]').findAll('label').map((l) => l.text())
+    expect(axes).toEqual(['Producteur', 'Appellation', 'Millésime', 'Date de consommation'])
   })
 
   it('says so in French when no consumption has been recorded yet', async () => {

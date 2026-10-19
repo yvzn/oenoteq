@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { WineCreateInput } from '../api/types'
+import { defaultConsumptionHistorySort } from '../domain/consumptionHistorySort'
 import type { FakeServer } from '../test/fakeServer'
 import type { DataGateway } from './types'
 
@@ -358,17 +359,25 @@ export function describeGatewayContract(name: string, setup: () => GatewayHarnes
           },
         ]
 
-        const history = await h.gateway.consumptionHistory()
+        const history = await h.gateway.consumptionHistory(defaultConsumptionHistorySort)
 
         expect(history).toEqual(h.server.consumptionHistory)
         expect(h.server.consumptionHistoryRequests).toEqual(['/consumptions'])
+      })
+
+      it('asks the server for the requested sort', async () => {
+        const h = setup()
+
+        await h.gateway.consumptionHistory({ sortBy: 'producer', sortDir: 'asc' })
+
+        expect(h.server.consumptionHistoryRequests).toEqual(['/consumptions?sort_by=producer&sort_dir=asc'])
       })
 
       it('rejects with an error when the server is unreachable', async () => {
         const h = setup()
         h.server.down = true
 
-        const failure = await h.gateway.consumptionHistory().catch((e: unknown) => e)
+        const failure = await h.gateway.consumptionHistory(defaultConsumptionHistorySort).catch((e: unknown) => e)
 
         expect(failure).toBeInstanceOf(ApiError)
       })

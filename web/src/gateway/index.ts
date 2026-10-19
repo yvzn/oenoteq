@@ -47,7 +47,7 @@ export const gateway: DataGateway = {
   },
   search: (filters, sort) => active().search(filters, sort),
   watchSearch: (filters, sort, onResult, onError) => active().watchSearch(filters, sort, onResult, onError),
-  consumptionHistory: () => active().consumptionHistory(),
+  consumptionHistory: (sort) => active().consumptionHistory(sort),
 }
 
 export type { ConsumptionInput, DataGateway } from './types'

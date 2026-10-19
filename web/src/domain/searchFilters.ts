@@ -7,6 +7,12 @@ export interface CommonFilters {
   color: Color | null
 }
 
+export const emptyCommonFilters: CommonFilters = {
+  mealId: null,
+  appellationId: null,
+  color: null,
+}
+
 // What a page's extra filters get to render against, live inline or as the mobile panel's draft.
 export interface ExtraFiltersScope<F extends CommonFilters> {
   filters: F

@@ -4,11 +4,22 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../components/AppButton.vue'
 import ColorSwatch from '../components/ColorSwatch.vue'
+import FilterBar from '../components/FilterBar.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useConsumptionHistory } from '../composables/useConsumptionHistory'
+import {
+  consumptionHistorySortAxes,
+  consumptionHistorySortToQueryParams,
+  defaultConsumptionHistorySort,
+  nextConsumptionHistorySort,
+  queryParamsToConsumptionHistorySort,
+  type ConsumptionHistorySort,
+  type ConsumptionHistorySortBy,
+} from '../domain/consumptionHistorySort'
 import { pageToQueryParams, paginate, parsePage } from '../domain/pagination'
+import { emptyCommonFilters } from '../domain/searchFilters'
 import { formatDate, formatYear } from '../i18n/formatters'
 import type { Locale } from '../i18n/locales'
 import { setListRendered } from '../router/listScroll'
@@ -24,6 +35,8 @@ const {
   load: loadAppellations,
 } = useAppellations()
 const { entries, loading: historyLoading, error: historyError, load: loadHistory } = useConsumptionHistory()
+
+const sort = computed<ConsumptionHistorySort>(() => queryParamsToConsumptionHistorySort(route.query))
 
 const pageData = computed(() => paginate(entries.value, parsePage(route.query.page)))
 
@@ -55,24 +68,59 @@ function appellationName(appellationId: number): string {
   return appellationNameById.value.get(appellationId) ?? t('cellar.list.unknownAppellation')
 }
 
-function goToPage(page: number) {
-  router.push({ query: pageToQueryParams(page) })
+// Sort axes that are wine vocabulary share the vocabulary labels; Date is the page's own column.
+function axisLabel(sortBy: ConsumptionHistorySortBy): string {
+  return sortBy === 'date' ? t('history.sort.date') : t(`vocabulary.${sortBy}`)
 }
 
-function load() {
-  loadAppellations()
-  loadHistory()
+function updateSort(next: ConsumptionHistorySort) {
+  router.push({ query: consumptionHistorySortToQueryParams(next) })
 }
+
+function goToPage(page: number) {
+  router.push({ query: { ...consumptionHistorySortToQueryParams(sort.value), ...pageToQueryParams(page) } })
+}
+
+function sortByColumn(column: ConsumptionHistorySortBy) {
+  updateSort(nextConsumptionHistorySort(sort.value, column))
+}
+
+function sortIndicator(column: ConsumptionHistorySortBy) {
+  if (sort.value.sortBy !== column) return ''
+  return sort.value.sortDir === 'asc' ? '↑' : '↓'
+}
+
+function retry() {
+  loadAppellations()
+  loadHistory(sort.value)
+}
+
+// Keyed on the sort only: a page change must not refetch.
+const historyKey = computed(() => new URLSearchParams(consumptionHistorySortToQueryParams(sort.value)).toString())
+
+watch(historyKey, () => loadHistory(sort.value), { immediate: true })
 
 // The router restores the scroll offset on back navigation once told the rows are there.
 watch(loading, (isLoading) => setListRendered(!isLoading), { immediate: true, flush: 'post' })
 onBeforeUnmount(() => setListRendered(false))
 
-onMounted(load)
+onMounted(loadAppellations)
 </script>
 
 <template>
   <section>
+    <FilterBar
+      :filters="emptyCommonFilters"
+      :sort="sort"
+      :appellations="appellations"
+      :meals="[]"
+      :empty-filters="emptyCommonFilters"
+      :sort-axes="consumptionHistorySortAxes"
+      :axis-label="axisLabel"
+      :default-sort="defaultConsumptionHistorySort"
+      @update:sort="updateSort"
+    />
+
     <div class="mx-auto max-w-2xl px-6 py-6 sm:px-8 sm:py-10">
       <PageHeader :title="listTitle" />
 
@@ -80,7 +128,7 @@ onMounted(load)
       <StatusLine v-else-if="error" tone="error" class="mt-6">
         {{ t('history.loadError', { error }) }}
         <template #retry>
-          <AppButton variant="ghost" data-testid="history-retry" @click="load">{{ t('actions.retry') }}</AppButton>
+          <AppButton variant="ghost" data-testid="history-retry" @click="retry">{{ t('actions.retry') }}</AppButton>
         </template>
       </StatusLine>
       <StatusLine v-else-if="entries.length === 0" class="mt-6">
@@ -89,15 +137,43 @@ onMounted(load)
       <template v-else>
         <div
           data-testid="consumption-columns"
-          class="border-line text-label mt-8 hidden grid-cols-[5px_1fr_78px_150px] gap-5 border-b px-[22px] pb-2.5 text-xs font-medium sm:grid"
+          class="border-line mt-8 hidden grid-cols-[5px_1fr_78px_150px] gap-5 border-b px-[22px] pb-2.5 sm:grid"
         >
           <div></div>
           <div class="flex items-center gap-3">
-            <span>{{ t('vocabulary.producer') }}</span>
-            <span>{{ t('vocabulary.appellation') }}</span>
+            <button
+              type="button"
+              data-testid="sort-header-producer"
+              class="text-label flex cursor-pointer items-center gap-1 text-xs font-medium"
+              @click="sortByColumn('producer')"
+            >
+              {{ t('vocabulary.producer') }} <span aria-hidden="true">{{ sortIndicator('producer') }}</span>
+            </button>
+            <button
+              type="button"
+              data-testid="sort-header-appellation"
+              class="text-label flex cursor-pointer items-center gap-1 text-xs font-medium"
+              @click="sortByColumn('appellation')"
+            >
+              {{ t('vocabulary.appellation') }} <span aria-hidden="true">{{ sortIndicator('appellation') }}</span>
+            </button>
           </div>
-          <div class="text-right">{{ t('vocabulary.millesime') }}</div>
-          <div class="text-right">{{ t('history.columns.date') }}</div>
+          <button
+            type="button"
+            data-testid="sort-header-millesime"
+            class="text-label flex cursor-pointer items-center justify-end gap-1 text-right text-xs font-medium"
+            @click="sortByColumn('millesime')"
+          >
+            {{ t('vocabulary.millesime') }} <span aria-hidden="true">{{ sortIndicator('millesime') }}</span>
+          </button>
+          <button
+            type="button"
+            data-testid="sort-header-date"
+            class="text-label flex cursor-pointer items-center justify-end gap-1 text-right text-xs font-medium"
+            @click="sortByColumn('date')"
+          >
+            {{ t('history.columns.date') }} <span aria-hidden="true">{{ sortIndicator('date') }}</span>
+          </button>
         </div>
         <ul data-testid="consumption-list" class="mt-2 flex flex-col sm:mt-0">
           <li

@@ -535,6 +535,8 @@ var validColors = map[string]bool{"rouge": true, "blanc": true, "rose": true}
 
 var validSortBy = map[string]bool{"producer": true, "appellation": true, "millesime": true, "status": true}
 
+var validConsumptionHistorySortBy = map[string]bool{"producer": true, "appellation": true, "millesime": true, "date": true}
+
 var validSortDir = map[string]bool{"asc": true, "desc": true}
 
 // gardeStatusSortRank orders Garde Status ascending per CONTEXT.md's
@@ -1129,7 +1131,11 @@ type SearchFilters struct {
 }
 
 func validateSort(sortBy, sortDir string) error {
-	if !validSortBy[sortBy] {
+	return validateSortAgainst(validSortBy, sortBy, sortDir)
+}
+
+func validateSortAgainst(axes map[string]bool, sortBy, sortDir string) error {
+	if !axes[sortBy] {
 		return fmt.Errorf("%q: %w", sortBy, ErrInvalidSort)
 	}
 	if !validSortDir[sortDir] {
@@ -1381,17 +1387,44 @@ type ConsumptionHistoryEntry struct {
 	Millesime     *int                       `json:"millesime"`
 }
 
-// ListConsumptionHistory returns every Consumption across all Wines, newest
-// first (higher id first on equal date). Unlike SearchWines, Wines with
-// quantity 0 are included: their past Consumptions stay in the history.
-func (d *DB) ListConsumptionHistory(ctx context.Context) ([]ConsumptionHistoryEntry, error) {
+type ConsumptionHistoryFilters struct {
+	SortBy  string
+	SortDir string
+}
+
+// sortConsumptionHistorySQL builds the ORDER BY clause for a validated
+// (sortBy, sortDir) pair. Equal dates put the higher consumption id first;
+// ties on any other column fall back to date descending, then id descending.
+// NV Wines sort last in both directions, as in sortWinesSQL.
+func sortConsumptionHistorySQL(sortBy, sortDir string) string {
+	const fallback = "consumption.date DESC, consumption.id DESC"
+	switch sortBy {
+	case "producer":
+		return "producer.name " + sortDir + ", " + fallback
+	case "appellation":
+		return "appellation.name " + sortDir + ", " + fallback
+	case "millesime":
+		return "(wine.millesime IS NULL) ASC, wine.millesime " + sortDir + ", " + fallback
+	default: // "date"
+		return "consumption.date " + sortDir + ", consumption.id DESC"
+	}
+}
+
+// ListConsumptionHistory returns every Consumption across all Wines in the
+// requested order. Unlike SearchWines, Wines with quantity 0 are included:
+// their past Consumptions stay in the history.
+func (d *DB) ListConsumptionHistory(ctx context.Context, f ConsumptionHistoryFilters) ([]ConsumptionHistoryEntry, error) {
+	if err := validateSortAgainst(validConsumptionHistorySortBy, f.SortBy, f.SortDir); err != nil {
+		return nil, err
+	}
+
 	rows, err := d.QueryContext(ctx, `
 		SELECT consumption.id, consumption.wine_id, consumption.date, producer.id, producer.name, wine.appellation_id, wine.color, wine.millesime
 		FROM consumption
 		JOIN wine ON wine.id = consumption.wine_id
 		JOIN producer ON producer.id = wine.producer_id
-		ORDER BY consumption.date DESC, consumption.id DESC
-	`)
+		JOIN appellation ON appellation.id = wine.appellation_id
+		ORDER BY `+sortConsumptionHistorySQL(f.SortBy, f.SortDir))
 	if err != nil {
 		return nil, fmt.Errorf("querying consumption history: %w", err)
 	}

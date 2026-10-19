@@ -641,9 +641,21 @@ func (h *Handler) UpdateConsumption(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListConsumptionHistory(w http.ResponseWriter, r *http.Request) {
-	entries, err := h.db.ListConsumptionHistory(r.Context())
+	q := r.URL.Query()
+	var filters db.ConsumptionHistoryFilters
+
+	filters.SortBy = q.Get("sort_by")
+	if filters.SortBy == "" {
+		filters.SortBy = "date"
+	}
+	filters.SortDir = q.Get("sort_dir")
+	if filters.SortDir == "" {
+		filters.SortDir = "desc"
+	}
+
+	entries, err := h.db.ListConsumptionHistory(r.Context(), filters)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, dbErrorCode(err))
+		writeError(w, queryErrorStatus(err), dbErrorCode(err))
 		return
 	}
 
@@ -757,7 +769,7 @@ func (h *Handler) ListAllMealPairings(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(pairings)
 }
 
-func searchErrorStatus(err error) int {
+func queryErrorStatus(err error) int {
 	switch {
 	case errors.Is(err, db.ErrInvalidColor), errors.Is(err, db.ErrInvalidSort):
 		return http.StatusBadRequest
@@ -805,7 +817,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 
 	results, err := h.db.SearchWines(r.Context(), filters)
 	if err != nil {
-		writeError(w, searchErrorStatus(err), dbErrorCode(err))
+		writeError(w, queryErrorStatus(err), dbErrorCode(err))
 		return
 	}
 

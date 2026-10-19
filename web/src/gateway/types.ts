@@ -9,6 +9,7 @@ import type {
   WineInput,
   WineSearchResult,
 } from '../api/types'
+import type { ConsumptionHistorySort } from '../domain/consumptionHistorySort'
 import type { SearchFilters } from '../domain/searchFilters'
 import type { WineSort } from '../domain/wineSort'
 
@@ -78,7 +79,7 @@ export interface DataGateway {
     onResult: (results: WineSearchResult[]) => void,
     onError: (error: unknown) => void,
   ): () => void
-  // Every Consumption across all Wines, newest first (not paged). Always asks
+  // Every Consumption across all Wines in the given sort (not paged). Always asks
   // the server, in both adapters.
-  consumptionHistory(): Promise<ConsumptionHistoryEntry[]>
+  consumptionHistory(sort: ConsumptionHistorySort): Promise<ConsumptionHistoryEntry[]>
 }
