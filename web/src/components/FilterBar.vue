@@ -1,55 +1,57 @@
-<script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+<script setup lang="ts" generic="F extends CommonFilters, S extends string">
+import { computed, ref, shallowRef, watch, type ShallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Appellation, Meal } from '../api/types'
-import { emptySearchFilters, type SearchFilters } from '../domain/searchFilters'
-import { defaultWineSort, sortAxes, type SortBy, type WineSort } from '../domain/wineSort'
+import type { CommonFilters, ExtraFiltersScope } from '../domain/searchFilters'
+import type { SortDir } from '../domain/wineSort'
 import AppButton from './AppButton.vue'
 import FilterFields from './FilterFields.vue'
 
+type Sort = { sortBy: S; sortDir: SortDir }
+
 const props = defineProps<{
-  filters: SearchFilters
-  sort: WineSort
+  filters: F
+  sort: Sort
   appellations: Appellation[]
   meals: Meal[]
+  emptyFilters: F
+  sortAxes: { sortBy: S }[]
+  axisLabel: (sortBy: S) => string
+  defaultSort: Sort
 }>()
 
 const { t } = useI18n()
 
 const emit = defineEmits<{
-  'update:filters': [value: SearchFilters]
-  'update:sort': [value: WineSort]
+  'update:filters': [value: F]
+  'update:sort': [value: Sort]
 }>()
 
-const activeFilterCount = computed(
-  () =>
-    [
-      props.filters.mealId !== null,
-      props.filters.appellationId !== null,
-      props.filters.color !== null,
-      props.filters.readyNow,
-    ].filter(Boolean).length,
-)
+// Page-specific filters, forwarded to both the inline form and the mobile panel.
+defineSlots<{
+  extra?(scope: ExtraFiltersScope<F>): unknown
+}>()
 
-// Sort axes that are wine vocabulary share the vocabulary labels; Status is the list's own column.
-function axisLabel(sortBy: SortBy): string {
-  return sortBy === 'status' ? t('cellar.sort.status') : t(`vocabulary.${sortBy}`)
-}
+// A filter is active when it is set: not null for pickers, not false for toggles.
+const activeFilterCount = computed(
+  () => Object.values(props.filters).filter((value) => value !== null && value !== false).length,
+)
 
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
 const isDefaultSort = computed(
-  () => props.sort.sortBy === defaultWineSort.sortBy && props.sort.sortDir === defaultWineSort.sortDir,
+  () => props.sort.sortBy === props.defaultSort.sortBy && props.sort.sortDir === props.defaultSort.sortDir,
 )
 
 function clearFilters() {
-  emit('update:filters', emptySearchFilters)
+  emit('update:filters', props.emptyFilters)
 }
 
 // Mobile filter panel: edits happen against a draft, only applied on demand.
 const panel = ref<HTMLDialogElement | null>(null)
 const panelOpen = ref(false)
-const draft = ref<SearchFilters>({ ...props.filters })
+// Shallow refs: a deep ref's unwrapped type doesn't line up with a generic F or S.
+const draft: ShallowRef<F> = shallowRef({ ...props.filters })
 
 watch(panelOpen, (isOpen) => {
   if (isOpen) panel.value?.showModal()
@@ -70,13 +72,13 @@ function cancelPanel() {
   panelOpen.value = false
 }
 
-function updateDraft(next: SearchFilters) {
+function updateDraft(next: F) {
   draft.value = next
 }
 
 function clearPanel() {
-  draft.value = emptySearchFilters
-  emit('update:filters', emptySearchFilters)
+  draft.value = props.emptyFilters
+  emit('update:filters', props.emptyFilters)
   panelOpen.value = false
 }
 
@@ -88,7 +90,7 @@ function onPanelBackdropClick(event: MouseEvent) {
 // applies immediately; picking an axis alone just updates the local draft.
 const sortPanel = ref<HTMLDialogElement | null>(null)
 const sortPanelOpen = ref(false)
-const draftAxis = ref<SortBy>(props.sort.sortBy)
+const draftAxis: ShallowRef<S> = shallowRef(props.sort.sortBy)
 
 watch(sortPanelOpen, (isOpen) => {
   if (isOpen) sortPanel.value?.showModal()
@@ -104,7 +106,7 @@ function closeSortPanel() {
   sortPanelOpen.value = false
 }
 
-function chooseDirection(sortDir: WineSort['sortDir']) {
+function chooseDirection(sortDir: SortDir) {
   emit('update:sort', { sortBy: draftAxis.value, sortDir })
   sortPanelOpen.value = false
 }
@@ -126,7 +128,9 @@ function onSortPanelBackdropClick(event: MouseEvent) {
         :appellations="appellations"
         :meals="meals"
         @update:model-value="(v) => emit('update:filters', v)"
-      />
+      >
+        <template #extra="scope"><slot name="extra" v-bind="scope" /></template>
+      </FilterFields>
 
       <div v-if="hasActiveFilters" class="flex h-[38px] items-center">
         <AppButton variant="ghost" type="button" data-testid="clear-filters-button" @click="clearFilters">
@@ -180,7 +184,9 @@ function onSortPanelBackdropClick(event: MouseEvent) {
           :appellations="appellations"
           :meals="meals"
           @update:model-value="updateDraft"
-        />
+        >
+          <template #extra="scope"><slot name="extra" v-bind="scope" /></template>
+        </FilterFields>
       </div>
 
       <div class="mt-6 flex items-center justify-between">
@@ -217,7 +223,7 @@ function onSortPanelBackdropClick(event: MouseEvent) {
         <label v-for="axis in sortAxes" :key="axis.sortBy" class="flex cursor-pointer items-center gap-2 text-sm">
           <input
             type="radio"
-            name="wine-sort-axis"
+            name="sort-axis"
             :data-testid="`sort-axis-${axis.sortBy}`"
             :checked="draftAxis === axis.sortBy"
             @change="draftAxis = axis.sortBy"

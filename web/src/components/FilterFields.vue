@@ -1,14 +1,14 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="F extends CommonFilters">
 import { useI18n } from 'vue-i18n'
 import type { Appellation, Color, Meal } from '../api/types'
-import type { SearchFilters } from '../domain/searchFilters'
+import type { CommonFilters, ExtraFiltersScope } from '../domain/searchFilters'
 import AutocompleteField from './AutocompleteField.vue'
 import ColorSwatch from './ColorSwatch.vue'
 import FormField from './FormField.vue'
 
 const props = withDefaults(
   defineProps<{
-    modelValue: SearchFilters
+    modelValue: F
     appellations: Appellation[]
     meals: Meal[]
     testidSuffix?: string
@@ -19,7 +19,12 @@ const props = withDefaults(
 
 const { t } = useI18n()
 
-const emit = defineEmits<{ 'update:modelValue': [value: SearchFilters] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: F] }>()
+
+// Page-specific filters, rendered after the common ones against the same filters and update.
+defineSlots<{
+  extra?(scope: ExtraFiltersScope<F>): unknown
+}>()
 
 const colors: Color[] = ['rouge', 'blanc', 'rose']
 
@@ -27,7 +32,8 @@ function testid(name: string) {
   return props.testidSuffix ? `${name}-${props.testidSuffix}` : name
 }
 
-function update(patch: Partial<SearchFilters>) {
+// TypeScript can't see a common-filter patch as a Partial<F>, hence the union.
+function update(patch: Partial<CommonFilters> | Partial<F>) {
   emit('update:modelValue', { ...props.modelValue, ...patch })
 }
 </script>
@@ -68,25 +74,5 @@ function update(patch: Partial<SearchFilters>) {
     </div>
   </FormField>
 
-  <label
-    class="text-muted flex cursor-pointer items-center gap-2 text-xs"
-    :class="inline ? 'h-[38px]' : undefined"
-  >
-    <input
-      type="checkbox"
-      :data-testid="testid('ready-now-filter')"
-      class="peer sr-only"
-      :checked="modelValue.readyNow"
-      @change="update({ readyNow: ($event.target as HTMLInputElement).checked })"
-    />
-    <span
-      class="border-line bg-parchment-raised peer-checked:bg-bordeaux peer-checked:border-bordeaux peer-focus-visible:ring-bordeaux/40 text-transparent peer-checked:text-white inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:ring-2"
-      aria-hidden="true"
-    >
-      <svg viewBox="0 0 12 12" class="h-2.5 w-2.5">
-        <path d="M2.5 6.3 4.9 8.6 9.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
-    </span>
-    {{ t('cellar.filters.readyNow') }}
-  </label>
+  <slot name="extra" :filters="modelValue" :update="update" :testid-suffix="testidSuffix" :inline="inline" />
 </template>

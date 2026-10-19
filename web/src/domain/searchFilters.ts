@@ -1,9 +1,21 @@
 import type { Color } from '../api/types'
 
-export interface SearchFilters {
+// The filters every filter bar offers; pages add their own on top.
+export interface CommonFilters {
   mealId: number | null
   appellationId: number | null
   color: Color | null
+}
+
+// What a page's extra filters get to render against, live inline or as the mobile panel's draft.
+export interface ExtraFiltersScope<F extends CommonFilters> {
+  filters: F
+  update: (patch: Partial<F>) => void
+  testidSuffix: string
+  inline: boolean
+}
+
+export interface SearchFilters extends CommonFilters {
   readyNow: boolean
 }
 

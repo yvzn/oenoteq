@@ -7,14 +7,28 @@ import ColorSwatch from '../components/ColorSwatch.vue'
 import FilterBar from '../components/FilterBar.vue'
 import GardeStatusBadge from '../components/GardeStatusBadge.vue'
 import PageHeader from '../components/PageHeader.vue'
+import ReadyNowFilter from '../components/ReadyNowFilter.vue'
 import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useCellarRefresh } from '../composables/useCellarRefresh'
 import { useMeals } from '../composables/useMeals'
 import { useSearch } from '../composables/useSearch'
 import { pageToQueryParams, paginate, parsePage } from '../domain/pagination'
-import { filtersToQueryParams, queryParamsToFilters, type SearchFilters } from '../domain/searchFilters'
-import { nextSort, queryParamsToSort, sortToQueryParams, type SortBy, type WineSort } from '../domain/wineSort'
+import {
+  emptySearchFilters,
+  filtersToQueryParams,
+  queryParamsToFilters,
+  type SearchFilters,
+} from '../domain/searchFilters'
+import {
+  defaultWineSort,
+  nextSort,
+  queryParamsToSort,
+  sortAxes,
+  sortToQueryParams,
+  type SortBy,
+  type WineSort,
+} from '../domain/wineSort'
 import { formatYear } from '../i18n/formatters'
 import type { Locale } from '../i18n/locales'
 import { setCellarListRendered } from '../router/listScroll'
@@ -66,6 +80,11 @@ const appellationNameById = computed(() => {
 
 function appellationName(appellationId: number): string {
   return appellationNameById.value.get(appellationId) ?? t('cellar.list.unknownAppellation')
+}
+
+// Sort axes that are wine vocabulary share the vocabulary labels; Status is the list's own column.
+function axisLabel(sortBy: SortBy): string {
+  return sortBy === 'status' ? t('cellar.sort.status') : t(`vocabulary.${sortBy}`)
 }
 
 function updateFilters(next: SearchFilters) {
@@ -127,9 +146,22 @@ onMounted(loadFilterOptions)
       :sort="sort"
       :appellations="appellations"
       :meals="meals"
+      :empty-filters="emptySearchFilters"
+      :sort-axes="sortAxes"
+      :axis-label="axisLabel"
+      :default-sort="defaultWineSort"
       @update:filters="updateFilters"
       @update:sort="updateSort"
-    />
+    >
+      <template #extra="{ filters: edited, update, testidSuffix, inline }">
+        <ReadyNowFilter
+          :model-value="edited.readyNow"
+          :testid-suffix="testidSuffix"
+          :inline="inline"
+          @update:model-value="(readyNow) => update({ readyNow })"
+        />
+      </template>
+    </FilterBar>
 
     <div class="mx-auto max-w-2xl px-6 py-6 sm:px-8 sm:py-10">
       <PageHeader :title="listTitle">

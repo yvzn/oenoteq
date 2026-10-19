@@ -1,21 +1,34 @@
-import { mount } from '@vue/test-utils'
+import { mount, type VueWrapper } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import { emptySearchFilters, type SearchFilters } from '../domain/searchFilters'
-import { defaultWineSort, type WineSort } from '../domain/wineSort'
+import { h } from 'vue'
+import { emptySearchFilters, type CommonFilters, type SearchFilters } from '../domain/searchFilters'
+import { defaultWineSort, sortAxes, type WineSort } from '../domain/wineSort'
 import FilterBar from './FilterBar.vue'
+import ReadyNowFilter from './ReadyNowFilter.vue'
 
 const appellations = [{ id: 1, name: 'Chinon' }]
 const meals = [{ id: 1, name: 'Boeuf bourguignon' }]
 
 function mountFilterBar(filters: SearchFilters, sort: WineSort = defaultWineSort) {
-  return mount(FilterBar, { props: { filters, sort, appellations, meals } })
+  return mount(FilterBar<SearchFilters, WineSort['sortBy']>, {
+    props: {
+      filters,
+      sort,
+      appellations,
+      meals,
+      emptyFilters: emptySearchFilters,
+      sortAxes,
+      axisLabel: (sortBy: string) => sortBy,
+      defaultSort: defaultWineSort,
+    },
+  })
 }
 
-async function openPanel(wrapper: ReturnType<typeof mountFilterBar>) {
+async function openPanel(wrapper: Pick<VueWrapper, 'get'>) {
   await wrapper.get('[data-testid="filter-toggle-button"]').trigger('click')
 }
 
-async function openSortPanel(wrapper: ReturnType<typeof mountFilterBar>) {
+async function openSortPanel(wrapper: Pick<VueWrapper, 'get'>) {
   await wrapper.get('[data-testid="sort-toggle-button"]').trigger('click')
 }
 
@@ -154,6 +167,55 @@ describe('FilterBar', () => {
     })
   })
 
+  describe('extra filters slot', () => {
+    function mountWithReadyNow(filters: SearchFilters) {
+      return mount(FilterBar<SearchFilters, WineSort['sortBy']>, {
+        props: {
+          filters,
+          sort: defaultWineSort,
+          appellations,
+          meals,
+          emptyFilters: emptySearchFilters,
+          sortAxes,
+          axisLabel: (sortBy: string) => sortBy,
+          defaultSort: defaultWineSort,
+        },
+        slots: {
+          extra: ({ filters: edited, update, testidSuffix, inline }) =>
+            h(ReadyNowFilter, {
+              modelValue: edited.readyNow,
+              testidSuffix,
+              inline,
+              'onUpdate:modelValue': (readyNow: boolean) => update({ readyNow }),
+            }),
+        },
+      })
+    }
+
+    it('emits live from the inline slot content', async () => {
+      const wrapper = mountWithReadyNow(emptySearchFilters)
+
+      await wrapper.get('[data-testid="ready-now-filter"]').setValue(true)
+
+      expect(wrapper.emitted('update:filters')![0]).toEqual([{ ...emptySearchFilters, readyNow: true }])
+    })
+
+    it('edits the draft from the mobile slot content, applied on demand', async () => {
+      const wrapper = mountWithReadyNow({ ...emptySearchFilters, color: 'rouge' })
+
+      await openPanel(wrapper)
+      await wrapper.get('[data-testid="ready-now-filter-mobile"]').setValue(true)
+
+      expect(wrapper.emitted('update:filters')).toBeUndefined()
+
+      await wrapper.get('[data-testid="filter-panel-apply"]').trigger('click')
+
+      expect(wrapper.emitted('update:filters')![0]).toEqual([
+        { ...emptySearchFilters, color: 'rouge', readyNow: true },
+      ])
+    })
+  })
+
   describe('sort toggle button', () => {
     it('shows no direction indicator when sort is default', () => {
       const wrapper = mountFilterBar(emptySearchFilters, defaultWineSort)
@@ -262,6 +324,66 @@ describe('FilterBar', () => {
 
       expect(dialog.open).toBe(false)
       expect(wrapper.emitted('update:sort')).toBeUndefined()
+    })
+  })
+
+  describe('on a page with no extra filters', () => {
+    type HistorySortBy = 'producer' | 'date'
+    const emptyCommonFilters: CommonFilters = { mealId: null, appellationId: null, color: null }
+    const defaultSort = { sortBy: 'date' as HistorySortBy, sortDir: 'desc' as const }
+
+    function mountPlainFilterBar(filters: CommonFilters) {
+      return mount(FilterBar<CommonFilters, HistorySortBy>, {
+        props: {
+          filters,
+          sort: defaultSort,
+          appellations,
+          meals,
+          emptyFilters: emptyCommonFilters,
+          sortAxes: [{ sortBy: 'producer' }, { sortBy: 'date' }],
+          axisLabel: (sortBy: HistorySortBy) => `label-${sortBy}`,
+          defaultSort,
+        },
+      })
+    }
+
+    it('renders no ready-now toggle, inline or in the mobile panel', async () => {
+      const wrapper = mountPlainFilterBar(emptyCommonFilters)
+
+      await openPanel(wrapper)
+
+      expect(wrapper.find('[data-testid="ready-now-filter"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="ready-now-filter-mobile"]').exists()).toBe(false)
+    })
+
+    it('offers the sort axes and labels given as props', async () => {
+      const wrapper = mountPlainFilterBar(emptyCommonFilters)
+
+      await openSortPanel(wrapper)
+
+      expect(wrapper.find('[data-testid="sort-axis-date"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="sort-axis-status"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="sort-panel"]').text()).toContain('label-date')
+    })
+
+    it('treats the given default sort as default', () => {
+      const wrapper = mountPlainFilterBar(emptyCommonFilters)
+
+      expect(wrapper.get('[data-testid="sort-toggle-button"]').text()).not.toMatch(/[↑↓]/)
+    })
+
+    it('counts the active common filters', () => {
+      const wrapper = mountPlainFilterBar({ ...emptyCommonFilters, mealId: 1, color: 'blanc' })
+
+      expect(wrapper.get('[data-testid="filter-toggle-button"]').text()).toContain('2')
+    })
+
+    it('emits the given empty filters when cleared', async () => {
+      const wrapper = mountPlainFilterBar({ ...emptyCommonFilters, appellationId: 1 })
+
+      await wrapper.get('[data-testid="clear-filters-button"]').trigger('click')
+
+      expect(wrapper.emitted('update:filters')![0]).toEqual([emptyCommonFilters])
     })
   })
 })
