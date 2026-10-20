@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { ConsumptionHistoryEntry } from '../api/types'
 import type { ConsumptionHistorySort } from '../domain/consumptionHistorySort'
+import type { CommonFilters } from '../domain/searchFilters'
 import { gateway } from '../gateway'
 
 // Online-only, in both consent modes: a failure leaves nothing to show.
@@ -10,11 +11,11 @@ export function useConsumptionHistory() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function load(sort: ConsumptionHistorySort) {
+  async function load(filters: CommonFilters, sort: ConsumptionHistorySort) {
     loading.value = true
     error.value = null
     try {
-      entries.value = await gateway.consumptionHistory(sort)
+      entries.value = await gateway.consumptionHistory(filters, sort)
     } catch (e) {
       entries.value = []
       error.value = friendlyErrorMessage(e)

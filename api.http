@@ -208,6 +208,9 @@ GET {{baseUrl}}/consumptions
 ### List Consumption History sorted (sort_by: producer | appellation | millesime | date, default date; sort_dir: asc | desc, default desc; equal dates put higher id first, ties on other columns fall back to date desc then id desc; NV last in both directions; invalid values → 400 invalid_sort)
 GET {{baseUrl}}/consumptions?sort_by=producer&sort_dir=asc
 
+### List Consumption History filtered (meal_id, appellation_id, color — same names and meaning as /search, combinable with each other and with sort; meal_id matches Consumptions whose Wine's (appellation, color) is currently paired with that Meal; Wines at quantity 0 still match)
+GET {{baseUrl}}/consumptions?meal_id=1&appellation_id=1&color=blanc&sort_by=date&sort_dir=asc
+
 ### Edit a Consumption (date/rating/notes only, wine_id is not editable)
 PUT {{baseUrl}}/consumptions/1
 Content-Type: application/json

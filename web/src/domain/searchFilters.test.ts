@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { emptySearchFilters, filtersToQueryParams, queryParamsToFilters } from './searchFilters'
+import {
+  commonFiltersToQueryParams,
+  emptyCommonFilters,
+  emptySearchFilters,
+  filtersToQueryParams,
+  queryParamsToCommonFilters,
+  queryParamsToFilters,
+} from './searchFilters'
 
 describe('filtersToQueryParams', () => {
   it('omits params for an empty filter set', () => {
@@ -55,5 +62,32 @@ describe('queryParamsToFilters', () => {
   it('round-trips filters through query params without loss', () => {
     const filters = { mealId: 3, appellationId: 4, color: 'rose' as const, readyNow: true }
     expect(queryParamsToFilters(filtersToQueryParams(filters))).toEqual(filters)
+  })
+})
+
+describe('common filters query params', () => {
+  it('omits params for empty common filters', () => {
+    expect(commonFiltersToQueryParams(emptyCommonFilters)).toEqual({})
+  })
+
+  it('maps meal, appellation and color with the same names as the search filters', () => {
+    expect(commonFiltersToQueryParams({ mealId: 1, appellationId: 2, color: 'rouge' })).toEqual({
+      meal_id: '1',
+      appellation_id: '2',
+      color: 'rouge',
+    })
+  })
+
+  it('ignores ready_now when parsing common filters', () => {
+    expect(queryParamsToCommonFilters({ meal_id: '1', color: 'blanc', ready_now: 'true' })).toEqual({
+      mealId: 1,
+      appellationId: null,
+      color: 'blanc',
+    })
+  })
+
+  it('round-trips common filters through query params without loss', () => {
+    const filters = { mealId: 3, appellationId: 4, color: 'rose' as const }
+    expect(queryParamsToCommonFilters(commonFiltersToQueryParams(filters))).toEqual(filters)
   })
 })

@@ -3,6 +3,7 @@ import { ApiError } from '../api/client'
 import { friendlyErrorMessage } from '../api/errorMessages'
 import type { WineCreateInput } from '../api/types'
 import { defaultConsumptionHistorySort } from '../domain/consumptionHistorySort'
+import { emptyCommonFilters } from '../domain/searchFilters'
 import type { FakeServer } from '../test/fakeServer'
 import type { DataGateway } from './types'
 
@@ -359,7 +360,7 @@ export function describeGatewayContract(name: string, setup: () => GatewayHarnes
           },
         ]
 
-        const history = await h.gateway.consumptionHistory(defaultConsumptionHistorySort)
+        const history = await h.gateway.consumptionHistory(emptyCommonFilters, defaultConsumptionHistorySort)
 
         expect(history).toEqual(h.server.consumptionHistory)
         expect(h.server.consumptionHistoryRequests).toEqual(['/consumptions'])
@@ -368,16 +369,29 @@ export function describeGatewayContract(name: string, setup: () => GatewayHarnes
       it('asks the server for the requested sort', async () => {
         const h = setup()
 
-        await h.gateway.consumptionHistory({ sortBy: 'producer', sortDir: 'asc' })
+        await h.gateway.consumptionHistory(emptyCommonFilters, { sortBy: 'producer', sortDir: 'asc' })
 
         expect(h.server.consumptionHistoryRequests).toEqual(['/consumptions?sort_by=producer&sort_dir=asc'])
+      })
+
+      it('asks the server for the requested filters along with the sort', async () => {
+        const h = setup()
+
+        await h.gateway.consumptionHistory(
+          { mealId: 4, appellationId: 5, color: 'blanc' },
+          { sortBy: 'millesime', sortDir: 'desc' },
+        )
+
+        expect(h.server.consumptionHistoryRequests).toEqual([
+          '/consumptions?meal_id=4&appellation_id=5&color=blanc&sort_by=millesime',
+        ])
       })
 
       it('rejects with an error when the server is unreachable', async () => {
         const h = setup()
         h.server.down = true
 
-        const failure = await h.gateway.consumptionHistory(defaultConsumptionHistorySort).catch((e: unknown) => e)
+        const failure = await h.gateway.consumptionHistory(emptyCommonFilters, defaultConsumptionHistorySort).catch((e: unknown) => e)
 
         expect(failure).toBeInstanceOf(ApiError)
       })

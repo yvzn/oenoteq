@@ -42,6 +42,8 @@ const appellations = [
   { id: 2, name: 'Sancerre' },
 ]
 
+const meals = [{ id: 7, name: 'Oysters' }]
+
 function manyEntries(count: number): ConsumptionHistoryEntry[] {
   return Array.from({ length: count }, (_, i) => ({
     id: count - i,
@@ -60,15 +62,22 @@ async function mockApi(overrides: { history?: ConsumptionHistoryEntry[] } = {}) 
   const entries = overrides.history ?? history
   vi.mocked(apiClient.get).mockImplementation((path: string) => {
     if (path === '/appellations') return Promise.resolve(appellations)
+    if (path === '/meals') return Promise.resolve(meals)
     if (path === '/consumptions' || path.startsWith('/consumptions?')) return Promise.resolve(entries)
     throw new Error(`unexpected path: ${path}`)
   })
-  if (defaultConsent === 'granted') await db.appellations.bulkPut(appellations)
+  await seedFilterOptions()
 }
 
 async function mockServerUnreachable() {
   vi.mocked(apiClient.get).mockRejectedValue(new ApiError(0, 'Network error: unable to reach the server'))
-  if (defaultConsent === 'granted') await db.appellations.bulkPut(appellations)
+  await seedFilterOptions()
+}
+
+async function seedFilterOptions() {
+  if (defaultConsent !== 'granted') return
+  await db.appellations.bulkPut(appellations)
+  await db.meals.bulkPut(meals)
 }
 
 function historyRequests() {
@@ -320,6 +329,157 @@ describe('ConsumptionHistoryView sort', () => {
   })
 })
 
+describe('ConsumptionHistoryView filters', () => {
+  it('shows meal, appellation and color filters but no "ready now"', async () => {
+    await mockApi()
+
+    const { wrapper } = await mountAt('/history')
+
+    for (const testid of ['meal-filter', 'appellation-filter', 'color-filter']) {
+      expect(wrapper.find(`[data-testid="${testid}"]`).exists()).toBe(true)
+      expect(wrapper.find(`[data-testid="${testid}-mobile"]`).exists()).toBe(true)
+    }
+    expect(wrapper.find('[data-testid="ready-now-filter"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="ready-now-filter-mobile"]').exists()).toBe(false)
+  })
+
+  it('pre-applies filters and sort from the URL query params on load', async () => {
+    await mockApi()
+
+    const { wrapper } = await mountAt('/history?meal_id=7&appellation_id=1&color=rouge&sort_by=producer')
+
+    expect(historyRequests()).toEqual(['/consumptions?meal_id=7&appellation_id=1&color=rouge&sort_by=producer'])
+    expect(wrapper.get('[data-testid="filter-toggle-button"]').text()).toContain('3')
+  })
+
+  it('changes the URL and the request when a filter changes, keeping the sort', async () => {
+    await mockApi()
+
+    const { wrapper, router } = await mountAt('/history?sort_by=producer')
+    await wrapper.get('[data-testid="color-filter"]').setValue('blanc')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ color: 'blanc', sort_by: 'producer' })
+    expect(historyRequests().at(-1)).toBe('/consumptions?color=blanc&sort_by=producer')
+  })
+
+  it('filters by meal through the meal picker', async () => {
+    await mockApi()
+
+    const { wrapper, router } = await mountAt('/history')
+    await wrapper.get('[data-testid="meal-filter-input"]').trigger('focus')
+    await wrapper.get('[data-testid="meal-filter-option"]').trigger('mousedown')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ meal_id: '7' })
+    expect(historyRequests().at(-1)).toBe('/consumptions?meal_id=7')
+  })
+
+  it('applies filters from the mobile panel', async () => {
+    await mockApi()
+
+    const { wrapper, router } = await mountAt('/history')
+    await wrapper.get('[data-testid="filter-toggle-button"]').trigger('click')
+    await wrapper.get('[data-testid="color-filter-mobile"]').setValue('rose')
+    await wrapper.get('[data-testid="filter-panel-apply"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ color: 'rose' })
+    expect(historyRequests().at(-1)).toBe('/consumptions?color=rose')
+  })
+
+  it('resets to page 1 when a filter changes', async () => {
+    await mockApi({ history: manyEntries(25) })
+
+    const { wrapper, router } = await mountAt('/history?page=2')
+    await wrapper.get('[data-testid="color-filter"]').setValue('rouge')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ color: 'rouge' })
+    expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 1 of 3')
+  })
+
+  it('keeps filters when sorting and paging, and when going back from a wine detail', async () => {
+    await mockApi({ history: manyEntries(25) })
+
+    const { wrapper, router } = await mountAt('/history?color=rouge')
+    await wrapper.get('[data-testid="sort-header-producer"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="pagination-next"]').trigger('click')
+    await flushPromises()
+    const expected = { color: 'rouge', sort_by: 'producer', sort_dir: 'asc', page: '2' }
+    expect(router.currentRoute.value.query).toEqual(expected)
+
+    await router.push('/wines/11')
+    await flushPromises()
+    await router.back()
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual(expected)
+    expect(historyRequests().at(-1)).toBe('/consumptions?color=rouge&sort_by=producer&sort_dir=asc')
+  })
+
+  it('moves between prior filter states on browser back', async () => {
+    await mockApi()
+
+    const { wrapper, router } = await mountAt('/history')
+    await wrapper.get('[data-testid="color-filter"]').setValue('rouge')
+    await flushPromises()
+    await router.back()
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({})
+    expect(historyRequests().at(-1)).toBe('/consumptions')
+  })
+
+  it('clears every filter from the filter bar, keeping the sort', async () => {
+    await mockApi()
+
+    const { wrapper, router } = await mountAt('/history?color=rouge&appellation_id=1&sort_by=producer')
+    await wrapper.get('[data-testid="clear-filters-button"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer' })
+    expect(historyRequests().at(-1)).toBe('/consumptions?sort_by=producer')
+  })
+
+  it('clears every filter from the mobile filter bar, keeping the sort', async () => {
+    await mockApi()
+
+    const { wrapper, router } = await mountAt('/history?color=rouge&sort_by=producer')
+    await wrapper.get('[data-testid="mobile-clear-filters-button"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ sort_by: 'producer' })
+    expect(wrapper.get('[data-testid="filter-toggle-button"]').text()).not.toMatch(/\d/)
+  })
+
+  it('says no consumption matches the filters and offers to clear them', async () => {
+    await mockApi({ history: [] })
+
+    const { wrapper, router } = await mountAt('/history?color=rose&sort_dir=asc')
+
+    expect(wrapper.text()).toContain('No consumption matches these filters')
+    expect(wrapper.text()).not.toContain('No consumption recorded yet')
+
+    await mockApi()
+    await wrapper.get('[data-testid="history-clear-filters"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ sort_dir: 'asc' })
+    expect(wrapper.findAll('[data-testid="consumption-item"]')).toHaveLength(2)
+  })
+
+  it('offers no clear-filters action in the no-filters empty state', async () => {
+    await mockApi({ history: [] })
+
+    const { wrapper } = await mountAt('/history')
+
+    expect(wrapper.text()).toContain('No consumption recorded yet')
+    expect(wrapper.find('[data-testid="history-clear-filters"]').exists()).toBe(false)
+  })
+})
+
 describe('ConsumptionHistoryView pagination', () => {
   it('shows the first page with Previous disabled', async () => {
     await mockApi({ history: manyEntries(25) })
@@ -383,7 +543,7 @@ describe('ConsumptionHistoryView pagination', () => {
     let answer!: (entries: ConsumptionHistoryEntry[]) => void
     vi.mocked(apiClient.get).mockImplementation((path: string) => {
       if (path === '/consumptions') return new Promise((resolve) => (answer = resolve as never))
-      return Promise.resolve(appellations)
+      return Promise.resolve(path === '/meals' ? meals : appellations)
     })
     const { wrapper } = await mountAt('/history?page=2')
 
@@ -434,6 +594,16 @@ describe('ConsumptionHistoryView in French', () => {
     const { wrapper } = await mountAt('/history')
 
     expect(wrapper.text()).toContain('Aucune consommation enregistrée pour le moment')
+  })
+
+  it('says so in French when no consumption matches the filters', async () => {
+    await mockApi({ history: [] })
+    setTestLocale('fr')
+
+    const { wrapper } = await mountAt('/history?color=rose')
+
+    expect(wrapper.text()).toContain('Aucune consommation ne correspond à ces filtres')
+    expect(wrapper.get('[data-testid="history-clear-filters"]').text()).toBe('Effacer les filtres')
   })
 
   it('uses the singular for a single consumption', async () => {

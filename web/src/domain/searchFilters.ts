@@ -32,20 +32,31 @@ export const emptySearchFilters: SearchFilters = {
   readyNow: false,
 }
 
-export function filtersToQueryParams(filters: SearchFilters): Record<string, string> {
+export function commonFiltersToQueryParams(filters: CommonFilters): Record<string, string> {
   const params: Record<string, string> = {}
   if (filters.mealId !== null) params.meal_id = String(filters.mealId)
   if (filters.appellationId !== null) params.appellation_id = String(filters.appellationId)
   if (filters.color !== null) params.color = filters.color
+  return params
+}
+
+export function queryParamsToCommonFilters(query: Record<string, unknown>): CommonFilters {
+  return {
+    mealId: parseId(query.meal_id),
+    appellationId: parseId(query.appellation_id),
+    color: parseColor(query.color),
+  }
+}
+
+export function filtersToQueryParams(filters: SearchFilters): Record<string, string> {
+  const params = commonFiltersToQueryParams(filters)
   if (filters.readyNow) params.ready_now = 'true'
   return params
 }
 
 export function queryParamsToFilters(query: Record<string, unknown>): SearchFilters {
   return {
-    mealId: parseId(query.meal_id),
-    appellationId: parseId(query.appellation_id),
-    color: parseColor(query.color),
+    ...queryParamsToCommonFilters(query),
     readyNow: query.ready_now === 'true',
   }
 }

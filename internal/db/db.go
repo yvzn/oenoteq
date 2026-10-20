@@ -1121,13 +1121,51 @@ type WineSearchResult struct {
 	GardeStatus string `json:"garde_status"`
 }
 
-type SearchFilters struct {
+// WineFilters narrows a query to Wines matching an appellation, a color and
+// a meal (through the current Meal Pairings), shared by /search and
+// /consumptions.
+type WineFilters struct {
 	MealID        *int
 	AppellationID *int
 	Color         *string
-	ReadyNow      bool
-	SortBy        string
-	SortDir       string
+}
+
+// wineFiltersSQL returns the AND clauses (on the joined wine table) and their
+// args for f.
+func wineFiltersSQL(f WineFilters) (string, []interface{}, error) {
+	var clauses string
+	var args []interface{}
+
+	if f.AppellationID != nil {
+		clauses += " AND wine.appellation_id = ?"
+		args = append(args, *f.AppellationID)
+	}
+	if f.Color != nil {
+		if err := validateColor(*f.Color); err != nil {
+			return "", nil, err
+		}
+		clauses += " AND wine.color = ?"
+		args = append(args, *f.Color)
+	}
+	if f.MealID != nil {
+		clauses += `
+			AND EXISTS (
+				SELECT 1 FROM meal_pairing mp
+				WHERE mp.appellation_id = wine.appellation_id
+				  AND mp.color = wine.color
+				  AND mp.meal_id = ?
+			)
+		`
+		args = append(args, *f.MealID)
+	}
+	return clauses, args, nil
+}
+
+type SearchFilters struct {
+	WineFilters
+	ReadyNow bool
+	SortBy   string
+	SortDir  string
 }
 
 func validateSort(sortBy, sortDir string) error {
@@ -1217,30 +1255,11 @@ func (d *DB) SearchWines(ctx context.Context, f SearchFilters) ([]WineSearchResu
 		JOIN appellation ON appellation.id = wine.appellation_id
 		WHERE wine.quantity > 0
 	`
-	var args []interface{}
-
-	if f.AppellationID != nil {
-		query += " AND wine.appellation_id = ?"
-		args = append(args, *f.AppellationID)
+	filterSQL, args, err := wineFiltersSQL(f.WineFilters)
+	if err != nil {
+		return nil, err
 	}
-	if f.Color != nil {
-		if err := validateColor(*f.Color); err != nil {
-			return nil, err
-		}
-		query += " AND wine.color = ?"
-		args = append(args, *f.Color)
-	}
-	if f.MealID != nil {
-		query += `
-			AND EXISTS (
-				SELECT 1 FROM meal_pairing mp
-				WHERE mp.appellation_id = wine.appellation_id
-				  AND mp.color = wine.color
-				  AND mp.meal_id = ?
-			)
-		`
-		args = append(args, *f.MealID)
-	}
+	query += filterSQL
 	query += " ORDER BY " + sortWinesSQL(f.SortBy, f.SortDir)
 
 	rows, err := d.QueryContext(ctx, query, args...)
@@ -1388,6 +1407,7 @@ type ConsumptionHistoryEntry struct {
 }
 
 type ConsumptionHistoryFilters struct {
+	WineFilters
 	SortBy  string
 	SortDir string
 }
@@ -1410,11 +1430,16 @@ func sortConsumptionHistorySQL(sortBy, sortDir string) string {
 	}
 }
 
-// ListConsumptionHistory returns every Consumption across all Wines in the
-// requested order. Unlike SearchWines, Wines with quantity 0 are included:
-// their past Consumptions stay in the history.
+// ListConsumptionHistory returns every Consumption whose Wine matches the
+// filters, in the requested order. Unlike SearchWines, Wines with quantity 0
+// are included: their past Consumptions stay in the history.
 func (d *DB) ListConsumptionHistory(ctx context.Context, f ConsumptionHistoryFilters) ([]ConsumptionHistoryEntry, error) {
 	if err := validateSortAgainst(validConsumptionHistorySortBy, f.SortBy, f.SortDir); err != nil {
+		return nil, err
+	}
+
+	filterSQL, args, err := wineFiltersSQL(f.WineFilters)
+	if err != nil {
 		return nil, err
 	}
 
@@ -1424,7 +1449,8 @@ func (d *DB) ListConsumptionHistory(ctx context.Context, f ConsumptionHistoryFil
 		JOIN wine ON wine.id = consumption.wine_id
 		JOIN producer ON producer.id = wine.producer_id
 		JOIN appellation ON appellation.id = wine.appellation_id
-		ORDER BY `+sortConsumptionHistorySQL(f.SortBy, f.SortDir))
+		WHERE 1 = 1`+filterSQL+` -- filter clauses each start with AND
+		ORDER BY `+sortConsumptionHistorySQL(f.SortBy, f.SortDir), args...)
 	if err != nil {
 		return nil, fmt.Errorf("querying consumption history: %w", err)
 	}

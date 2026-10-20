@@ -5,6 +5,7 @@ export default {
     loading: 'Loading your consumption history…',
     loadError: "Couldn't load your consumption history: {error}",
     empty: 'No consumption recorded yet.',
+    noMatch: 'No consumption matches these filters.',
     columns: { date: 'Date' },
     sort: { date: 'Consumption date' },
     pagination: { label: 'History pages' },

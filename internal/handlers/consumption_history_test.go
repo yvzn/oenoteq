@@ -317,3 +317,140 @@ func TestConsumptionHistoryRejectsInvalidSortDir(t *testing.T) {
 		t.Errorf("Expected error code 'invalid_sort', got %q", code)
 	}
 }
+
+func pairMeal(t *testing.T, harness *test.Harness, method string, appellationID int, color string, mealID int) {
+	t.Helper()
+
+	resp := harness.Do(method, "/meal-pairings", map[string]interface{}{
+		"appellation_id": appellationID,
+		"color":          color,
+		"meal_id":        mealID,
+	})
+	if resp.StatusCode >= 300 {
+		t.Fatalf("%s /meal-pairings: unexpected status %d", method, resp.StatusCode)
+	}
+}
+
+func TestConsumptionHistoryFiltersByAppellation(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	chinon := createTestAppellation(t, harness, "Chinon")
+	vouvray := createTestAppellation(t, harness, "Vouvray")
+	chinonWine := createSearchTestWine(t, harness, chinon, "rouge", 2020, 2030, 3)
+	vouvrayWine := createSearchTestWine(t, harness, vouvray, "blanc", 2020, 2030, 3)
+
+	chinonConsumption := recordTestConsumption(t, harness, chinonWine.ID, "2026-01-01")
+	recordTestConsumption(t, harness, vouvrayWine.ID, "2026-01-02")
+
+	assertHistoryOrder(t, harness, "?appellation_id="+strconv.Itoa(chinon), []int{chinonConsumption.ID})
+}
+
+func TestConsumptionHistoryFiltersByColor(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	appellationID := createTestAppellation(t, harness, "Saumur")
+	rose := createSearchTestWine(t, harness, appellationID, "rose", 2020, 2030, 3)
+	rouge := createSearchTestWine(t, harness, appellationID, "rouge", 2020, 2030, 3)
+
+	roseConsumption := recordTestConsumption(t, harness, rose.ID, "2026-01-01")
+	recordTestConsumption(t, harness, rouge.ID, "2026-01-02")
+
+	assertHistoryOrder(t, harness, "?color=rose", []int{roseConsumption.ID})
+}
+
+func TestConsumptionHistoryFiltersByMealThroughPairing(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	chablis := createTestAppellation(t, harness, "Chablis")
+	pommard := createTestAppellation(t, harness, "Pommard")
+	oysters := createTestMeal(t, harness, "Oysters")
+	pairMeal(t, harness, "POST", chablis, "blanc", oysters)
+
+	paired := createSearchTestWine(t, harness, chablis, "blanc", 2020, 2030, 3)
+	sameAppellationOtherColor := createSearchTestWine(t, harness, chablis, "rouge", 2020, 2030, 3)
+	sameColorOtherAppellation := createSearchTestWine(t, harness, pommard, "blanc", 2020, 2030, 3)
+
+	pairedConsumption := recordTestConsumption(t, harness, paired.ID, "2026-01-01")
+	recordTestConsumption(t, harness, sameAppellationOtherColor.ID, "2026-01-02")
+	recordTestConsumption(t, harness, sameColorOtherAppellation.ID, "2026-01-03")
+
+	assertHistoryOrder(t, harness, "?meal_id="+strconv.Itoa(oysters), []int{pairedConsumption.ID})
+}
+
+func TestConsumptionHistoryFiltersIncludeWinesWithQuantityZero(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	chablis := createTestAppellation(t, harness, "Chablis")
+	oysters := createTestMeal(t, harness, "Oysters")
+	pairMeal(t, harness, "POST", chablis, "blanc", oysters)
+	finished := createSearchTestWine(t, harness, chablis, "blanc", 2020, 2030, 1)
+
+	consumption := recordTestConsumption(t, harness, finished.ID, "2026-01-01")
+
+	for _, query := range []string{
+		"?meal_id=" + strconv.Itoa(oysters),
+		"?appellation_id=" + strconv.Itoa(chablis),
+		"?color=blanc",
+	} {
+		assertHistoryOrder(t, harness, query, []int{consumption.ID})
+	}
+}
+
+func TestConsumptionHistoryMealFilterFollowsCurrentPairings(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	chablis := createTestAppellation(t, harness, "Chablis")
+	pommard := createTestAppellation(t, harness, "Pommard")
+	oysters := createTestMeal(t, harness, "Oysters")
+	pairMeal(t, harness, "POST", chablis, "blanc", oysters)
+
+	chablisWine := createSearchTestWine(t, harness, chablis, "blanc", 2020, 2030, 3)
+	pommardWine := createSearchTestWine(t, harness, pommard, "rouge", 2020, 2030, 3)
+	chablisConsumption := recordTestConsumption(t, harness, chablisWine.ID, "2026-01-01")
+	pommardConsumption := recordTestConsumption(t, harness, pommardWine.ID, "2026-01-02")
+
+	query := "?meal_id=" + strconv.Itoa(oysters)
+	assertHistoryOrder(t, harness, query, []int{chablisConsumption.ID})
+
+	pairMeal(t, harness, "DELETE", chablis, "blanc", oysters)
+	pairMeal(t, harness, "POST", pommard, "rouge", oysters)
+
+	assertHistoryOrder(t, harness, query, []int{pommardConsumption.ID})
+}
+
+func TestConsumptionHistoryCombinesFiltersWithSort(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+	chablis := createTestAppellation(t, harness, "Chablis")
+	pommard := createTestAppellation(t, harness, "Pommard")
+	oysters := createTestMeal(t, harness, "Oysters")
+	pairMeal(t, harness, "POST", chablis, "blanc", oysters)
+	pairMeal(t, harness, "POST", chablis, "rouge", oysters)
+	pairMeal(t, harness, "POST", pommard, "blanc", oysters)
+
+	chablisBlanc := createSearchTestWine(t, harness, chablis, "blanc", 2020, 2030, 3)
+	chablisRouge := createSearchTestWine(t, harness, chablis, "rouge", 2020, 2030, 3)
+	pommardBlanc := createSearchTestWine(t, harness, pommard, "blanc", 2020, 2030, 3)
+
+	older := recordTestConsumption(t, harness, chablisBlanc.ID, "2025-01-01")
+	newer := recordTestConsumption(t, harness, chablisBlanc.ID, "2026-01-01")
+	recordTestConsumption(t, harness, chablisRouge.ID, "2026-02-01")
+	recordTestConsumption(t, harness, pommardBlanc.ID, "2026-03-01")
+
+	query := "?meal_id=" + strconv.Itoa(oysters) + "&appellation_id=" + strconv.Itoa(chablis) + "&color=blanc"
+	assertHistoryOrder(t, harness, query, []int{newer.ID, older.ID})
+	assertHistoryOrder(t, harness, query+"&sort_by=date&sort_dir=asc", []int{older.ID, newer.ID})
+}
+
+func TestConsumptionHistoryRejectsInvalidFilters(t *testing.T) {
+	harness, _ := setupHandlerWithDB(t)
+
+	cases := []struct{ query, code string }{
+		{"?color=orange", "invalid_color"},
+		{"?meal_id=abc", "invalid_meal_id"},
+		{"?appellation_id=abc", "invalid_appellation_id"},
+	}
+	for _, c := range cases {
+		resp := harness.Do("GET", "/consumptions"+c.query, nil)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: expected status %d, got %d", c.query, http.StatusBadRequest, resp.StatusCode)
+		}
+		if code := harness.ErrorCode(resp); code != c.code {
+			t.Errorf("%s: expected error code %q, got %q", c.query, c.code, code)
+		}
+	}
+}

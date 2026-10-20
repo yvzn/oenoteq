@@ -9,6 +9,7 @@ import PageHeader from '../components/PageHeader.vue'
 import StatusLine from '../components/StatusLine.vue'
 import { useAppellations } from '../composables/useAppellations'
 import { useConsumptionHistory } from '../composables/useConsumptionHistory'
+import { useMeals } from '../composables/useMeals'
 import {
   consumptionHistorySortAxes,
   consumptionHistorySortToQueryParams,
@@ -19,7 +20,12 @@ import {
   type ConsumptionHistorySortBy,
 } from '../domain/consumptionHistorySort'
 import { pageToQueryParams, paginate, parsePage } from '../domain/pagination'
-import { emptyCommonFilters } from '../domain/searchFilters'
+import {
+  commonFiltersToQueryParams,
+  emptyCommonFilters,
+  queryParamsToCommonFilters,
+  type CommonFilters,
+} from '../domain/searchFilters'
 import { formatDate, formatYear } from '../i18n/formatters'
 import type { Locale } from '../i18n/locales'
 import { setListRendered } from '../router/listScroll'
@@ -34,16 +40,22 @@ const {
   error: appellationsError,
   load: loadAppellations,
 } = useAppellations()
+const { meals, loading: mealsLoading, error: mealsError, load: loadMeals } = useMeals()
 const { entries, loading: historyLoading, error: historyError, load: loadHistory } = useConsumptionHistory()
 
+const filters = computed<CommonFilters>(() => queryParamsToCommonFilters(route.query))
 const sort = computed<ConsumptionHistorySort>(() => queryParamsToConsumptionHistorySort(route.query))
 
 const pageData = computed(() => paginate(entries.value, parsePage(route.query.page)))
 
-const loading = computed(() => appellationsLoading.value || historyLoading.value)
+const loading = computed(() => appellationsLoading.value || mealsLoading.value || historyLoading.value)
 const error = computed(() =>
-  [appellationsError.value, historyError.value].filter((e): e is string => e !== null).join('; '),
+  [appellationsError.value, mealsError.value, historyError.value]
+    .filter((e): e is string => e !== null)
+    .join('; '),
 )
+
+const hasActiveFilters = computed(() => Object.values(filters.value).some((value) => value !== null))
 
 const listTitle = computed(() => {
   if (loading.value || error.value) return t('history.title')
@@ -73,12 +85,22 @@ function axisLabel(sortBy: ConsumptionHistorySortBy): string {
   return sortBy === 'date' ? t('history.sort.date') : t(`vocabulary.${sortBy}`)
 }
 
+function updateFilters(next: CommonFilters) {
+  router.push({ query: { ...commonFiltersToQueryParams(next), ...consumptionHistorySortToQueryParams(sort.value) } })
+}
+
 function updateSort(next: ConsumptionHistorySort) {
-  router.push({ query: consumptionHistorySortToQueryParams(next) })
+  router.push({ query: { ...commonFiltersToQueryParams(filters.value), ...consumptionHistorySortToQueryParams(next) } })
 }
 
 function goToPage(page: number) {
-  router.push({ query: { ...consumptionHistorySortToQueryParams(sort.value), ...pageToQueryParams(page) } })
+  router.push({
+    query: {
+      ...commonFiltersToQueryParams(filters.value),
+      ...consumptionHistorySortToQueryParams(sort.value),
+      ...pageToQueryParams(page),
+    },
+  })
 }
 
 function sortByColumn(column: ConsumptionHistorySortBy) {
@@ -90,34 +112,45 @@ function sortIndicator(column: ConsumptionHistorySortBy) {
   return sort.value.sortDir === 'asc' ? '↑' : '↓'
 }
 
-function retry() {
+function loadFilterOptions() {
   loadAppellations()
-  loadHistory(sort.value)
+  loadMeals()
 }
 
-// Keyed on the sort only: a page change must not refetch.
-const historyKey = computed(() => new URLSearchParams(consumptionHistorySortToQueryParams(sort.value)).toString())
+function retry() {
+  loadFilterOptions()
+  loadHistory(filters.value, sort.value)
+}
 
-watch(historyKey, () => loadHistory(sort.value), { immediate: true })
+// Keyed on the filters and sort only: a page change must not refetch.
+const historyKey = computed(() =>
+  new URLSearchParams({
+    ...commonFiltersToQueryParams(filters.value),
+    ...consumptionHistorySortToQueryParams(sort.value),
+  }).toString(),
+)
+
+watch(historyKey, () => loadHistory(filters.value, sort.value), { immediate: true })
 
 // The router restores the scroll offset on back navigation once told the rows are there.
 watch(loading, (isLoading) => setListRendered(!isLoading), { immediate: true, flush: 'post' })
 onBeforeUnmount(() => setListRendered(false))
 
-onMounted(loadAppellations)
+onMounted(loadFilterOptions)
 </script>
 
 <template>
   <section>
     <FilterBar
-      :filters="emptyCommonFilters"
+      :filters="filters"
       :sort="sort"
       :appellations="appellations"
-      :meals="[]"
+      :meals="meals"
       :empty-filters="emptyCommonFilters"
       :sort-axes="consumptionHistorySortAxes"
       :axis-label="axisLabel"
       :default-sort="defaultConsumptionHistorySort"
+      @update:filters="updateFilters"
       @update:sort="updateSort"
     />
 
@@ -130,6 +163,12 @@ onMounted(loadAppellations)
         <template #retry>
           <AppButton variant="ghost" data-testid="history-retry" @click="retry">{{ t('actions.retry') }}</AppButton>
         </template>
+      </StatusLine>
+      <StatusLine v-else-if="entries.length === 0 && hasActiveFilters" class="mt-6">
+        {{ t('history.noMatch') }}
+        <AppButton variant="ghost" data-testid="history-clear-filters" @click="updateFilters(emptyCommonFilters)">
+          {{ t('cellar.filters.clear') }}
+        </AppButton>
       </StatusLine>
       <StatusLine v-else-if="entries.length === 0" class="mt-6">
         {{ t('history.empty') }}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/younited/wine-cellar-tracker/internal/db"
@@ -644,6 +645,13 @@ func (h *Handler) ListConsumptionHistory(w http.ResponseWriter, r *http.Request)
 	q := r.URL.Query()
 	var filters db.ConsumptionHistoryFilters
 
+	wineFilters, code := parseWineFilters(q)
+	if code != "" {
+		writeError(w, http.StatusBadRequest, code)
+		return
+	}
+	filters.WineFilters = wineFilters
+
 	filters.SortBy = q.Get("sort_by")
 	if filters.SortBy == "" {
 		filters.SortBy = "date"
@@ -778,31 +786,44 @@ func queryErrorStatus(err error) int {
 	}
 }
 
-func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	var filters db.SearchFilters
+// parseWineFilters reads meal_id, appellation_id and color, returning the
+// error code of the first malformed one. Color values are validated by the db.
+func parseWineFilters(q url.Values) (db.WineFilters, string) {
+	var f db.WineFilters
 
 	if v := q.Get("meal_id"); v != "" {
 		id, err := strconv.Atoi(v)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, codeInvalidMealID)
-			return
+			return f, codeInvalidMealID
 		}
-		filters.MealID = &id
+		f.MealID = &id
 	}
 
 	if v := q.Get("appellation_id"); v != "" {
 		id, err := strconv.Atoi(v)
 		if err != nil {
-			writeError(w, http.StatusBadRequest, codeInvalidAppellationID)
-			return
+			return f, codeInvalidAppellationID
 		}
-		filters.AppellationID = &id
+		f.AppellationID = &id
 	}
 
 	if v := q.Get("color"); v != "" {
-		filters.Color = &v
+		f.Color = &v
 	}
+
+	return f, ""
+}
+
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	var filters db.SearchFilters
+
+	wineFilters, code := parseWineFilters(q)
+	if code != "" {
+		writeError(w, http.StatusBadRequest, code)
+		return
+	}
+	filters.WineFilters = wineFilters
 
 	filters.ReadyNow = q.Get("ready_now") == "true"
 
