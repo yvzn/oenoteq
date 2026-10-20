@@ -149,7 +149,7 @@ describe('ConsumptionHistoryView', () => {
 
     const { wrapper } = await mountAt('/history')
 
-    expect(links(wrapper)).toEqual(['/wines/1', '/wines/2', '/wines/1'])
+    expect(links(wrapper)).toEqual(['/wines/1#consumption-history', '/wines/2#consumption-history', '/wines/1#consumption-history'])
   })
 
   it('shows the total number of consumptions in the title', async () => {
@@ -454,28 +454,13 @@ describe('ConsumptionHistoryView filters', () => {
     expect(wrapper.get('[data-testid="filter-toggle-button"]').text()).not.toMatch(/\d/)
   })
 
-  it('says no consumption matches the filters and offers to clear them', async () => {
+  it('says no consumption matches the filters, without a clear-filters link', async () => {
     await mockApi({ history: [] })
 
-    const { wrapper, router } = await mountAt('/history?color=rose&sort_dir=asc')
+    const { wrapper } = await mountAt('/history?color=rose&sort_dir=asc')
 
     expect(wrapper.text()).toContain('No consumption matches these filters')
     expect(wrapper.text()).not.toContain('No consumption recorded yet')
-
-    await mockApi()
-    await wrapper.get('[data-testid="history-clear-filters"]').trigger('click')
-    await flushPromises()
-
-    expect(router.currentRoute.value.query).toEqual({ sort_dir: 'asc' })
-    expect(wrapper.findAll('[data-testid="consumption-item"]')).toHaveLength(2)
-  })
-
-  it('offers no clear-filters action in the no-filters empty state', async () => {
-    await mockApi({ history: [] })
-
-    const { wrapper } = await mountAt('/history')
-
-    expect(wrapper.text()).toContain('No consumption recorded yet')
     expect(wrapper.find('[data-testid="history-clear-filters"]').exists()).toBe(false)
   })
 })
@@ -489,7 +474,7 @@ describe('ConsumptionHistoryView pagination', () => {
     expect(wrapper.findAll('[data-testid="consumption-item"]')).toHaveLength(10)
     expect(wrapper.get('[data-testid="pagination-status"]').text()).toBe('Page 1 of 3')
     expect(wrapper.get('[data-testid="pagination-previous"]').attributes('disabled')).toBeDefined()
-    expect(links(wrapper)[0]).toBe('/wines/25')
+    expect(links(wrapper)[0]).toBe('/wines/25#consumption-history')
   })
 
   it('hides the controls when everything fits on one page', async () => {
@@ -509,7 +494,7 @@ describe('ConsumptionHistoryView pagination', () => {
     await wrapper.get('[data-testid="pagination-next"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query).toEqual({ page: '2' })
-    expect(links(wrapper)[0]).toBe('/wines/15')
+    expect(links(wrapper)[0]).toBe('/wines/15#consumption-history')
     expect(historyRequests()).toEqual([])
 
     await wrapper.get('[data-testid="pagination-previous"]').trigger('click')
@@ -603,7 +588,6 @@ describe('ConsumptionHistoryView in French', () => {
     const { wrapper } = await mountAt('/history?color=rose')
 
     expect(wrapper.text()).toContain('Aucune consommation ne correspond à ces filtres')
-    expect(wrapper.get('[data-testid="history-clear-filters"]').text()).toBe('Effacer les filtres')
   })
 
   it('uses the singular for a single consumption', async () => {

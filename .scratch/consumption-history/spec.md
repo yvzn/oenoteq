@@ -43,7 +43,7 @@ All text in English and French.
 21. As a user, I want browser back from the detail page to return to the history with the same filters, sort and page, so that I don't lose my place.
 22. As a user, I want filters, sort and page reflected in the URL, so that a reload or a shared link shows the same view.
 23. As a user with no Consumption recorded yet, I want a clear "No consumption recorded yet" message, so that I know the page works and is just empty.
-24. As a user whose filters match nothing, I want a "No consumption matches these filters" message with a way to clear them, so that I know why the list is empty.
+24. As a user whose filters match nothing, I want a "No consumption matches these filters" message, so that I know why the list is empty.
 25. As a user who is offline, I want the page to tell me it can't reach the server and offer a retry, so that I understand why nothing shows.
 26. As a user in Offline Mode, I want a Consumption I recorded offline to appear in the history once it has synced, so that the history ends up complete.
 27. As a user without Cookie Consent, I want the History page to work the same while online, so that refusing device storage doesn't cost me the feature.
@@ -69,7 +69,7 @@ All text in English and French.
   - The filter bar becomes generic over the filters type. It forwards the extra-filters slot into both of its filter fields instances. Active filter count is derived generically (fields that are not null/false). The empty filters value, the sort axes, the axis labels and the default sort become props instead of being hard-wired to the cellar list.
   - The cellar list passes its "ready now" toggle through the slot, extracted into its own small component. Existing test ids (`ready-now-filter`, `ready-now-filter-mobile`, etc.) stay unchanged.
 - **History view:** a new route `/history` named for the page, with a header nav link after Cellar. The layout copies the cellar list's: header row with sortable column buttons (producer, appellation, millesime, date) replacing the quantity and status columns, rows as links to the Wine detail route, mobile row showing millesime · date under the name. Filters, sort and page live in the URL query, parsed and written the same way as on the cellar list. Pagination reuses the cellar list's client-side slicing and page size.
-- **States:** loading, server unreachable (status line + retry), empty with no filters ("No consumption recorded yet"), empty with filters ("No consumption matches these filters" + clear filters).
+- **States:** loading, server unreachable (status line + retry), empty with no filters ("No consumption recorded yet"), empty with filters ("No consumption matches these filters", no extra clear link: the filter bar already has one).
 - **Glossary:** `CONTEXT.md` already defines **Consumption History** and notes that a Consumption records no Meal; UI text uses "consumption", never "tasting".
 
 ## Testing Decisions

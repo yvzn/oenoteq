@@ -23,6 +23,9 @@ function whenListRendered(): Promise<void> {
 // Back/forward restores the offset the reader left at (waiting for the list to
 // render); every other navigation, including a filter, sort or page change, starts at the top.
 export const scrollBehavior: RouterScrollBehavior = async (to, _from, savedPosition) => {
+  // The target of a named anchor isn't rendered yet (its page loads asynchronously), so the page scrolls
+  // there itself; resetting to the top here could land after it and undo it.
+  if (!savedPosition && to.hash) return false
   if (!savedPosition) return { top: 0 }
   if (LIST_ROUTES.includes(to.name as string)) await whenListRendered()
   return savedPosition

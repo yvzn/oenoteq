@@ -166,9 +166,6 @@ onMounted(loadFilterOptions)
       </StatusLine>
       <StatusLine v-else-if="entries.length === 0 && hasActiveFilters" class="mt-6">
         {{ t('history.noMatch') }}
-        <AppButton variant="ghost" data-testid="history-clear-filters" @click="updateFilters(emptyCommonFilters)">
-          {{ t('cellar.filters.clear') }}
-        </AppButton>
       </StatusLine>
       <StatusLine v-else-if="entries.length === 0" class="mt-6">
         {{ t('history.empty') }}
@@ -222,7 +219,7 @@ onMounted(loadFilterOptions)
             class="border-line border-b"
           >
             <RouterLink
-              :to="{ name: 'wine-detail', params: { id: entry.wine_id } }"
+              :to="{ name: 'wine-detail', params: { id: entry.wine_id }, hash: '#consumption-history' }"
               data-testid="consumption-link"
               class="hover:bg-parchment-raised grid grid-cols-[5px_1fr] items-center gap-4 px-[22px] py-4 transition-colors sm:grid-cols-[5px_1fr_78px_150px] sm:gap-5"
             >

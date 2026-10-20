@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import type { Consumption } from '../api/types'
@@ -191,6 +191,16 @@ function afterLoad(requestedId: number, resolvedId: number) {
   }
 }
 
+// The wine loads after the route settles, so the router can't scroll to a named anchor itself: do it
+// once, as soon as the wine (and so the anchored section) is rendered.
+let scrolledToHash = false
+watch([wine, loading], async ([loaded, isLoading]) => {
+  if (!loaded || isLoading || !route.hash || scrolledToHash) return
+  scrolledToHash = true
+  await nextTick()
+  document.getElementById(route.hash.slice(1))?.scrollIntoView()
+})
+
 watch(
   id,
   (next) => {
@@ -205,6 +215,7 @@ watch(
     quantityDelta.value = ''
     quantityDialogOpen.value = false
     adjustQuantityError.value = null
+    scrolledToHash = false
     loadWine(next).then((resolvedId) => afterLoad(next, resolvedId))
   },
   { immediate: true },
@@ -299,7 +310,7 @@ function retry() {
         </section>
 
         <section class="border-line mt-[26px] border-t pt-[26px]">
-          <h2 class="font-display text-ink mb-4 text-[16px] font-semibold">{{ t('wine.detail.history') }}</h2>
+          <h2 id="consumption-history" class="scroll-mt-12 font-display text-ink mb-4 text-[16px] font-semibold">{{ t('wine.detail.history') }}</h2>
           <StatusLine v-if="wine.consumption_history.length === 0">{{ t('wine.detail.noHistory') }}</StatusLine>
           <ul v-else data-testid="consumption-history" class="flex flex-col">
             <li

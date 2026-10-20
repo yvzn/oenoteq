@@ -11,7 +11,7 @@
 - [x] `api.http` request updated with filter parameters
 - [x] Filter bar on the page shows meal, appellation and color filters, no "ready now"; active count and clear work on desktop and mobile
 - [x] Filters reflected in the URL and the request; changing filters resets to page 1 like the cellar list; reload and browser back keep them
-- [x] Filtered-empty state: "No consumption matches these filters" with a clear-filters action (the no-filters empty state stays "No consumption recorded yet")
+- [x] Filtered-empty state: "No consumption matches these filters", no extra clear link since the filter bar already clears (the no-filters empty state stays "No consumption recorded yet")
 - [x] New text in English and French
 - [x] Go handler tests: each filter alone and combined; meal filter follows current pairings; Wines with quantity 0 still match
-- [x] View tests: filters change the URL and request; filtered-empty state and clear
+- [x] View tests: filters change the URL and request; filtered-empty state
