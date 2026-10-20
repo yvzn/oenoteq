@@ -50,6 +50,26 @@ To roll production back, never delete the existing prefix (it holds the other re
 
 Note: the config sets `endpoint` to an empty string when `LITESTREAM_AZURE_ENDPOINT` is unset, relying on Litestream falling back to `https://<account>.blob.core.windows.net`. Verified only against Azurite; confirm on real Azure in the infra ticket (04). Auth is account-key only (Litestream 0.3.x `abs`); managed identity is not supported by this version.
 
+## Seed production from a local database
+
+Replaces production data with a local SQLite file (first import, or throwing away test data). Needs `az` (logged in), `docker`, `sqlite3`.
+
+```sh
+sh infra/seed-db.sh path/to/cellar.db
+```
+
+The script asks for confirmation, then:
+
+1. Copies the file with `sqlite3 .backup` (WAL folded in, source untouched) and checks `integrity_check`.
+2. Scales the app to 0 replicas (single writer).
+3. **Deletes every blob under the replica prefix** (`backups/cellar/*`).
+4. Runs a throwaway Litestream container with the copy, waits for the first snapshot blob, stops it.
+5. Scales the app back to `max=1`. The next cold start restores the seeded DB (empty disk, replica exists).
+
+Env overrides: `RG` (`cellar-rg`), `APP` (`cellar-app`), `LITESTREAM_AZURE_CONTAINER` (`backups`), `LITESTREAM_AZURE_PATH` (`cellar`).
+
+Do not use it while production holds data you want to keep: use a new `LITESTREAM_AZURE_PATH` and switch the app to it instead (see Point-in-time recovery). A local DB newer than the deployed image's migrations will not start; deploy the matching image first.
+
 ## Local test with Azurite
 
 Run `mcr.microsoft.com/azure-storage/azurite azurite-blob --blobHost 0.0.0.0` on a docker network, create container `backups` with the well-known dev key, run the image with the env vars above and `LITESTREAM_AZURE_ENDPOINT=http://<azurite>:10000/devstoreaccount1`. Write data, `docker kill`, start a new container: data is restored.

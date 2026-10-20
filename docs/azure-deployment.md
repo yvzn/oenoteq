@@ -89,5 +89,5 @@ IndexedDB is per origin: the Azure origin starts with an empty local DB and an e
 
 1. Per phone, on the old LAN origin: go online to the LAN exe, open the app, wait until the sync-status page shows an empty outbox (retry or discard failed items).
 2. Stop the LAN exe. Copy its `cellar.db` somewhere safe (it is the source of truth).
-3. Seed Azure with that DB: with the app scaled to zero, run a throwaway container with the file at `DB_PATH` and Litestream pointed at the production prefix (same procedure as "re-upload that file" in `docs/backup-and-restore.md`), then start the app. Litestream restores it on cold start. If Azure already has data, restore into a new `LITESTREAM_AZURE_PATH` prefix instead, never overwrite the live one.
+3. Seed Azure with that DB: `sh infra/seed-db.sh path/to/cellar.db` (see "Seed production from a local database" in `docs/backup-and-restore.md`). It wipes the production replica, so only use it while Azure holds no data you need. Otherwise restore into a new `LITESTREAM_AZURE_PATH` prefix and switch the app to it.
 4. Per phone: open the Azure URL, sign in, install the PWA, let the first pull fill local IndexedDB. Uninstall the old LAN PWA/shortcut afterwards.
