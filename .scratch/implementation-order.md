@@ -52,5 +52,3 @@ Only if running agents in parallel: #3 with #4, #7 with #8, #20 with #21. Everyt
 
 - consumption list
 - sync status page UX
-- consent /storage page copy and UX
-- typecheck setImmediate

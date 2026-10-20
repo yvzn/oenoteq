@@ -13,8 +13,12 @@ A named entity for who made the wine (e.g. "Château Margaux", "Domaine Leflaive
 _Avoid_: Producer label, producer name (as if it were free text)
 
 **Consumption**:
-A record of drinking one unit of a Wine: date (required), rating 1-5 (optional), notes (optional). Decrements the Wine's quantity.
+A record of drinking one unit of a Wine: date (required), rating 1-5 (optional), notes (optional). Decrements the Wine's quantity. Records no Meal: filtering Consumptions by Meal goes through the Wine's current Meal Pairing, not what was actually eaten.
 _Avoid_: Drink event, tasting
+
+**Consumption History**:
+Every Consumption across all Wines, one entry per Consumption (a Wine drunk three times appears three times), newest first by default. Online-only: a Consumption recorded in Offline Mode appears only once it has synced.
+_Avoid_: Tasting log, journal
 
 **Millesime**:
 The vintage year a wine was produced. Optional — non-vintage wines (e.g. Champagne NV) have no Millesime.
