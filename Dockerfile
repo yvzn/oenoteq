@@ -5,6 +5,7 @@ WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ ./
+COPY testdata/ /testdata/
 RUN npm run build
 
 FROM golang:1.22-alpine AS build
