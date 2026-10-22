@@ -39,21 +39,30 @@ sqlite3 "$SRC" ".backup '$TMP/cellar.db'"
 sqlite3 "$TMP/cellar.db" "PRAGMA integrity_check;" | grep -qx ok || { echo "integrity_check failed" >&2; exit 1; }
 
 # Single writer: nothing may replicate while the prefix is replaced.
-az containerapp update -g "$RG" -n "$APP" --min-replicas 0 --max-replicas 0 -o none
+REVISION="$(az containerapp show -g "$RG" -n "$APP" --query properties.latestRevisionName -o tsv)"
+ACTIVE="$(az containerapp revision show -g "$RG" -n "$APP" --revision "$REVISION" --query properties.active -o tsv)"
+if [ "$ACTIVE" = "true" ]; then
+  az containerapp revision deactivate -g "$RG" -n "$APP" --revision "$REVISION" -o none
+else
+  echo "Revision $REVISION already inactive, continuing."
+fi
 az storage blob delete-batch --account-name "$ACCOUNT" --account-key "$KEY" \
   -s "$CONTAINER" --pattern "$PREFIX/*" -o none
 
 # docker cp, not a bind mount: avoids Windows volume and SQLite locking problems.
-docker create --name "$NAME" \
+CID="$(docker create --name "$NAME" --user 0 \
   -e DB_PATH=/tmp/cellar.db \
   -e LITESTREAM_AZURE_ACCOUNT_NAME="$ACCOUNT" \
   -e LITESTREAM_AZURE_ACCOUNT_KEY="$KEY" \
   -e LITESTREAM_AZURE_CONTAINER="$CONTAINER" \
   -e LITESTREAM_AZURE_PATH="$PREFIX" \
   -e LITESTREAM_AZURE_ENDPOINT= \
-  "$IMAGE" replicate -config /etc/litestream.yml >/dev/null
-docker cp "$TMP/cellar.db" "$NAME:/tmp/cellar.db"
-docker cp "$DIR/../docker/litestream.yml" "$NAME:/etc/litestream.yml"
+  "$IMAGE" replicate -config /etc/litestream.yml)"
+echo "Litestream container: $NAME ($(echo "$CID" | cut -c1-12))"
+cp "$DIR/../docker/litestream.yml" "$TMP/litestream.yml"
+# Force root ownership: docker cp otherwise keeps the host uid, which the container cannot write.
+tar -C "$TMP" --owner=0 --group=0 -cf - cellar.db | docker cp - "$NAME:/tmp"
+tar -C "$TMP" --owner=0 --group=0 -cf - litestream.yml | docker cp - "$NAME:/etc"
 docker start "$NAME" >/dev/null
 
 # Wait for the first snapshot blob, then stop (SIGTERM lets Litestream finish syncing).
@@ -62,10 +71,14 @@ i=0
 until [ "$(az storage blob list --account-name "$ACCOUNT" --account-key "$KEY" -c "$CONTAINER" \
     --prefix "$PREFIX/" --query "[?contains(name, '/snapshots/')] | length(@)" -o tsv)" -gt 0 ]; do
   i=$((i + 1))
-  [ "$i" -le 30 ] || { docker logs "$NAME" >&2; echo "no snapshot after 150s" >&2; exit 1; }
-  sleep 5
+  [ "$i" -le 12 ] || { printf '\n'; docker logs "$NAME" >&2; echo "no snapshot after 60s" >&2; exit 1; }
+  for frame in '|' '/' '-' '\' '|' '/' '-' '\' '|' '/' '-' '\' '|' '/' '-' '\' '|' '/' '-' '\'; do
+    printf '\r  %s waiting (%ss)' "$frame" "$((i * 5))"
+    sleep 0.25
+  done
 done
+printf '\r%40s\r' ''
 docker stop "$NAME" >/dev/null
 
-az containerapp update -g "$RG" -n "$APP" --min-replicas 0 --max-replicas 1 -o none
+az containerapp revision activate -g "$RG" -n "$APP" --revision "$REVISION" -o none
 echo "Done. App restores the seeded DB on next cold start."
