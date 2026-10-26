@@ -16,7 +16,9 @@ export default defineConfig({
       },
       workbox: {
         // Precache the built app shell only — API responses are not cached here.
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Fold the Workbox runtime into sw.js: the separate workbox-<hash>.js is behind Easy Auth (401 without a session), so an update check with an expired session would fail.
+        inlineWorkboxRuntime: true,
         // Auth routes are served by Easy Auth, not the SPA, so navigations to them must bypass the index.html fallback.
         navigateFallbackDenylist: [/^\/\.auth\//],
       },
