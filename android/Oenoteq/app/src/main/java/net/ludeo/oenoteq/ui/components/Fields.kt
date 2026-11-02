@@ -30,7 +30,7 @@ import net.ludeo.oenoteq.domain.matching
 import net.ludeo.oenoteq.domain.offersCreate
 
 /**
- * Type-ahead over [items], with a "Create …" entry when the text matches no
+ * Type-ahead over [items], with a "Create …" entry (unless [onCreate] is null) when the text matches no
  * name (ignoring case), as the PWA's `AutocompleteField`. Typing an existing
  * name exactly selects it; any other text clears the selection.
  */
@@ -41,7 +41,7 @@ fun AutocompleteField(
     items: List<NamedItem>,
     selectedId: Long?,
     onSelect: (Long?) -> Unit,
-    onCreate: (String) -> Unit,
+    onCreate: ((String) -> Unit)?,
     testTag: String,
     modifier: Modifier = Modifier,
     placeholder: String? = null,
@@ -54,7 +54,7 @@ fun AutocompleteField(
     LaunchedEffect(selectedName) { if (selectedName != null) text = selectedName }
 
     val options = if (text == selectedName) items else matching(text, items) { it.name }
-    val canCreate = offersCreate(text, items.map { it.name })
+    val canCreate = onCreate != null && offersCreate(text, items.map { it.name })
 
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
         OutlinedTextField(
@@ -93,7 +93,7 @@ fun AutocompleteField(
                         leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null) },
                         onClick = {
                             expanded = false
-                            onCreate(text.trim())
+                            onCreate?.invoke(text.trim())
                         },
                         modifier = Modifier.testTag("$testTag-create"),
                     )

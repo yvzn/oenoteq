@@ -6,7 +6,6 @@
     <string name="nav_manage">Manage</string>
 
     <string name="action_ok">OK</string>
-    <string name="coming_soon">Coming soon.</string>
 
     <string name="cellar_empty_title">Your cellar is empty</string>
     <string name="cellar_empty_import_hint">Already using the web app? Bring your whole cellar over from a snapshot of the server\'s database.</string>
@@ -60,6 +59,7 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_delete">Delete</string>
     <string name="action_edit">Edit</string>
+    <string name="action_save">Save</string>
     <string name="stepper_decrease">Decrease</string>
     <string name="stepper_increase">Increase</string>
     <string name="label_millesime">Vintage</string>
@@ -156,4 +156,52 @@
     <string name="error_appellation_in_use">This appellation is used by a wine or a meal pairing. Remove those references first, then delete the appellation.</string>
     <string name="error_producer_in_use">This producer is used by a wine. Remove that reference first, then delete the producer.</string>
     <string name="error_initial_quantity_required">Enter an initial quantity of at least 1.</string>
+
+    <string name="error_date_required">Enter a date for this consumption.</string>
+    <string name="error_invalid_date">Enter the date as YYYY-MM-DD.</string>
+    <string name="error_invalid_rating">Rating must be between 1 and 5.</string>
+    <string name="error_quantity_zero">There\'s nothing left to log for this wine — update the quantity first.</string>
+    <string name="error_consumption_not_found">That consumption entry doesn\'t exist anymore. Go back and try again.</string>
+
+    <!-- Wine detail: suggestions, consumptions, stock correction -->
+    <string name="wine_detail_suggested_meals">Suggested meals</string>
+    <string name="wine_detail_manage_pairings">Edit pairings</string>
+    <string name="wine_detail_no_suggestions">No suggestions yet.</string>
+    <string name="wine_detail_history">Consumption history</string>
+    <string name="wine_detail_no_history">No consumptions recorded yet.</string>
+    <string name="consumption_date">Date</string>
+    <string name="consumption_rating">Rating (1–5)</string>
+    <string name="consumption_rating_line">Rating: %d</string>
+    <string name="consumption_notes">Notes</string>
+    <string name="consumption_record">Record a consumption</string>
+    <string name="consumption_record_submit">Record</string>
+    <string name="consumption_blocked">No bottles left to record a consumption — quantity is already 0.</string>
+    <string name="consumption_delete_confirm">Delete consumption from %s?</string>
+    <string name="adjust_title">Adjust quantity</string>
+    <string name="adjust_by">Change quantity by</string>
+    <string name="adjust_placeholder">e.g. -1 or +3</string>
+    <string name="adjust_current">Currently ×%d</string>
+    <string name="adjust_change">Currently ×%1$d, would become ×%2$d</string>
+    <string name="adjust_submit">Adjust</string>
+
+    <!-- Consumption History -->
+    <plurals name="history_count">
+        <item quantity="one">%d consumption</item>
+        <item quantity="other">%d consumptions</item>
+    </plurals>
+    <string name="history_empty">No consumption recorded yet.</string>
+    <string name="history_no_match">No consumption matches these filters.</string>
+    <string name="history_sort_date">Consumption date</string>
+
+    <!-- Meal pairings -->
+    <string name="manage_meal_pairings_label">Meal pairings</string>
+    <string name="manage_meal_pairings_description">Pair Wines with Meals.</string>
+    <string name="pairing_pick_appellation">Pick an appellation</string>
+    <string name="pairing_no_selection">No selection yet</string>
+    <string name="pairing_no_selection_hint">Pick an appellation and a color above to see and edit meal pairings.</string>
+    <string name="pairing_currently_paired">Currently paired</string>
+    <string name="pairing_none_paired">No meals paired yet.</string>
+    <string name="pairing_remove">Remove</string>
+    <string name="pairing_add_meal">Add meal</string>
+    <string name="pairing_add_or_create_meal">Add or create a meal</string>
 </resources>

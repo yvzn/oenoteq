@@ -16,5 +16,10 @@ class CellarError(val code: Code) : Exception(code.name) {
         PRODUCER_IN_USE,
         MEAL_IN_USE,
         INITIAL_QUANTITY_REQUIRED,
+        DATE_REQUIRED,
+        INVALID_DATE,
+        INVALID_RATING,
+        QUANTITY_ZERO,
+        CONSUMPTION_NOT_FOUND,
     }
 }

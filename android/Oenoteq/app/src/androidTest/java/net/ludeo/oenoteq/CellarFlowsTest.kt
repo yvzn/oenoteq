@@ -54,7 +54,7 @@ class CellarFlowsTest {
 
         await(hasTestTag("wine-detail"))
         compose.onNodeWithTag("wine-producer").assertTextEquals("Château Palmer")
-        compose.onNodeWithTag("wine-quantity").assertTextEquals("×2")
+        compose.onNodeWithTag("wine-quantity", useUnmergedTree = true).assertTextEquals("×2")
         compose.onNodeWithTag("wine-garde").assertTextContains("2022–2040", substring = true)
 
         compose.onNodeWithTag("back").performClick()

@@ -6,7 +6,9 @@ import androidx.compose.ui.res.stringResource
 import net.ludeo.oenoteq.R
 import net.ludeo.oenoteq.domain.CellarError
 import net.ludeo.oenoteq.domain.GardeStatus
+import net.ludeo.oenoteq.domain.HistorySortBy
 import net.ludeo.oenoteq.domain.Referential
+import net.ludeo.oenoteq.domain.SortBy
 import net.ludeo.oenoteq.domain.WineColor
 
 // Display labels for stored values; the stored codes never change (docs/i18n-vocabulary.md).
@@ -38,6 +40,11 @@ fun CellarError.Code.message(): Int = when (this) {
     CellarError.Code.PRODUCER_IN_USE -> R.string.error_producer_in_use
     CellarError.Code.MEAL_IN_USE -> R.string.error_meal_in_use
     CellarError.Code.INITIAL_QUANTITY_REQUIRED -> R.string.error_initial_quantity_required
+    CellarError.Code.DATE_REQUIRED -> R.string.error_date_required
+    CellarError.Code.INVALID_DATE -> R.string.error_invalid_date
+    CellarError.Code.INVALID_RATING -> R.string.error_invalid_rating
+    CellarError.Code.QUANTITY_ZERO -> R.string.error_quantity_zero
+    CellarError.Code.CONSUMPTION_NOT_FOUND -> R.string.error_consumption_not_found
 }
 
 /** The texts of a Manage list and its form, per kind of reference data. */
@@ -71,3 +78,20 @@ val Referential.texts: ReferentialTexts
 /** A millesime as a plain year (no grouping), or NV. */
 @Composable
 fun millesimeText(millesime: Int?): String = millesime?.toString() ?: stringResource(R.string.no_millesime)
+
+/** Sort axes that are Wine vocabulary share its labels; Status is the cellar list's own column. */
+@StringRes
+fun SortBy.label(): Int = when (this) {
+    SortBy.PRODUCER -> R.string.label_producer
+    SortBy.APPELLATION -> R.string.label_appellation
+    SortBy.MILLESIME -> R.string.label_millesime
+    SortBy.STATUS -> R.string.label_status
+}
+
+@StringRes
+fun HistorySortBy.label(): Int = when (this) {
+    HistorySortBy.PRODUCER -> R.string.label_producer
+    HistorySortBy.APPELLATION -> R.string.label_appellation
+    HistorySortBy.MILLESIME -> R.string.label_millesime
+    HistorySortBy.DATE -> R.string.history_sort_date
+}

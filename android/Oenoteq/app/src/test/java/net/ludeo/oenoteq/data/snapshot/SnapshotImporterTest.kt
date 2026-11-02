@@ -5,10 +5,19 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import net.ludeo.oenoteq.data.CellarDatabase
+import net.ludeo.oenoteq.data.ConsumptionRepository
+import net.ludeo.oenoteq.data.MealPairingRepository
 import net.ludeo.oenoteq.data.ProducerEntity
+import net.ludeo.oenoteq.data.WineRepository
+import net.ludeo.oenoteq.domain.HistorySort
+import net.ludeo.oenoteq.domain.SearchFilters
 import net.ludeo.oenoteq.domain.WineColor
+import net.ludeo.oenoteq.domain.WineSort
+import net.ludeo.oenoteq.domain.consumptionHistory
+import net.ludeo.oenoteq.domain.searchCellar
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -79,6 +88,20 @@ class SnapshotImporterTest {
         assertEquals(listOf(1L, 1L, 2L), consumptions.map { it.wineId })
         assertEquals(listOf(5, null, 4), consumptions.map { it.rating })
         assertEquals("Superbe, encore jeune", consumptions[0].notes)
+    }
+
+    @Test
+    fun `the imported cellar searches and lists its history as the backend does`() = runBlocking<Unit> {
+        importer.import(snapshot())
+
+        // In stock only, by appellation: Champagne, Côtes de Provence, Margaux; the finished Chablis is gone.
+        val search = WineRepository(database).observeSearchData().first()
+        assertEquals(listOf(4L, 3L, 1L), searchCellar(search, SearchFilters(), WineSort(), 2026).map { it.id })
+
+        // Newest first, the finished Chablis included.
+        val history = ConsumptionRepository(database).observeHistory().first()
+        val pairings = MealPairingRepository(database).observeAll().first()
+        assertEquals(listOf(3L, 2L, 1L), consumptionHistory(history, pairings, SearchFilters(), HistorySort()).map { it.id })
     }
 
     @Test

@@ -20,10 +20,8 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,8 +38,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.ludeo.oenoteq.R
 import net.ludeo.oenoteq.domain.Page
+import net.ludeo.oenoteq.domain.SortBy
+import net.ludeo.oenoteq.domain.WineSort
 import net.ludeo.oenoteq.domain.WineListItem
 import net.ludeo.oenoteq.ui.components.ColorRail
+import net.ludeo.oenoteq.ui.components.FilterBar
+import net.ludeo.oenoteq.ui.components.FiltersSheet
+import net.ludeo.oenoteq.ui.components.Pagination
+import net.ludeo.oenoteq.ui.components.SortSheet
+import net.ludeo.oenoteq.ui.components.rememberFromTop
 import net.ludeo.oenoteq.ui.components.GardeStatusBadge
 import net.ludeo.oenoteq.ui.components.Loading
 import net.ludeo.oenoteq.ui.components.ScreenScaffold
@@ -58,16 +63,7 @@ fun CellarScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // Saved with this destination, so coming back from a Wine lands on the same row.
     val listState = rememberLazyListState()
-    // A new filter, sort or page starts at the top of the list; coming back from a Wine does not.
-    // The scroll waits for the new rows: the list otherwise keeps its old first row in view by key.
-    var scrollToTop by rememberSaveable { mutableStateOf(false) }
-    val fromTop: (() -> Unit) -> Unit = { change -> scrollToTop = true; change() }
-    LaunchedEffect(state.page) {
-        if (scrollToTop) {
-            scrollToTop = false
-            listState.scrollToItem(0)
-        }
-    }
+    val fromTop = rememberFromTop(listState, state.page)
     var filtersOpen by rememberSaveable { mutableStateOf(false) }
     var sortOpen by rememberSaveable { mutableStateOf(false) }
     // SQLite snapshots carry no reliable MIME type across file providers, so any file can be picked.
@@ -101,7 +97,8 @@ fun CellarScreen(
             else -> Column(modifier.fillMaxSize()) {
                 FilterBar(
                     filters = state.filters,
-                    sort = state.sort,
+                    sortLabel = state.sort.sortBy.label(),
+                    sortDir = state.sort.sortDir,
                     onOpenFilters = { filtersOpen = true },
                     onOpenSort = { sortOpen = true },
                     onClear = { fromTop(viewModel::clearFilters) },
@@ -125,6 +122,7 @@ fun CellarScreen(
             filters = state.filters,
             appellations = state.appellations,
             meals = state.meals,
+            showReadyNow = true,
             onChange = { next -> fromTop { viewModel.updateFilters(next) } },
             onClear = { fromTop(viewModel::clearFilters) },
             onDismiss = { filtersOpen = false },
@@ -132,8 +130,12 @@ fun CellarScreen(
     }
     if (sortOpen) {
         SortSheet(
-            sort = state.sort,
-            onChange = { next -> fromTop { viewModel.updateSort(next) } },
+            axes = SortBy.entries,
+            sortBy = state.sort.sortBy,
+            sortDir = state.sort.sortDir,
+            axisLabel = { it.label() },
+            axisTag = { it.name.lowercase() },
+            onChange = { axis, dir -> fromTop { viewModel.updateSort(WineSort(axis, dir)) } },
             onDismiss = { sortOpen = false },
         )
     }
@@ -199,30 +201,5 @@ private fun WineRow(wine: WineListItem, onClick: () -> Unit) {
                 GardeStatusBadge(wine.gardeStatus)
             }
         }
-    }
-}
-
-@Composable
-private fun Pagination(page: Page<WineListItem>, onGoToPage: (Int) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(16.dp).testTag("pagination"),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        OutlinedButton(
-            onClick = { onGoToPage(page.page - 1) },
-            enabled = page.page > 1,
-            modifier = Modifier.testTag("pagination-previous"),
-        ) { Text(stringResource(R.string.pagination_previous)) }
-        Text(
-            stringResource(R.string.pagination_status, page.page, page.pageCount),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.testTag("pagination-status"),
-        )
-        OutlinedButton(
-            onClick = { onGoToPage(page.page + 1) },
-            enabled = page.page < page.pageCount,
-            modifier = Modifier.testTag("pagination-next"),
-        ) { Text(stringResource(R.string.pagination_next)) }
     }
 }

@@ -17,29 +17,37 @@ import net.ludeo.oenoteq.domain.Referential
 import net.ludeo.oenoteq.ui.components.ScreenScaffold
 import net.ludeo.oenoteq.ui.components.texts
 
-/** The Manage hub: one card per kind of reference data. Meal Pairings join in milestone 3. */
+/** The Manage hub: one card per kind of reference data, then Meal Pairings. */
 @Composable
-fun ManageScreen(onOpen: (Referential) -> Unit) {
+fun ManageScreen(onOpen: (Referential) -> Unit, onOpenPairings: () -> Unit) {
     ScreenScaffold(title = stringResource(R.string.nav_manage)) { modifier ->
         Column(
             modifier.padding(16.dp).testTag("manage-screen"),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             for (kind in Referential.entries) {
-                Card(
-                    onClick = { onOpen(kind) },
-                    modifier = Modifier.fillMaxWidth().testTag("manage-${kind.name.lowercase()}"),
-                ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(stringResource(kind.texts.label), style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            stringResource(kind.texts.description),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                HubCard(kind.texts.label, kind.texts.description, "manage-${kind.name.lowercase()}") { onOpen(kind) }
             }
+            HubCard(
+                R.string.manage_meal_pairings_label,
+                R.string.manage_meal_pairings_description,
+                "manage-meal-pairings",
+                onOpenPairings,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HubCard(label: Int, description: Int, testTag: String, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().testTag(testTag)) {
+        Column(Modifier.padding(16.dp)) {
+            Text(stringResource(label), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

@@ -21,23 +21,31 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import kotlinx.serialization.Serializable
 import net.ludeo.oenoteq.R
 import net.ludeo.oenoteq.domain.Referential
+import net.ludeo.oenoteq.domain.WineColor
 import net.ludeo.oenoteq.ui.cellar.CellarScreen
 import net.ludeo.oenoteq.ui.history.HistoryScreen
 import net.ludeo.oenoteq.ui.manage.ManageScreen
+import net.ludeo.oenoteq.ui.manage.MealPairingScreen
 import net.ludeo.oenoteq.ui.manage.ReferentialFormScreen
 import net.ludeo.oenoteq.ui.manage.ReferentialListScreen
 import net.ludeo.oenoteq.ui.wine.WineDetailScreen
 import net.ludeo.oenoteq.ui.wine.WineFormScreen
 
-// One nested graph per bottom-bar area, so each keeps its own back stack.
+// One nested graph per bottom-bar area, so each keeps its own back stack. A
+// Wine opened from the cellar or from the History stays in that area: each
+// area has its own route types for the Wine screens, since a route type can
+// only be declared once in the graph.
 
 @Serializable object CellarGraph
 
@@ -49,7 +57,17 @@ import net.ludeo.oenoteq.ui.wine.WineFormScreen
 
 @Serializable data class WineEditRoute(val id: Long)
 
+@Serializable data class CellarPairingRoute(val appellationId: Long, val color: WineColor)
+
+@Serializable object HistoryGraph
+
 @Serializable object HistoryRoute
+
+@Serializable data class HistoryWineRoute(val id: Long)
+
+@Serializable data class HistoryWineEditRoute(val id: Long)
+
+@Serializable data class HistoryPairingRoute(val appellationId: Long, val color: WineColor)
 
 @Serializable object ManageGraph
 
@@ -60,6 +78,8 @@ import net.ludeo.oenoteq.ui.wine.WineFormScreen
 @Serializable data class ReferentialNewRoute(val kind: Referential)
 
 @Serializable data class ReferentialEditRoute(val kind: Referential, val id: Long)
+
+@Serializable object MealPairingRoute
 
 /** [home] is the area's top screen, where tapping its already selected tab returns. */
 private data class TopLevelDestination(
@@ -72,7 +92,7 @@ private data class TopLevelDestination(
 
 private val topLevelDestinations = listOf(
     TopLevelDestination(CellarGraph, CellarRoute, R.string.nav_cellar, Icons.Outlined.WineBar, "nav-cellar"),
-    TopLevelDestination(HistoryRoute, HistoryRoute, R.string.nav_history, Icons.Outlined.History, "nav-history"),
+    TopLevelDestination(HistoryGraph, HistoryRoute, R.string.nav_history, Icons.Outlined.History, "nav-history"),
     TopLevelDestination(ManageGraph, ManageRoute, R.string.nav_manage, Icons.Outlined.Tune, "nav-manage"),
 )
 
@@ -121,6 +141,7 @@ fun OenoteqApp() {
                 }
                 composable<WineNewRoute> {
                     WineFormScreen(
+                        editId = null,
                         onBack = back,
                         onSaved = { id ->
                             navController.navigate(WineDetailRoute(id)) {
@@ -129,14 +150,33 @@ fun OenoteqApp() {
                         },
                     )
                 }
-                composable<WineDetailRoute> {
-                    WineDetailScreen(onBack = back, onEdit = { navController.navigate(WineEditRoute(it)) })
-                }
-                composable<WineEditRoute> { WineFormScreen(onBack = back, onSaved = { back() }) }
+                wineScreens<WineDetailRoute, WineEditRoute, CellarPairingRoute>(
+                    navController,
+                    detailId = { it.id },
+                    editId = { it.id },
+                    editRoute = ::WineEditRoute,
+                    pairing = { it.appellationId to it.color },
+                    pairingRoute = ::CellarPairingRoute,
+                )
             }
-            composable<HistoryRoute> { HistoryScreen() }
+            navigation<HistoryGraph>(startDestination = HistoryRoute) {
+                composable<HistoryRoute> { HistoryScreen(onOpenWine = { navController.navigate(HistoryWineRoute(it)) }) }
+                wineScreens<HistoryWineRoute, HistoryWineEditRoute, HistoryPairingRoute>(
+                    navController,
+                    detailId = { it.id },
+                    editId = { it.id },
+                    editRoute = ::HistoryWineEditRoute,
+                    pairing = { it.appellationId to it.color },
+                    pairingRoute = ::HistoryPairingRoute,
+                )
+            }
             navigation<ManageGraph>(startDestination = ManageRoute) {
-                composable<ManageRoute> { ManageScreen(onOpen = { navController.navigate(ReferentialListRoute(it)) }) }
+                composable<ManageRoute> {
+                    ManageScreen(
+                        onOpen = { navController.navigate(ReferentialListRoute(it)) },
+                        onOpenPairings = { navController.navigate(MealPairingRoute) },
+                    )
+                }
                 composable<ReferentialListRoute> {
                     ReferentialListScreen(
                         onBack = back,
@@ -146,7 +186,38 @@ fun OenoteqApp() {
                 }
                 composable<ReferentialNewRoute> { ReferentialFormScreen(onBack = back) }
                 composable<ReferentialEditRoute> { ReferentialFormScreen(onBack = back) }
+                composable<MealPairingRoute> { MealPairingScreen(appellationId = null, color = null, onBack = back) }
             }
         }
+    }
+}
+
+/** A Wine's detail, edit and pairing screens, inside one area's graph with that area's route types. */
+private inline fun <reified Detail : Any, reified Edit : Any, reified Pairing : Any> NavGraphBuilder.wineScreens(
+    navController: NavHostController,
+    crossinline detailId: (Detail) -> Long,
+    crossinline editId: (Edit) -> Long,
+    crossinline editRoute: (Long) -> Edit,
+    crossinline pairing: (Pairing) -> Pair<Long, WineColor>,
+    crossinline pairingRoute: (Long, WineColor) -> Pairing,
+) {
+    composable<Detail> { entry ->
+        WineDetailScreen(
+            id = detailId(entry.toRoute<Detail>()),
+            onBack = { navController.popBackStack() },
+            onEdit = { navController.navigate(editRoute(it)) },
+            onEditPairings = { appellationId, color -> navController.navigate(pairingRoute(appellationId, color)) },
+        )
+    }
+    composable<Edit> { entry ->
+        WineFormScreen(
+            editId = editId(entry.toRoute<Edit>()),
+            onBack = { navController.popBackStack() },
+            onSaved = { navController.popBackStack() },
+        )
+    }
+    composable<Pairing> { entry ->
+        val (appellationId, color) = pairing(entry.toRoute<Pairing>())
+        MealPairingScreen(appellationId = appellationId, color = color, onBack = { navController.popBackStack() })
     }
 }

@@ -192,7 +192,7 @@ Enforced in repositories, inside a transaction where more than one row changes. 
 - List state (filters, sort, page) held in the screen's `SavedStateHandle`, so it survives back navigation, rotation and process death. Scroll position restored when returning from detail.
 - Success message after a save (Snackbar), and changed values highlighted on the screen the user lands on (`useHighlight` behaviour).
 - Confirm dialog before every delete.
-- Bottom navigation (Material pattern): each area keeps its own back stack; tapping another tab returns to where that area was left, tapping the selected tab returns to its top screen (cellar list, History, Manage hub). History gets its own nested graph and the same rule when it gains detail screens.
+- Bottom navigation (Material pattern): each area keeps its own back stack; tapping another tab returns to where that area was left, tapping the selected tab returns to its top screen (cellar list, History, Manage hub). A Wine opened from the cellar list or the History stays in that area (each area declares its own route types for the Wine detail, edit and pairing screens).
 - Autocomplete fields for Appellation, Producer and Meal (pairing screen) with keyboard/IME-friendly filtering and a "create new" entry when the text matches nothing exactly.
 - Empty states and friendly errors as in the PWA; no "can't reach the server" state exists any more.
 - Color shown as a swatch / rail as in the PWA; visual design follows Material 3 with the PWA's palette (burgundy / gold / parchment) as the theme's seed colors. Pixel parity with the PWA is not a goal; feature parity is.

@@ -29,7 +29,7 @@ class AppShellTest {
     @Test
     fun bottomNavigationReachesEveryArea() {
         compose.onNodeWithTag("nav-history").performClick()
-        compose.onNodeWithTag("history-screen").assertIsDisplayed()
+        compose.onNodeWithTag("history-empty").assertIsDisplayed()
 
         compose.onNodeWithTag("nav-manage").performClick()
         compose.onNodeWithTag("manage-screen").assertIsDisplayed()

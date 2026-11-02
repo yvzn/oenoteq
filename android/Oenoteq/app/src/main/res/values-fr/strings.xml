@@ -4,7 +4,6 @@
     <string name="nav_manage">Gérer</string>
 
     <string name="action_ok">OK</string>
-    <string name="coming_soon">Bientôt disponible.</string>
 
     <string name="cellar_empty_title">Votre cave est vide</string>
     <string name="cellar_empty_import_hint">Vous utilisez déjà l\'application web ? Récupérez toute votre cave depuis une copie de la base du serveur.</string>
@@ -64,6 +63,7 @@
     <string name="action_cancel">Annuler</string>
     <string name="action_delete">Supprimer</string>
     <string name="action_edit">Modifier</string>
+    <string name="action_save">Enregistrer</string>
     <string name="stepper_decrease">Diminuer</string>
     <string name="stepper_increase">Augmenter</string>
     <string name="label_millesime">Millésime</string>
@@ -161,4 +161,53 @@
     <string name="error_appellation_in_use">Cette appellation est utilisée par un vin ou un accord mets-vin. Supprimez d\'abord ces références, puis supprimez l\'appellation.</string>
     <string name="error_producer_in_use">Ce producteur est utilisé par un vin. Supprimez d\'abord cette référence, puis supprimez le producteur.</string>
     <string name="error_initial_quantity_required">Saisissez une quantité initiale d\'au moins 1.</string>
+
+    <string name="error_date_required">Saisissez une date pour cette consommation.</string>
+    <string name="error_invalid_date">Saisissez la date au format AAAA-MM-JJ.</string>
+    <string name="error_invalid_rating">La note doit être comprise entre 1 et 5.</string>
+    <string name="error_quantity_zero">Il ne reste rien à consigner pour ce vin — mettez d\'abord la quantité à jour.</string>
+    <string name="error_consumption_not_found">Cette consommation n\'existe plus. Revenez en arrière et réessayez.</string>
+
+    <!-- Fiche vin : suggestions, consommations, correction du stock -->
+    <string name="wine_detail_suggested_meals">Plats suggérés</string>
+    <string name="wine_detail_manage_pairings">Modifier les accords</string>
+    <string name="wine_detail_no_suggestions">Aucune suggestion pour le moment.</string>
+    <string name="wine_detail_history">Historique des consommations</string>
+    <string name="wine_detail_no_history">Aucune consommation enregistrée.</string>
+    <string name="consumption_date">Date</string>
+    <string name="consumption_rating">Note (1–5)</string>
+    <string name="consumption_rating_line">Note : %d</string>
+    <string name="consumption_notes">Notes</string>
+    <string name="consumption_record">Enregistrer une consommation</string>
+    <string name="consumption_record_submit">Enregistrer</string>
+    <string name="consumption_blocked">Plus de bouteille à consommer — la quantité est déjà à 0.</string>
+    <string name="consumption_delete_confirm">Supprimer la consommation du %s ?</string>
+    <string name="adjust_title">Ajuster la quantité</string>
+    <string name="adjust_by">Modifier la quantité de</string>
+    <string name="adjust_placeholder">ex. -1 ou +3</string>
+    <string name="adjust_current">Actuellement ×%d</string>
+    <string name="adjust_change">Actuellement ×%1$d, deviendrait ×%2$d</string>
+    <string name="adjust_submit">Ajuster</string>
+
+    <!-- Historique des consommations -->
+    <plurals name="history_count">
+        <item quantity="one">%d consommation</item>
+        <item quantity="many">%d consommations</item>
+        <item quantity="other">%d consommations</item>
+    </plurals>
+    <string name="history_empty">Aucune consommation enregistrée pour le moment.</string>
+    <string name="history_no_match">Aucune consommation ne correspond à ces filtres.</string>
+    <string name="history_sort_date">Date de consommation</string>
+
+    <!-- Accords mets-vin -->
+    <string name="manage_meal_pairings_label">Accords mets-vin</string>
+    <string name="manage_meal_pairings_description">Associer des vins à des plats.</string>
+    <string name="pairing_pick_appellation">Choisir une appellation</string>
+    <string name="pairing_no_selection">Aucune sélection</string>
+    <string name="pairing_no_selection_hint">Choisissez une appellation et une couleur ci-dessus pour voir et modifier les accords mets-vin.</string>
+    <string name="pairing_currently_paired">Actuellement associés</string>
+    <string name="pairing_none_paired">Aucun plat associé pour le moment.</string>
+    <string name="pairing_remove">Retirer</string>
+    <string name="pairing_add_meal">Ajouter un plat</string>
+    <string name="pairing_add_or_create_meal">Ajouter ou créer un plat</string>
 </resources>

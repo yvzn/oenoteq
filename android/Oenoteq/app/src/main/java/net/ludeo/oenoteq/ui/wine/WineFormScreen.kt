@@ -51,9 +51,10 @@ import net.ludeo.oenoteq.ui.components.message
 
 @Composable
 fun WineFormScreen(
+    editId: Long?,
     onBack: () -> Unit,
     onSaved: (Long) -> Unit,
-    viewModel: WineFormViewModel = viewModel(factory = WineFormViewModel.Factory),
+    viewModel: WineFormViewModel = viewModel(factory = WineFormViewModel.factory(editId)),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val appellations by viewModel.appellationOptions.collectAsStateWithLifecycle()

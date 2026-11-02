@@ -1,11 +1,9 @@
 package net.ludeo.oenoteq.ui.wine
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.navigation.toRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +24,6 @@ import net.ludeo.oenoteq.domain.initialQuantity
 import net.ludeo.oenoteq.domain.toFormFields
 import net.ludeo.oenoteq.domain.toInput
 import net.ludeo.oenoteq.domain.validateWineForm
-import net.ludeo.oenoteq.ui.WineEditRoute
 import net.ludeo.oenoteq.ui.container
 
 data class WineFormState(
@@ -121,10 +118,9 @@ class WineFormViewModel(
     }
 
     companion object {
-        val Factory = viewModelFactory {
+        /** [editId] null adds a new Wine. */
+        fun factory(editId: Long?) = viewModelFactory {
             initializer {
-                val handle = createSavedStateHandle()
-                val editId = if (handle.contains("id")) handle.toRoute<WineEditRoute>().id else null
                 WineFormViewModel(
                     editId,
                     container.wines,

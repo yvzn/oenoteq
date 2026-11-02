@@ -2,9 +2,11 @@ package net.ludeo.oenoteq.data
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import net.ludeo.oenoteq.domain.CellarWine
+import net.ludeo.oenoteq.domain.HistoryEntry
 import net.ludeo.oenoteq.domain.MealPairing
 import net.ludeo.oenoteq.domain.NamedItem
 import net.ludeo.oenoteq.domain.WineColor
@@ -185,25 +187,69 @@ interface WineDao {
     fun observeWithNames(id: Long): Flow<WineWithNames?>
 
     @Query("SELECT COUNT(*) FROM wine WHERE quantity > 0") fun observeInStockCount(): Flow<Int>
+
+    @Query("UPDATE wine SET quantity = quantity + :delta, updated_at = :updatedAt WHERE id = :id")
+    suspend fun addToQuantity(id: Long, delta: Int, updatedAt: Long): Int
 }
 
 @Dao
 interface MealPairingDao {
     @Insert suspend fun insertAll(rows: List<MealPairingEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertIfMissing(row: MealPairingEntity)
+
+    @Query("DELETE FROM meal_pairing WHERE appellation_id = :appellationId AND color = :color AND meal_id = :mealId")
+    suspend fun delete(appellationId: Long, color: WineColor, mealId: Long): Int
+
     @Query("SELECT COUNT(*) FROM meal_pairing") suspend fun count(): Int
 
     @Query("SELECT appellation_id AS appellationId, color, meal_id AS mealId FROM meal_pairing")
     fun observeAll(): Flow<List<MealPairing>>
+
+    /** The Meals paired with one Appellation and Color: a Wine's suggested Meals. */
+    @Query(
+        """
+        SELECT m.id, m.name FROM meal m
+        JOIN meal_pairing mp ON mp.meal_id = m.id
+        WHERE mp.appellation_id = :appellationId AND mp.color = :color
+        ORDER BY m.name
+        """,
+    )
+    fun observeMeals(appellationId: Long, color: WineColor): Flow<List<NamedItem>>
 }
 
 @Dao
 interface ConsumptionDao {
     @Insert suspend fun insertAll(rows: List<ConsumptionEntity>)
 
+    @Insert suspend fun insert(row: ConsumptionEntity): Long
+
     @Query("SELECT COUNT(*) FROM consumption") suspend fun count(): Int
 
     @Query("SELECT * FROM consumption ORDER BY id") suspend fun all(): List<ConsumptionEntity>
+
+    @Query("SELECT * FROM consumption WHERE id = :id") suspend fun find(id: Long): ConsumptionEntity?
+
+    @Query("UPDATE consumption SET date = :date, rating = :rating, notes = :notes, updated_at = :updatedAt WHERE id = :id")
+    suspend fun update(id: Long, date: String, rating: Int?, notes: String?, updatedAt: Long): Int
+
+    @Query("DELETE FROM consumption WHERE id = :id") suspend fun delete(id: Long): Int
+
+    /** A Wine's Consumptions, oldest first, as its detail page lists them. */
+    @Query("SELECT * FROM consumption WHERE wine_id = :wineId ORDER BY date, id")
+    fun observeForWine(wineId: Long): Flow<List<ConsumptionEntity>>
+
+    @Query(
+        """
+        SELECT c.id, c.wine_id AS wineId, c.date, p.name AS producerName, w.appellation_id AS appellationId,
+            a.name AS appellationName, w.color, w.millesime
+        FROM consumption c
+        JOIN wine w ON w.id = c.wine_id
+        JOIN producer p ON p.id = w.producer_id
+        JOIN appellation a ON a.id = w.appellation_id
+        """,
+    )
+    fun observeHistory(): Flow<List<HistoryEntry>>
 }
 
 @Dao

@@ -69,6 +69,15 @@ class WineRepository(
         )
     }
 
+    /** A manual stock correction, logged as a quantity adjustment; never below 0 (`AdjustQuantity`). */
+    suspend fun adjustQuantity(id: Long, delta: Int): Unit = database.withTransaction {
+        val wine = wines.find(id) ?: throw CellarError(CellarError.Code.WINE_NOT_FOUND)
+        if (wine.quantity + delta < 0) throw CellarError(CellarError.Code.QUANTITY_ZERO)
+        val now = clock()
+        database.quantityAdjustmentDao().insert(QuantityAdjustmentEntity(wineId = id, delta = delta, createdAt = now))
+        wines.addToQuantity(id, delta, now)
+    }
+
     private suspend fun checkReferences(input: WineInput) {
         if (database.appellationDao().find(input.appellationId) == null) {
             throw CellarError(CellarError.Code.APPELLATION_NOT_FOUND)
