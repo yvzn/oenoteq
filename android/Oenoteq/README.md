@@ -22,9 +22,13 @@ From `android/Oenoteq/`:
 ## Tests
 
 ```sh
-./gradlew testDebugUnitTest          # JVM: domain, snapshot import (Robolectric), Room, strings parity
-./gradlew connectedDebugAndroidTest  # on a device: app shell, import on the device's own SQLite
+./gradlew testDebugUnitTest          # JVM: domain, repositories and snapshot import (Robolectric), strings parity
+./gradlew connectedDebugAndroidTest  # on a device: app shell, cellar/wine/manage flows, import on the device's SQLite
 ```
+
+The cellar search runs the same `testdata/search-fixtures.json` cases as the Go backend and the PWA (`CellarSearchTest`), so a change to search or sort rules lands in all three.
+
+Device tests empty the app's database before each test: don't run them on a device holding a cellar you care about.
 
 On a fresh emulator, unlock the screen first (`adb shell wm dismiss-keyguard`) or the UI tests can't see the app.
 

@@ -1,8 +1,9 @@
 package net.ludeo.oenoteq.ui.cellar
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -13,11 +14,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import net.ludeo.oenoteq.OenoteqApplication
 import net.ludeo.oenoteq.data.CellarDatabase
+import net.ludeo.oenoteq.data.ReferentialRepository
+import net.ludeo.oenoteq.data.WineRepository
 import net.ludeo.oenoteq.data.snapshot.ImportSummary
 import net.ludeo.oenoteq.data.snapshot.SnapshotImportError
 import net.ludeo.oenoteq.data.snapshot.SnapshotImporter
+import net.ludeo.oenoteq.domain.NamedItem
+import net.ludeo.oenoteq.domain.Page
+import net.ludeo.oenoteq.domain.Referential
+import net.ludeo.oenoteq.domain.SearchFilters
+import net.ludeo.oenoteq.domain.WineListItem
+import net.ludeo.oenoteq.domain.WineSort
+import net.ludeo.oenoteq.domain.paginate
+import net.ludeo.oenoteq.domain.searchCellar
+import net.ludeo.oenoteq.ui.container
+import java.time.Year
 
 sealed interface ImportState {
     data object Idle : ImportState
@@ -30,24 +42,68 @@ sealed interface ImportState {
 
 data class CellarUiState(
     val loading: Boolean = true,
-    val isEmpty: Boolean = false,
-    val inStockCount: Int = 0,
+    /** Nothing recorded at all: the only state the one-time import accepts. */
+    val databaseIsEmpty: Boolean = false,
+    val filters: SearchFilters = SearchFilters(),
+    val sort: WineSort = WineSort(),
+    val page: Page<WineListItem> = paginate(emptyList(), 1),
+    val appellations: List<NamedItem> = emptyList(),
+    val meals: List<NamedItem> = emptyList(),
     val importState: ImportState = ImportState.Idle,
 )
 
+/**
+ * The cellar list. Filters, sort and page live in the [SavedStateHandle], so
+ * they survive going to a Wine and back, rotation and process death.
+ */
 class CellarViewModel(
+    private val savedState: SavedStateHandle,
     database: CellarDatabase,
+    wines: WineRepository,
+    meals: ReferentialRepository,
     private val importer: SnapshotImporter,
+    currentYear: () -> Int = { Year.now().value },
 ) : ViewModel() {
     private val importState = MutableStateFlow<ImportState>(ImportState.Idle)
+    private val filters = savedState.getStateFlow(FILTERS, SearchFilters())
+    private val sort = savedState.getStateFlow(SORT, WineSort())
+    private val page = savedState.getStateFlow(PAGE, 1)
+
+    private val listing = combine(wines.observeSearchData(), filters, sort, page) { data, f, s, p ->
+        CellarUiState(
+            loading = false,
+            filters = f,
+            sort = s,
+            page = paginate(searchCellar(data, f, s, currentYear()), p),
+            appellations = data.appellations,
+        )
+    }
 
     val uiState: StateFlow<CellarUiState> = combine(
+        listing,
+        meals.observeAll(),
         database.cellarDao().observeIsEmpty(),
-        database.wineDao().observeInStockCount(),
         importState,
-    ) { isEmpty, inStock, import ->
-        CellarUiState(loading = false, isEmpty = isEmpty, inStockCount = inStock, importState = import)
+    ) { listed, mealList, isEmpty, import ->
+        listed.copy(databaseIsEmpty = isEmpty, meals = mealList, importState = import)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CellarUiState())
+
+    /** A new filter or sort starts again from the first page, as the PWA's query does. */
+    fun updateFilters(next: SearchFilters) {
+        savedState[FILTERS] = next
+        savedState[PAGE] = 1
+    }
+
+    fun clearFilters() = updateFilters(SearchFilters())
+
+    fun updateSort(next: WineSort) {
+        savedState[SORT] = next
+        savedState[PAGE] = 1
+    }
+
+    fun goToPage(page: Int) {
+        savedState[PAGE] = page
+    }
 
     fun importSnapshot(uri: Uri) {
         if (importState.value == ImportState.Running) return
@@ -70,10 +126,19 @@ class CellarViewModel(
     }
 
     companion object {
+        private const val FILTERS = "filters"
+        private const val SORT = "sort"
+        private const val PAGE = "page"
+
         val Factory = viewModelFactory {
             initializer {
-                val container = (this[APPLICATION_KEY] as OenoteqApplication).container
-                CellarViewModel(container.database, container.snapshotImporter)
+                CellarViewModel(
+                    createSavedStateHandle(),
+                    container.database,
+                    container.wines,
+                    container.referentials(Referential.MEAL),
+                    container.snapshotImporter,
+                )
             }
         }
     }

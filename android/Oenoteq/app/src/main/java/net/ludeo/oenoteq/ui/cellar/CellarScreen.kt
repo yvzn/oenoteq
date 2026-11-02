@@ -2,58 +2,140 @@ package net.ludeo.oenoteq.ui.cellar
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.WineBar
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import net.ludeo.oenoteq.R
-import net.ludeo.oenoteq.data.snapshot.ImportSummary
-import net.ludeo.oenoteq.data.snapshot.SnapshotImportError
+import net.ludeo.oenoteq.domain.Page
+import net.ludeo.oenoteq.domain.WineListItem
+import net.ludeo.oenoteq.ui.components.ColorRail
+import net.ludeo.oenoteq.ui.components.GardeStatusBadge
+import net.ludeo.oenoteq.ui.components.Loading
+import net.ludeo.oenoteq.ui.components.ScreenScaffold
+import net.ludeo.oenoteq.ui.components.StatusMessage
+import net.ludeo.oenoteq.ui.components.label
+import net.ludeo.oenoteq.ui.components.millesimeText
 
 @Composable
-fun CellarScreen(viewModel: CellarViewModel = viewModel(factory = CellarViewModel.Factory)) {
+fun CellarScreen(
+    onAddWine: () -> Unit,
+    onOpenWine: (Long) -> Unit,
+    viewModel: CellarViewModel = viewModel(factory = CellarViewModel.Factory),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Saved with this destination, so coming back from a Wine lands on the same row.
+    val listState = rememberLazyListState()
+    // A new filter, sort or page starts at the top of the list; coming back from a Wine does not.
+    // The scroll waits for the new rows: the list otherwise keeps its old first row in view by key.
+    var scrollToTop by rememberSaveable { mutableStateOf(false) }
+    val fromTop: (() -> Unit) -> Unit = { change -> scrollToTop = true; change() }
+    LaunchedEffect(state.page) {
+        if (scrollToTop) {
+            scrollToTop = false
+            listState.scrollToItem(0)
+        }
+    }
+    var filtersOpen by rememberSaveable { mutableStateOf(false) }
+    var sortOpen by rememberSaveable { mutableStateOf(false) }
     // SQLite snapshots carry no reliable MIME type across file providers, so any file can be picked.
     val pickSnapshot = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) viewModel.importSnapshot(uri)
     }
+    val hasList = !state.loading && state.page.total > 0
 
-    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+    ScreenScaffold(
+        title = if (hasList) pluralStringResource(R.plurals.cellar_count, state.page.total, state.page.total)
+        else stringResource(R.string.nav_cellar),
+        floatingActionButton = {
+            if (hasList || state.filters.activeCount > 0) {
+                ExtendedFloatingActionButton(
+                    onClick = onAddWine,
+                    icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
+                    text = { Text(stringResource(R.string.cellar_add)) },
+                    modifier = Modifier.testTag("add-wine"),
+                )
+            }
+        },
+    ) { modifier ->
         when {
-            state.loading -> CircularProgressIndicator()
-            state.importState == ImportState.Running -> ImportRunning()
-            state.isEmpty -> EmptyCellar(onImport = { pickSnapshot.launch(arrayOf("*/*")) })
-            // Placeholder until the cellar list lands (milestone 2).
-            else -> Text(
-                pluralStringResource(R.plurals.cellar_in_stock_count, state.inStockCount, state.inStockCount),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.testTag("cellar-in-stock-count"),
+            state.loading -> Loading(modifier)
+            state.importState == ImportState.Running -> ImportRunning(modifier)
+            state.page.total == 0 && state.filters.activeCount == 0 -> EmptyCellar(
+                onAddWine = onAddWine,
+                onImport = if (state.databaseIsEmpty) ({ pickSnapshot.launch(arrayOf("*/*")) }) else null,
+                modifier = modifier,
             )
+            else -> Column(modifier.fillMaxSize()) {
+                FilterBar(
+                    filters = state.filters,
+                    sort = state.sort,
+                    onOpenFilters = { filtersOpen = true },
+                    onOpenSort = { sortOpen = true },
+                    onClear = { fromTop(viewModel::clearFilters) },
+                )
+                if (state.page.total == 0) {
+                    StatusMessage(stringResource(R.string.cellar_no_match), Modifier.testTag("cellar-no-match"))
+                } else {
+                    WineList(
+                        page = state.page,
+                        listState = listState,
+                        onOpenWine = onOpenWine,
+                        onGoToPage = { page -> fromTop { viewModel.goToPage(page) } },
+                    )
+                }
+            }
         }
+    }
+
+    if (filtersOpen) {
+        FiltersSheet(
+            filters = state.filters,
+            appellations = state.appellations,
+            meals = state.meals,
+            onChange = { next -> fromTop { viewModel.updateFilters(next) } },
+            onClear = { fromTop(viewModel::clearFilters) },
+            onDismiss = { filtersOpen = false },
+        )
+    }
+    if (sortOpen) {
+        SortSheet(
+            sort = state.sort,
+            onChange = { next -> fromTop { viewModel.updateSort(next) } },
+            onDismiss = { sortOpen = false },
+        )
     }
 
     when (val import = state.importState) {
@@ -64,101 +146,83 @@ fun CellarScreen(viewModel: CellarViewModel = viewModel(factory = CellarViewMode
 }
 
 @Composable
-private fun EmptyCellar(onImport: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.testTag("cellar-empty"),
-    ) {
-        Icon(
-            Icons.Outlined.WineBar,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(48.dp),
-        )
-        Text(stringResource(R.string.cellar_empty_title), style = MaterialTheme.typography.titleLarge)
-        Text(
-            stringResource(R.string.cellar_empty_import_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(4.dp))
-        Button(onClick = onImport, modifier = Modifier.testTag("import-cellar")) {
-            Text(stringResource(R.string.import_action))
+private fun WineList(
+    page: Page<WineListItem>,
+    listState: LazyListState,
+    onOpenWine: (Long) -> Unit,
+    onGoToPage: (Int) -> Unit,
+) {
+    // Room under the FAB for the last row and the pager.
+    LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 88.dp), modifier = Modifier.testTag("wine-list")) {
+        items(page.items, key = { it.id }) { wine ->
+            WineRow(wine, onClick = { onOpenWine(wine.id) })
+            HorizontalDivider()
+        }
+        if (page.pageCount > 1) {
+            item(key = "pagination") { Pagination(page, onGoToPage) }
         }
     }
 }
 
 @Composable
-private fun ImportRunning() {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        CircularProgressIndicator()
-        Text(stringResource(R.string.import_running))
+private fun WineRow(wine: WineListItem, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp)
+            .testTag("wine-item"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        ColorRail(wine.color)
+        Column(Modifier.weight(1f)) {
+            Text(
+                wine.producerName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("wine-item-producer"),
+            )
+            Text(
+                "${stringResource(wine.color.label())} · ${wine.appellationName}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(
+                Modifier.padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(millesimeText(wine.millesime), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.quantity_short, wine.quantity), style = MaterialTheme.typography.bodyMedium)
+                GardeStatusBadge(wine.gardeStatus)
+            }
+        }
     }
 }
 
 @Composable
-private fun ImportDoneDialog(summary: ImportSummary, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_ok)) } },
-        title = { Text(stringResource(R.string.import_done_title)) },
-        text = {
-            Column(Modifier.testTag("import-summary"), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                SummaryLine(R.plurals.import_summary_wines, summary.wines)
-                SummaryLine(R.plurals.import_summary_producers, summary.producers)
-                SummaryLine(R.plurals.import_summary_appellations, summary.appellations)
-                SummaryLine(R.plurals.import_summary_meals, summary.meals)
-                SummaryLine(R.plurals.import_summary_meal_pairings, summary.mealPairings)
-                SummaryLine(R.plurals.import_summary_consumptions, summary.consumptions)
-            }
-        },
-    )
-}
-
-@Composable
-private fun SummaryLine(plural: Int, count: Int) {
-    Text(pluralStringResource(plural, count, count))
-}
-
-@Composable
-private fun ImportFailedDialog(error: SnapshotImportError?, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_ok)) } },
-        title = { Text(stringResource(R.string.import_failed_title)) },
-        text = { Text(importErrorMessage(error), Modifier.testTag("import-error")) },
-    )
-}
-
-@Composable
-private fun importErrorMessage(error: SnapshotImportError?): String = when (error) {
-    is SnapshotImportError.NotACellarDatabase -> stringResource(R.string.import_error_not_cellar)
-    is SnapshotImportError.Corrupt -> stringResource(R.string.import_error_corrupt)
-    is SnapshotImportError.UnsupportedSchema ->
-        stringResource(R.string.import_error_unsupported_schema, error.found ?: "—")
-    is SnapshotImportError.CellarNotEmpty -> stringResource(R.string.import_error_not_empty)
-    is SnapshotImportError.OrphanRows -> stringResource(
-        R.string.import_error_orphans,
-        error.countsByTable.values.sum(),
-        error.countsByTable.entries.joinToString { (table, count) -> "$table: $count" },
-    )
-    is SnapshotImportError.InvalidRow -> stringResource(
-        R.string.import_error_invalid_row,
-        error.table,
-        error.id,
-        stringResource(reasonText(error.reason)),
-    )
-    null -> stringResource(R.string.import_error_unexpected)
-}
-
-private fun reasonText(reason: SnapshotImportError.Reason): Int = when (reason) {
-    SnapshotImportError.Reason.BLANK_NAME -> R.string.import_reason_blank_name
-    SnapshotImportError.Reason.DUPLICATE_NAME -> R.string.import_reason_duplicate_name
-    SnapshotImportError.Reason.INVALID_COLOR -> R.string.import_reason_invalid_color
-    SnapshotImportError.Reason.INVALID_RATING -> R.string.import_reason_invalid_rating
-    SnapshotImportError.Reason.NEGATIVE_QUANTITY -> R.string.import_reason_negative_quantity
-    SnapshotImportError.Reason.INVALID_DATE -> R.string.import_reason_invalid_date
-    SnapshotImportError.Reason.INVALID_TIMESTAMP -> R.string.import_reason_invalid_timestamp
+private fun Pagination(page: Page<WineListItem>, onGoToPage: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(16.dp).testTag("pagination"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        OutlinedButton(
+            onClick = { onGoToPage(page.page - 1) },
+            enabled = page.page > 1,
+            modifier = Modifier.testTag("pagination-previous"),
+        ) { Text(stringResource(R.string.pagination_previous)) }
+        Text(
+            stringResource(R.string.pagination_status, page.page, page.pageCount),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.testTag("pagination-status"),
+        )
+        OutlinedButton(
+            onClick = { onGoToPage(page.page + 1) },
+            enabled = page.page < page.pageCount,
+            modifier = Modifier.testTag("pagination-next"),
+        ) { Text(stringResource(R.string.pagination_next)) }
+    }
 }

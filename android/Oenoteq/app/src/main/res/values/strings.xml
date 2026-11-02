@@ -10,10 +10,6 @@
 
     <string name="cellar_empty_title">Your cellar is empty</string>
     <string name="cellar_empty_import_hint">Already using the web app? Bring your whole cellar over from a snapshot of the server\'s database.</string>
-    <plurals name="cellar_in_stock_count">
-        <item quantity="one">%d wine in your cellar</item>
-        <item quantity="other">%d wines in your cellar</item>
-    </plurals>
 
     <string name="import_action">Import cellar</string>
     <string name="import_running">Importing your cellar…</string>
@@ -58,4 +54,106 @@
     <string name="import_reason_negative_quantity">negative quantity</string>
     <string name="import_reason_invalid_date">unreadable date</string>
     <string name="import_reason_invalid_timestamp">unreadable timestamp</string>
+
+    <!-- Shared actions and vocabulary (docs/i18n-vocabulary.md) -->
+    <string name="action_back">Back</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="stepper_decrease">Decrease</string>
+    <string name="stepper_increase">Increase</string>
+    <string name="label_millesime">Vintage</string>
+    <string name="label_appellation">Appellation</string>
+    <string name="label_producer">Producer</string>
+    <string name="label_meal">Meal</string>
+    <string name="label_color">Color</string>
+    <string name="label_status">Status</string>
+    <string name="label_garde_window">Drinking window</string>
+    <string name="color_rouge">Red</string>
+    <string name="color_blanc">White</string>
+    <string name="color_rose">Rosé</string>
+    <string name="garde_status_too_young">Too young</string>
+    <string name="garde_status_ready">Ready</string>
+    <string name="garde_status_past_peak">Past peak</string>
+    <string name="garde_status_unassessed">Not assessed</string>
+    <string name="no_millesime">NV</string>
+    <string name="quantity_short">×%d</string>
+    <string name="autocomplete_create">Create “%s”</string>
+
+    <!-- Cellar list -->
+    <plurals name="cellar_count">
+        <item quantity="one">%d wine in cellar</item>
+        <item quantity="other">%d wines in cellar</item>
+    </plurals>
+    <string name="cellar_add">Add wine</string>
+    <string name="cellar_empty_add_hint">Add your first wine to start your cellar.</string>
+    <string name="cellar_no_match">No wines match these filters.</string>
+    <string name="filters_title">Filters</string>
+    <string name="filters_title_count">Filters (%d)</string>
+    <string name="filters_any_meal">Any meal</string>
+    <string name="filters_any_appellation">Any appellation</string>
+    <string name="filters_any_color">Any color</string>
+    <string name="filters_ready_now">Ready now</string>
+    <string name="filters_clear">Clear filters</string>
+    <string name="sort_title">Sort</string>
+    <string name="sort_ascending">↑ Ascending</string>
+    <string name="sort_descending">↓ Descending</string>
+    <string name="pagination_previous">Previous</string>
+    <string name="pagination_next">Next</string>
+    <string name="pagination_status">Page %1$d of %2$d</string>
+
+    <!-- Wine -->
+    <string name="wine_add_title">Add wine</string>
+    <string name="wine_edit_title">Edit wine</string>
+    <string name="wine_garde_start">Drinking window start</string>
+    <string name="wine_garde_end">Drinking window end</string>
+    <string name="wine_initial_quantity">Initial quantity</string>
+    <string name="wine_submit_add">Add wine</string>
+    <string name="wine_submit_edit">Save changes</string>
+    <string name="wine_pick_or_create_appellation">Pick or create an appellation</string>
+    <string name="wine_pick_or_create_producer">Pick or create a producer</string>
+    <string name="wine_error_appellation_required">Appellation is required</string>
+    <string name="wine_error_producer_required">Producer is required</string>
+    <string name="wine_error_color_required">Color is required</string>
+    <string name="wine_error_garde_end_before_start">Drinking window end must be on or after its start</string>
+    <string name="wine_error_quantity_min">Initial quantity must be at least %d</string>
+    <string name="wine_error_not_a_year">Enter a year, e.g. 2019</string>
+    <string name="wine_detail_garde_window">%1$s %2$s–%3$s</string>
+    <string name="wine_detail_not_found">This wine doesn\'t exist anymore.</string>
+
+    <!-- Manage -->
+    <string name="manage_rename">Rename</string>
+    <string name="manage_name">Name</string>
+    <string name="manage_save_changes">Save changes</string>
+    <string name="manage_producers_label">Producers</string>
+    <string name="manage_producers_description">Rename or remove Producers.</string>
+    <string name="manage_producers_add">Add producer</string>
+    <string name="manage_producers_empty">No producers yet.</string>
+    <string name="manage_producers_delete_confirm">Delete producer “%s”?</string>
+    <string name="manage_producers_rename_title">Rename producer</string>
+    <string name="manage_appellations_label">Appellations</string>
+    <string name="manage_appellations_description">Rename or remove Appellations.</string>
+    <string name="manage_appellations_add">Add appellation</string>
+    <string name="manage_appellations_empty">No appellations yet.</string>
+    <string name="manage_appellations_delete_confirm">Delete appellation “%s”?</string>
+    <string name="manage_appellations_rename_title">Rename appellation</string>
+    <string name="manage_meals_label">Meals</string>
+    <string name="manage_meals_description">Rename or remove Meals.</string>
+    <string name="manage_meals_add">Add meal</string>
+    <string name="manage_meals_empty">No meals yet.</string>
+    <string name="manage_meals_delete_confirm">Delete meal “%s”?</string>
+    <string name="manage_meals_rename_title">Rename meal</string>
+
+    <!-- Refusals: the PWA's errors catalog, minus network errors -->
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_name_required">Name is required</string>
+    <string name="error_already_exists">That name is already in use. Choose a different one.</string>
+    <string name="error_appellation_not_found">That appellation doesn\'t exist anymore. Go back and try again.</string>
+    <string name="error_producer_not_found">That producer doesn\'t exist anymore. Go back and try again.</string>
+    <string name="error_meal_not_found">That meal doesn\'t exist anymore. Go back and try again.</string>
+    <string name="error_wine_not_found">Couldn\'t find that wine. Go back to the cellar and try again.</string>
+    <string name="error_meal_in_use">This meal is used in a meal pairing. Remove the pairing first, then delete the meal.</string>
+    <string name="error_appellation_in_use">This appellation is used by a wine or a meal pairing. Remove those references first, then delete the appellation.</string>
+    <string name="error_producer_in_use">This producer is used by a wine. Remove that reference first, then delete the producer.</string>
+    <string name="error_initial_quantity_required">Enter an initial quantity of at least 1.</string>
 </resources>

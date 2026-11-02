@@ -1,6 +1,7 @@
 package net.ludeo.oenoteq.ui
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.History
@@ -23,18 +24,42 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import kotlinx.serialization.Serializable
 import net.ludeo.oenoteq.R
+import net.ludeo.oenoteq.domain.Referential
 import net.ludeo.oenoteq.ui.cellar.CellarScreen
 import net.ludeo.oenoteq.ui.history.HistoryScreen
 import net.ludeo.oenoteq.ui.manage.ManageScreen
+import net.ludeo.oenoteq.ui.manage.ReferentialFormScreen
+import net.ludeo.oenoteq.ui.manage.ReferentialListScreen
+import net.ludeo.oenoteq.ui.wine.WineDetailScreen
+import net.ludeo.oenoteq.ui.wine.WineFormScreen
+
+// One nested graph per bottom-bar area, so each keeps its own back stack.
+
+@Serializable object CellarGraph
 
 @Serializable object CellarRoute
 
+@Serializable object WineNewRoute
+
+@Serializable data class WineDetailRoute(val id: Long)
+
+@Serializable data class WineEditRoute(val id: Long)
+
 @Serializable object HistoryRoute
 
+@Serializable object ManageGraph
+
 @Serializable object ManageRoute
+
+@Serializable data class ReferentialListRoute(val kind: Referential)
+
+@Serializable data class ReferentialNewRoute(val kind: Referential)
+
+@Serializable data class ReferentialEditRoute(val kind: Referential, val id: Long)
 
 private data class TopLevelDestination(
     val route: Any,
@@ -44,15 +69,16 @@ private data class TopLevelDestination(
 )
 
 private val topLevelDestinations = listOf(
-    TopLevelDestination(CellarRoute, R.string.nav_cellar, Icons.Outlined.WineBar, "nav-cellar"),
+    TopLevelDestination(CellarGraph, R.string.nav_cellar, Icons.Outlined.WineBar, "nav-cellar"),
     TopLevelDestination(HistoryRoute, R.string.nav_history, Icons.Outlined.History, "nav-history"),
-    TopLevelDestination(ManageRoute, R.string.nav_manage, Icons.Outlined.Tune, "nav-manage"),
+    TopLevelDestination(ManageGraph, R.string.nav_manage, Icons.Outlined.Tune, "nav-manage"),
 )
 
 @Composable
 fun OenoteqApp() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
+    val back: () -> Unit = { navController.popBackStack() }
 
     Scaffold(
         bottomBar = {
@@ -76,11 +102,45 @@ fun OenoteqApp() {
                 }
             }
         },
+        // Each screen's top app bar takes the status bar inset itself.
+        contentWindowInsets = WindowInsets(0),
     ) { padding ->
-        NavHost(navController, startDestination = CellarRoute, modifier = Modifier.padding(padding)) {
-            composable<CellarRoute> { CellarScreen() }
+        NavHost(navController, startDestination = CellarGraph, modifier = Modifier.padding(padding)) {
+            navigation<CellarGraph>(startDestination = CellarRoute) {
+                composable<CellarRoute> {
+                    CellarScreen(
+                        onAddWine = { navController.navigate(WineNewRoute) },
+                        onOpenWine = { navController.navigate(WineDetailRoute(it)) },
+                    )
+                }
+                composable<WineNewRoute> {
+                    WineFormScreen(
+                        onBack = back,
+                        onSaved = { id ->
+                            navController.navigate(WineDetailRoute(id)) {
+                                popUpTo<WineNewRoute> { inclusive = true }
+                            }
+                        },
+                    )
+                }
+                composable<WineDetailRoute> {
+                    WineDetailScreen(onBack = back, onEdit = { navController.navigate(WineEditRoute(it)) })
+                }
+                composable<WineEditRoute> { WineFormScreen(onBack = back, onSaved = { back() }) }
+            }
             composable<HistoryRoute> { HistoryScreen() }
-            composable<ManageRoute> { ManageScreen() }
+            navigation<ManageGraph>(startDestination = ManageRoute) {
+                composable<ManageRoute> { ManageScreen(onOpen = { navController.navigate(ReferentialListRoute(it)) }) }
+                composable<ReferentialListRoute> {
+                    ReferentialListScreen(
+                        onBack = back,
+                        onAdd = { navController.navigate(ReferentialNewRoute(it)) },
+                        onRename = { kind, id -> navController.navigate(ReferentialEditRoute(kind, id)) },
+                    )
+                }
+                composable<ReferentialNewRoute> { ReferentialFormScreen(onBack = back) }
+                composable<ReferentialEditRoute> { ReferentialFormScreen(onBack = back) }
+            }
         }
     }
 }

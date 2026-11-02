@@ -8,11 +8,6 @@
 
     <string name="cellar_empty_title">Votre cave est vide</string>
     <string name="cellar_empty_import_hint">Vous utilisez déjà l\'application web ? Récupérez toute votre cave depuis une copie de la base du serveur.</string>
-    <plurals name="cellar_in_stock_count">
-        <item quantity="one">%d vin dans votre cave</item>
-        <item quantity="many">%d vins dans votre cave</item>
-        <item quantity="other">%d vins dans votre cave</item>
-    </plurals>
 
     <string name="import_action">Importer la cave</string>
     <string name="import_running">Import de votre cave…</string>
@@ -63,4 +58,107 @@
     <string name="import_reason_negative_quantity">quantité négative</string>
     <string name="import_reason_invalid_date">date illisible</string>
     <string name="import_reason_invalid_timestamp">horodatage illisible</string>
+
+    <!-- Actions et vocabulaire communs (docs/i18n-vocabulary.md) -->
+    <string name="action_back">Retour</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_delete">Supprimer</string>
+    <string name="action_edit">Modifier</string>
+    <string name="stepper_decrease">Diminuer</string>
+    <string name="stepper_increase">Augmenter</string>
+    <string name="label_millesime">Millésime</string>
+    <string name="label_appellation">Appellation</string>
+    <string name="label_producer">Producteur</string>
+    <string name="label_meal">Plat</string>
+    <string name="label_color">Couleur</string>
+    <string name="label_status">Statut</string>
+    <string name="label_garde_window">Fenêtre de garde</string>
+    <string name="color_rouge">Rouge</string>
+    <string name="color_blanc">Blanc</string>
+    <string name="color_rose">Rosé</string>
+    <string name="garde_status_too_young">Trop jeune</string>
+    <string name="garde_status_ready">À boire</string>
+    <string name="garde_status_past_peak">Passé</string>
+    <string name="garde_status_unassessed">Non évalué</string>
+    <string name="no_millesime">SA</string>
+    <string name="quantity_short">×%d</string>
+    <string name="autocomplete_create">Créer « %s »</string>
+
+    <!-- Liste de la cave -->
+    <plurals name="cellar_count">
+        <item quantity="one">%d vin en cave</item>
+        <item quantity="many">%d vins en cave</item>
+        <item quantity="other">%d vins en cave</item>
+    </plurals>
+    <string name="cellar_add">Ajouter un vin</string>
+    <string name="cellar_empty_add_hint">Ajoutez votre premier vin pour commencer votre cave.</string>
+    <string name="cellar_no_match">Aucun vin ne correspond à ces filtres.</string>
+    <string name="filters_title">Filtres</string>
+    <string name="filters_title_count">Filtres (%d)</string>
+    <string name="filters_any_meal">Tous les plats</string>
+    <string name="filters_any_appellation">Toutes les appellations</string>
+    <string name="filters_any_color">Toutes les couleurs</string>
+    <string name="filters_ready_now">À boire maintenant</string>
+    <string name="filters_clear">Effacer les filtres</string>
+    <string name="sort_title">Trier</string>
+    <string name="sort_ascending">↑ Croissant</string>
+    <string name="sort_descending">↓ Décroissant</string>
+    <string name="pagination_previous">Précédent</string>
+    <string name="pagination_next">Suivant</string>
+    <string name="pagination_status">Page %1$d sur %2$d</string>
+
+    <!-- Vin -->
+    <string name="wine_add_title">Ajouter un vin</string>
+    <string name="wine_edit_title">Modifier le vin</string>
+    <string name="wine_garde_start">Début de la fenêtre de garde</string>
+    <string name="wine_garde_end">Fin de la fenêtre de garde</string>
+    <string name="wine_initial_quantity">Quantité initiale</string>
+    <string name="wine_submit_add">Ajouter le vin</string>
+    <string name="wine_submit_edit">Enregistrer les modifications</string>
+    <string name="wine_pick_or_create_appellation">Choisir ou créer une appellation</string>
+    <string name="wine_pick_or_create_producer">Choisir ou créer un producteur</string>
+    <string name="wine_error_appellation_required">L\'appellation est obligatoire</string>
+    <string name="wine_error_producer_required">Le producteur est obligatoire</string>
+    <string name="wine_error_color_required">La couleur est obligatoire</string>
+    <string name="wine_error_garde_end_before_start">La fin de la fenêtre de garde doit être égale ou postérieure à son début</string>
+    <string name="wine_error_quantity_min">La quantité initiale doit être au moins %d</string>
+    <string name="wine_error_not_a_year">Saisissez une année, ex. 2019</string>
+    <string name="wine_detail_garde_window">%1$s %2$s–%3$s</string>
+    <string name="wine_detail_not_found">Ce vin n\'existe plus.</string>
+
+    <!-- Gérer -->
+    <string name="manage_rename">Renommer</string>
+    <string name="manage_name">Nom</string>
+    <string name="manage_save_changes">Enregistrer les modifications</string>
+    <string name="manage_producers_label">Producteurs</string>
+    <string name="manage_producers_description">Renommer ou supprimer des producteurs.</string>
+    <string name="manage_producers_add">Ajouter un producteur</string>
+    <string name="manage_producers_empty">Aucun producteur pour le moment.</string>
+    <string name="manage_producers_delete_confirm">Supprimer le producteur « %s » ?</string>
+    <string name="manage_producers_rename_title">Renommer le producteur</string>
+    <string name="manage_appellations_label">Appellations</string>
+    <string name="manage_appellations_description">Renommer ou supprimer des appellations.</string>
+    <string name="manage_appellations_add">Ajouter une appellation</string>
+    <string name="manage_appellations_empty">Aucune appellation pour le moment.</string>
+    <string name="manage_appellations_delete_confirm">Supprimer l\'appellation « %s » ?</string>
+    <string name="manage_appellations_rename_title">Renommer l\'appellation</string>
+    <string name="manage_meals_label">Plats</string>
+    <string name="manage_meals_description">Renommer ou supprimer des plats.</string>
+    <string name="manage_meals_add">Ajouter un plat</string>
+    <string name="manage_meals_empty">Aucun plat pour le moment.</string>
+    <string name="manage_meals_delete_confirm">Supprimer le plat « %s » ?</string>
+    <string name="manage_meals_rename_title">Renommer le plat</string>
+
+    <!-- Refus : le catalogue errors de la PWA, sans les erreurs réseau -->
+    <string name="error_generic">Une erreur est survenue. Veuillez réessayer.</string>
+    <string name="error_name_required">Le nom est obligatoire</string>
+    <string name="error_already_exists">Ce nom est déjà utilisé. Choisissez-en un autre.</string>
+    <string name="error_appellation_not_found">Cette appellation n\'existe plus. Revenez en arrière et réessayez.</string>
+    <string name="error_producer_not_found">Ce producteur n\'existe plus. Revenez en arrière et réessayez.</string>
+    <string name="error_meal_not_found">Ce plat n\'existe plus. Revenez en arrière et réessayez.</string>
+    <string name="error_wine_not_found">Vin introuvable. Retournez à la cave et réessayez.</string>
+    <string name="error_meal_in_use">Ce plat est utilisé dans un accord mets-vin. Supprimez d\'abord l\'accord, puis supprimez le plat.</string>
+    <string name="error_appellation_in_use">Cette appellation est utilisée par un vin ou un accord mets-vin. Supprimez d\'abord ces références, puis supprimez l\'appellation.</string>
+    <string name="error_producer_in_use">Ce producteur est utilisé par un vin. Supprimez d\'abord cette référence, puis supprimez le producteur.</string>
+    <string name="error_initial_quantity_required">Saisissez une quantité initiale d\'au moins 1.</string>
 </resources>
