@@ -1,0 +1,66 @@
+<resources>
+    <string name="nav_cellar">Cave</string>
+    <string name="nav_history">Historique</string>
+    <string name="nav_manage">Gérer</string>
+
+    <string name="action_ok">OK</string>
+    <string name="coming_soon">Bientôt disponible.</string>
+
+    <string name="cellar_empty_title">Votre cave est vide</string>
+    <string name="cellar_empty_import_hint">Vous utilisez déjà l\'application web ? Récupérez toute votre cave depuis une copie de la base du serveur.</string>
+    <plurals name="cellar_in_stock_count">
+        <item quantity="one">%d vin dans votre cave</item>
+        <item quantity="many">%d vins dans votre cave</item>
+        <item quantity="other">%d vins dans votre cave</item>
+    </plurals>
+
+    <string name="import_action">Importer la cave</string>
+    <string name="import_running">Import de votre cave…</string>
+    <string name="import_done_title">Cave importée</string>
+    <plurals name="import_summary_wines">
+        <item quantity="one">%d vin</item>
+        <item quantity="many">%d vins</item>
+        <item quantity="other">%d vins</item>
+    </plurals>
+    <plurals name="import_summary_producers">
+        <item quantity="one">%d producteur</item>
+        <item quantity="many">%d producteurs</item>
+        <item quantity="other">%d producteurs</item>
+    </plurals>
+    <plurals name="import_summary_appellations">
+        <item quantity="one">%d appellation</item>
+        <item quantity="many">%d appellations</item>
+        <item quantity="other">%d appellations</item>
+    </plurals>
+    <plurals name="import_summary_meals">
+        <item quantity="one">%d plat</item>
+        <item quantity="many">%d plats</item>
+        <item quantity="other">%d plats</item>
+    </plurals>
+    <plurals name="import_summary_meal_pairings">
+        <item quantity="one">%d accord mets-vin</item>
+        <item quantity="many">%d accords mets-vin</item>
+        <item quantity="other">%d accords mets-vin</item>
+    </plurals>
+    <plurals name="import_summary_consumptions">
+        <item quantity="one">%d consommation</item>
+        <item quantity="many">%d consommations</item>
+        <item quantity="other">%d consommations</item>
+    </plurals>
+
+    <string name="import_failed_title">Rien n\'a été importé</string>
+    <string name="import_error_not_cellar">Ce fichier n\'est pas une base de cave. Choisissez une copie du fichier cellar.db du serveur.</string>
+    <string name="import_error_corrupt">Cette copie est endommagée. Refaites-en une avec sqlite3 .backup et réessayez.</string>
+    <string name="import_error_unsupported_schema">Cette copie vient d\'une autre version du serveur (dernière mise à jour : %1$s). Mettez à jour le serveur ou l\'application, puis refaites une copie.</string>
+    <string name="import_error_not_empty">Votre cave contient déjà des données. L\'import ne fonctionne que sur une cave vide.</string>
+    <string name="import_error_orphans">La copie contient %1$d lignes qui pointent vers des éléments disparus (%2$s). Nettoyez-les sur le serveur avec PRAGMA foreign_key_check, puis réessayez.</string>
+    <string name="import_error_invalid_row">La copie contient une ligne invalide (%1$s n° %2$d : %3$s).</string>
+    <string name="import_error_unexpected">L\'import a échoué de façon inattendue. Votre cave est inchangée.</string>
+    <string name="import_reason_blank_name">nom vide</string>
+    <string name="import_reason_duplicate_name">nom en double</string>
+    <string name="import_reason_invalid_color">couleur inconnue</string>
+    <string name="import_reason_invalid_rating">note hors de 1 à 5</string>
+    <string name="import_reason_negative_quantity">quantité négative</string>
+    <string name="import_reason_invalid_date">date illisible</string>
+    <string name="import_reason_invalid_timestamp">horodatage illisible</string>
+</resources>

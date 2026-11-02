@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup on Android 11 and below: the cellar database only. -->
+<full-backup-content>
+    <include domain="database" path="cellar.db" />
+    <include domain="database" path="cellar.db-wal" />
+    <include domain="database" path="cellar.db-shm" />
+</full-backup-content>

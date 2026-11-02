@@ -1,0 +1,61 @@
+<resources>
+    <string name="app_name" translatable="false">Oenoteq</string>
+
+    <string name="nav_cellar">Cellar</string>
+    <string name="nav_history">History</string>
+    <string name="nav_manage">Manage</string>
+
+    <string name="action_ok">OK</string>
+    <string name="coming_soon">Coming soon.</string>
+
+    <string name="cellar_empty_title">Your cellar is empty</string>
+    <string name="cellar_empty_import_hint">Already using the web app? Bring your whole cellar over from a snapshot of the server\'s database.</string>
+    <plurals name="cellar_in_stock_count">
+        <item quantity="one">%d wine in your cellar</item>
+        <item quantity="other">%d wines in your cellar</item>
+    </plurals>
+
+    <string name="import_action">Import cellar</string>
+    <string name="import_running">Importing your cellar…</string>
+    <string name="import_done_title">Cellar imported</string>
+    <plurals name="import_summary_wines">
+        <item quantity="one">%d wine</item>
+        <item quantity="other">%d wines</item>
+    </plurals>
+    <plurals name="import_summary_producers">
+        <item quantity="one">%d producer</item>
+        <item quantity="other">%d producers</item>
+    </plurals>
+    <plurals name="import_summary_appellations">
+        <item quantity="one">%d appellation</item>
+        <item quantity="other">%d appellations</item>
+    </plurals>
+    <plurals name="import_summary_meals">
+        <item quantity="one">%d meal</item>
+        <item quantity="other">%d meals</item>
+    </plurals>
+    <plurals name="import_summary_meal_pairings">
+        <item quantity="one">%d meal pairing</item>
+        <item quantity="other">%d meal pairings</item>
+    </plurals>
+    <plurals name="import_summary_consumptions">
+        <item quantity="one">%d consumption</item>
+        <item quantity="other">%d consumptions</item>
+    </plurals>
+
+    <string name="import_failed_title">Nothing was imported</string>
+    <string name="import_error_not_cellar">This file isn\'t a cellar database. Pick a snapshot of the server\'s cellar.db.</string>
+    <string name="import_error_corrupt">This snapshot is damaged. Take a new one with sqlite3 .backup and try again.</string>
+    <string name="import_error_unsupported_schema">This snapshot comes from a different version of the server (last update: %1$s). Update the server or the app, then take a new snapshot.</string>
+    <string name="import_error_not_empty">Your cellar already has data. Importing only works on an empty cellar.</string>
+    <string name="import_error_orphans">The snapshot has %1$d rows pointing at records that no longer exist (%2$s). Clean them up on the server with PRAGMA foreign_key_check, then try again.</string>
+    <string name="import_error_invalid_row">The snapshot has an invalid row (%1$s #%2$d: %3$s).</string>
+    <string name="import_error_unexpected">The import failed unexpectedly. Your cellar is unchanged.</string>
+    <string name="import_reason_blank_name">empty name</string>
+    <string name="import_reason_duplicate_name">duplicate name</string>
+    <string name="import_reason_invalid_color">unknown color</string>
+    <string name="import_reason_invalid_rating">rating outside 1–5</string>
+    <string name="import_reason_negative_quantity">negative quantity</string>
+    <string name="import_reason_invalid_date">unreadable date</string>
+    <string name="import_reason_invalid_timestamp">unreadable timestamp</string>
+</resources>

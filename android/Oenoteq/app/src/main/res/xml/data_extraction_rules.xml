@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: the cellar database goes to the Google account backup and to a new phone. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="database" path="cellar.db" />
+        <include domain="database" path="cellar.db-wal" />
+        <include domain="database" path="cellar.db-shm" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="database" path="cellar.db" />
+        <include domain="database" path="cellar.db-wal" />
+        <include domain="database" path="cellar.db-shm" />
+    </device-transfer>
+</data-extraction-rules>

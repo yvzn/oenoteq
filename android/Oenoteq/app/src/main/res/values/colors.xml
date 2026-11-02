@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window background before Compose draws: the PWA's parchment. -->
+    <color name="parchment">#FFF5F0E5</color>
+    <color name="night_background">#FF1C1512</color>
+</resources>
