@@ -61,17 +61,19 @@ import net.ludeo.oenoteq.ui.wine.WineFormScreen
 
 @Serializable data class ReferentialEditRoute(val kind: Referential, val id: Long)
 
+/** [home] is the area's top screen, where tapping its already selected tab returns. */
 private data class TopLevelDestination(
     val route: Any,
+    val home: Any,
     @StringRes val label: Int,
     val icon: ImageVector,
     val testTag: String,
 )
 
 private val topLevelDestinations = listOf(
-    TopLevelDestination(CellarGraph, R.string.nav_cellar, Icons.Outlined.WineBar, "nav-cellar"),
-    TopLevelDestination(HistoryRoute, R.string.nav_history, Icons.Outlined.History, "nav-history"),
-    TopLevelDestination(ManageGraph, R.string.nav_manage, Icons.Outlined.Tune, "nav-manage"),
+    TopLevelDestination(CellarGraph, CellarRoute, R.string.nav_cellar, Icons.Outlined.WineBar, "nav-cellar"),
+    TopLevelDestination(HistoryRoute, HistoryRoute, R.string.nav_history, Icons.Outlined.History, "nav-history"),
+    TopLevelDestination(ManageGraph, ManageRoute, R.string.nav_manage, Icons.Outlined.Tune, "nav-manage"),
 )
 
 @Composable
@@ -89,7 +91,11 @@ fun OenoteqApp() {
                     NavigationBarItem(
                         selected = selected,
                         onClick = {
-                            navController.navigate(destination.route) {
+                            // Material pattern: another tab restores where it was left; the
+                            // selected tab returns to its top screen.
+                            if (selected) {
+                                navController.popBackStack(destination.home, inclusive = false)
+                            } else navController.navigate(destination.route) {
                                 popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true

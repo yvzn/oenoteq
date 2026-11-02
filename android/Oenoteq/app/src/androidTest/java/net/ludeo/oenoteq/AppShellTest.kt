@@ -12,6 +12,7 @@ import org.junit.Test
 import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 
+@OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
 class AppShellTest {
     private val compose = createAndroidComposeRule<MainActivity>()
@@ -37,8 +38,34 @@ class AppShellTest {
         awaitEmptyCellar()
     }
 
+    @Test
+    fun tappingTheSelectedTabReturnsToItsTopScreen() {
+        awaitEmptyCellar()
+        compose.onNodeWithTag("empty-add-wine").performClick()
+        compose.onNodeWithTag("wine-form").assertIsDisplayed()
+
+        compose.onNodeWithTag("nav-cellar").performClick()
+        awaitEmptyCellar()
+
+        compose.onNodeWithTag("nav-manage").performClick()
+        compose.onNodeWithTag("manage-producer").performClick()
+        compose.waitUntilAtLeastOneExists(hasTestTag("referential-add"), timeoutMillis = 10_000)
+        compose.onNodeWithTag("nav-manage").performClick()
+        compose.onNodeWithTag("manage-screen").assertIsDisplayed()
+    }
+
+    @Test
+    fun anotherTabComesBackWhereItWasLeft() {
+        awaitEmptyCellar()
+        compose.onNodeWithTag("empty-add-wine").performClick()
+
+        compose.onNodeWithTag("nav-manage").performClick()
+        compose.onNodeWithTag("nav-cellar").performClick()
+
+        compose.onNodeWithTag("wine-form").assertIsDisplayed()
+    }
+
     // The cellar's state comes from a Room Flow, which Compose's idling doesn't track.
-    @OptIn(ExperimentalTestApi::class)
     private fun awaitEmptyCellar() {
         compose.waitUntilAtLeastOneExists(hasTestTag("cellar-empty"), timeoutMillis = 10_000)
         compose.onNodeWithTag("cellar-empty").assertIsDisplayed()
