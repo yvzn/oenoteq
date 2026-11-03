@@ -210,4 +210,17 @@
     <string name="pairing_remove">Retirer</string>
     <string name="pairing_add_meal">Ajouter un plat</string>
     <string name="pairing_add_or_create_meal">Ajouter ou créer un plat</string>
+
+    <!-- Messages de confirmation et langue -->
+    <string name="action_dismiss">Fermer</string>
+    <string name="notice_wine_added">Vin ajouté.</string>
+    <string name="notice_wine_updated">Vin modifié.</string>
+    <string name="notice_producer_added">Producteur ajouté.</string>
+    <string name="notice_producer_updated">Producteur modifié.</string>
+    <string name="notice_appellation_added">Appellation ajoutée.</string>
+    <string name="notice_appellation_updated">Appellation modifiée.</string>
+    <string name="notice_meal_added">Plat ajouté.</string>
+    <string name="notice_meal_updated">Plat modifié.</string>
+    <string name="notice_deleted">« %s » supprimé.</string>
+    <string name="notice_pairing_removed">Accord retiré.</string>
 </resources>

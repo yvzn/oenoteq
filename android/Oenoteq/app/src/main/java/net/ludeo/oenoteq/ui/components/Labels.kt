@@ -45,6 +45,7 @@ fun CellarError.Code.message(): Int = when (this) {
     CellarError.Code.INVALID_RATING -> R.string.error_invalid_rating
     CellarError.Code.QUANTITY_ZERO -> R.string.error_quantity_zero
     CellarError.Code.CONSUMPTION_NOT_FOUND -> R.string.error_consumption_not_found
+    CellarError.Code.INTERNAL_ERROR -> R.string.error_generic
 }
 
 /** The texts of a Manage list and its form, per kind of reference data. */
@@ -55,6 +56,8 @@ data class ReferentialTexts(
     @StringRes val empty: Int,
     @StringRes val deleteConfirm: Int,
     @StringRes val renameTitle: Int,
+    @StringRes val added: Int,
+    @StringRes val updated: Int,
 )
 
 val Referential.texts: ReferentialTexts
@@ -62,16 +65,18 @@ val Referential.texts: ReferentialTexts
         Referential.PRODUCER -> ReferentialTexts(
             R.string.manage_producers_label, R.string.manage_producers_description, R.string.manage_producers_add,
             R.string.manage_producers_empty, R.string.manage_producers_delete_confirm,
-            R.string.manage_producers_rename_title,
+            R.string.manage_producers_rename_title, R.string.notice_producer_added, R.string.notice_producer_updated,
         )
         Referential.APPELLATION -> ReferentialTexts(
             R.string.manage_appellations_label, R.string.manage_appellations_description,
             R.string.manage_appellations_add, R.string.manage_appellations_empty,
             R.string.manage_appellations_delete_confirm, R.string.manage_appellations_rename_title,
+            R.string.notice_appellation_added, R.string.notice_appellation_updated,
         )
         Referential.MEAL -> ReferentialTexts(
             R.string.manage_meals_label, R.string.manage_meals_description, R.string.manage_meals_add,
             R.string.manage_meals_empty, R.string.manage_meals_delete_confirm, R.string.manage_meals_rename_title,
+            R.string.notice_meal_added, R.string.notice_meal_updated,
         )
     }
 

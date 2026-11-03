@@ -1,8 +1,20 @@
 # Oenoteq — Android
 
-Native Android version of the wine cellar tracker. Same features as the PWA, but the cellar lives only in a SQLite database on the phone (Room). No network, no sync. Android Auto Backup copies the database to the user's Google account. Spec: `.scratch/android-port/spec.md`.
+Native Android version of the wine cellar tracker. Same features as the PWA, but the cellar lives only in a SQLite database on the phone (Room). No network, no sync. Android Auto Backup copies the database to the user's Google account. Decision: [ADR 0012](../../docs/adr/0012-android-client-local-only.md). Spec: `.scratch/android-port/spec.md`.
 
 Kotlin, Jetpack Compose (Material 3), Room, Navigation Compose. Single activity, manual dependency wiring (`AppContainer`).
+
+## Layout
+
+- `domain/`: pure Kotlin rules ported from `web/src/domain` (Garde Status, cellar search and sort, Consumption History order, pagination, form rules) and `CellarError`, one code per refusal of the Go `db` layer.
+- `data/`: Room entities and DAOs, one repository per aggregate (the only callers of the DAOs, where the backend's rules are enforced), and `data/snapshot/`, the one-time import.
+- `ui/`: one screen and ViewModel per destination. `OenoteqApp.kt` holds the routes: one nested graph per bottom-bar tab, each with its own back stack. `components/` holds the shared pieces (filter bar, sort sheet, pager, autocomplete, highlight, language toggle).
+
+What the app shares with the PWA's UX:
+
+- **Bottom bar.** Tapping another tab returns to where you left it. Tapping the selected tab goes back to its top screen.
+- **Confirmations.** A change you can see on screen is highlighted until you leave the screen. Any other change shows a message at the bottom, one at a time, that stays until dismissed and is dropped when you navigate. A message confirming a save stays on the page the save lands on.
+- **Language.** `FR | EN` in the top bar of Cellar, History and Manage. The first language follows the phone (French if French, English otherwise).
 
 ## Requirements
 

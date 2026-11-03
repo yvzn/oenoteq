@@ -11,11 +11,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -29,6 +38,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import net.ludeo.oenoteq.R
 import net.ludeo.oenoteq.domain.Referential
@@ -101,92 +112,118 @@ fun OenoteqApp() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val back: () -> Unit = { navController.popBackStack() }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val resources = LocalContext.current.resources
+    // As the PWA's toast: one at a time, the next ones queued, each kept until dismissed (no timer).
+    // Each shown or waiting message is a job; navigating cancels all but the one carried across.
+    val messages = remember { mutableListOf<Pair<Job, Boolean>>() }
+    val notify: (Notice) -> Unit = { notice ->
+        val text = if (notice.arg == null) resources.getString(notice.text) else resources.getString(notice.text, notice.arg)
+        val job = scope.launch { snackbar.showSnackbar(text, withDismissAction = true, duration = SnackbarDuration.Indefinite) }
+        messages += job to notice.carried
+        job.invokeOnCompletion { messages.removeAll { it.first == job } }
+    }
+    LaunchedEffect(backStackEntry?.id) {
+        val (keep, drop) = messages.partition { (_, carried) -> carried }
+        drop.forEach { (job, _) -> job.cancel() }
+        // Carried only into the very next screen.
+        messages.clear()
+        messages += keep.map { (job, _) -> job to false }
+    }
 
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                for (destination in topLevelDestinations) {
-                    val selected = backStackEntry?.destination?.hierarchy
-                        ?.any { it.hasRoute(destination.route::class) } == true
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            // Material pattern: another tab restores where it was left; the
-                            // selected tab returns to its top screen.
-                            if (selected) {
-                                navController.popBackStack(destination.home, inclusive = false)
-                            } else navController.navigate(destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = { Icon(destination.icon, contentDescription = null) },
-                        label = { Text(stringResource(destination.label)) },
-                        modifier = Modifier.testTag(destination.testTag),
+    CompositionLocalProvider(LocalNotify provides notify) {
+        Scaffold(
+            snackbarHost = {
+                SnackbarHost(snackbar) { data ->
+                    Snackbar(data, modifier = Modifier.testTag("notice"))
+                }
+            },
+            bottomBar = {
+                NavigationBar {
+                    for (destination in topLevelDestinations) {
+                        val selected = backStackEntry?.destination?.hierarchy
+                            ?.any { it.hasRoute(destination.route::class) } == true
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                // Material pattern: another tab restores where it was left; the
+                                // selected tab returns to its top screen.
+                                if (selected) {
+                                    navController.popBackStack(destination.home, inclusive = false)
+                                } else navController.navigate(destination.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = { Icon(destination.icon, contentDescription = null) },
+                            label = { Text(stringResource(destination.label)) },
+                            modifier = Modifier.testTag(destination.testTag),
+                        )
+                    }
+                }
+            },
+            // Each screen's top app bar takes the status bar inset itself.
+            contentWindowInsets = WindowInsets(0),
+        ) { padding ->
+            NavHost(navController, startDestination = CellarGraph, modifier = Modifier.padding(padding)) {
+                navigation<CellarGraph>(startDestination = CellarRoute) {
+                    composable<CellarRoute> {
+                        CellarScreen(
+                            onAddWine = { navController.navigate(WineNewRoute) },
+                            onOpenWine = { navController.navigate(WineDetailRoute(it)) },
+                        )
+                    }
+                    composable<WineNewRoute> {
+                        WineFormScreen(
+                            editId = null,
+                            onBack = back,
+                            onSaved = { id ->
+                                navController.navigate(WineDetailRoute(id)) {
+                                    popUpTo<WineNewRoute> { inclusive = true }
+                                }
+                            },
+                        )
+                    }
+                    wineScreens<WineDetailRoute, WineEditRoute, CellarPairingRoute>(
+                        navController,
+                        detailId = { it.id },
+                        editId = { it.id },
+                        editRoute = ::WineEditRoute,
+                        pairing = { it.appellationId to it.color },
+                        pairingRoute = ::CellarPairingRoute,
                     )
                 }
-            }
-        },
-        // Each screen's top app bar takes the status bar inset itself.
-        contentWindowInsets = WindowInsets(0),
-    ) { padding ->
-        NavHost(navController, startDestination = CellarGraph, modifier = Modifier.padding(padding)) {
-            navigation<CellarGraph>(startDestination = CellarRoute) {
-                composable<CellarRoute> {
-                    CellarScreen(
-                        onAddWine = { navController.navigate(WineNewRoute) },
-                        onOpenWine = { navController.navigate(WineDetailRoute(it)) },
+                navigation<HistoryGraph>(startDestination = HistoryRoute) {
+                    composable<HistoryRoute> { HistoryScreen(onOpenWine = { navController.navigate(HistoryWineRoute(it)) }) }
+                    wineScreens<HistoryWineRoute, HistoryWineEditRoute, HistoryPairingRoute>(
+                        navController,
+                        detailId = { it.id },
+                        editId = { it.id },
+                        editRoute = ::HistoryWineEditRoute,
+                        pairing = { it.appellationId to it.color },
+                        pairingRoute = ::HistoryPairingRoute,
                     )
                 }
-                composable<WineNewRoute> {
-                    WineFormScreen(
-                        editId = null,
-                        onBack = back,
-                        onSaved = { id ->
-                            navController.navigate(WineDetailRoute(id)) {
-                                popUpTo<WineNewRoute> { inclusive = true }
-                            }
-                        },
-                    )
+                navigation<ManageGraph>(startDestination = ManageRoute) {
+                    composable<ManageRoute> {
+                        ManageScreen(
+                            onOpen = { navController.navigate(ReferentialListRoute(it)) },
+                            onOpenPairings = { navController.navigate(MealPairingRoute) },
+                        )
+                    }
+                    composable<ReferentialListRoute> {
+                        ReferentialListScreen(
+                            onBack = back,
+                            onAdd = { navController.navigate(ReferentialNewRoute(it)) },
+                            onRename = { kind, id -> navController.navigate(ReferentialEditRoute(kind, id)) },
+                        )
+                    }
+                    composable<ReferentialNewRoute> { ReferentialFormScreen(onBack = back) }
+                    composable<ReferentialEditRoute> { ReferentialFormScreen(onBack = back) }
+                    composable<MealPairingRoute> { MealPairingScreen(appellationId = null, color = null, onBack = back) }
                 }
-                wineScreens<WineDetailRoute, WineEditRoute, CellarPairingRoute>(
-                    navController,
-                    detailId = { it.id },
-                    editId = { it.id },
-                    editRoute = ::WineEditRoute,
-                    pairing = { it.appellationId to it.color },
-                    pairingRoute = ::CellarPairingRoute,
-                )
-            }
-            navigation<HistoryGraph>(startDestination = HistoryRoute) {
-                composable<HistoryRoute> { HistoryScreen(onOpenWine = { navController.navigate(HistoryWineRoute(it)) }) }
-                wineScreens<HistoryWineRoute, HistoryWineEditRoute, HistoryPairingRoute>(
-                    navController,
-                    detailId = { it.id },
-                    editId = { it.id },
-                    editRoute = ::HistoryWineEditRoute,
-                    pairing = { it.appellationId to it.color },
-                    pairingRoute = ::HistoryPairingRoute,
-                )
-            }
-            navigation<ManageGraph>(startDestination = ManageRoute) {
-                composable<ManageRoute> {
-                    ManageScreen(
-                        onOpen = { navController.navigate(ReferentialListRoute(it)) },
-                        onOpenPairings = { navController.navigate(MealPairingRoute) },
-                    )
-                }
-                composable<ReferentialListRoute> {
-                    ReferentialListScreen(
-                        onBack = back,
-                        onAdd = { navController.navigate(ReferentialNewRoute(it)) },
-                        onRename = { kind, id -> navController.navigate(ReferentialEditRoute(kind, id)) },
-                    )
-                }
-                composable<ReferentialNewRoute> { ReferentialFormScreen(onBack = back) }
-                composable<ReferentialEditRoute> { ReferentialFormScreen(onBack = back) }
-                composable<MealPairingRoute> { MealPairingScreen(appellationId = null, color = null, onBack = back) }
             }
         }
     }

@@ -36,6 +36,8 @@ import net.ludeo.oenoteq.R
 import net.ludeo.oenoteq.data.ReferentialRepository
 import net.ludeo.oenoteq.domain.CellarError
 import net.ludeo.oenoteq.domain.Referential
+import net.ludeo.oenoteq.ui.LocalNotify
+import net.ludeo.oenoteq.ui.Notice
 import net.ludeo.oenoteq.ui.ReferentialEditRoute
 import net.ludeo.oenoteq.ui.ReferentialNewRoute
 import net.ludeo.oenoteq.ui.components.Loading
@@ -43,6 +45,7 @@ import net.ludeo.oenoteq.ui.components.ScreenScaffold
 import net.ludeo.oenoteq.ui.components.StatusMessage
 import net.ludeo.oenoteq.ui.components.message
 import net.ludeo.oenoteq.ui.components.texts
+import net.ludeo.oenoteq.ui.attempt
 import net.ludeo.oenoteq.ui.container
 
 data class ReferentialFormState(
@@ -77,12 +80,10 @@ class ReferentialFormViewModel(private val repository: ReferentialRepository, va
         if (current.saving) return
         mutableState.value = current.copy(saving = true, error = null)
         viewModelScope.launch {
-            mutableState.value = try {
+            val refusal = attempt {
                 if (id == null) repository.create(current.name) else repository.rename(id, current.name)
-                mutableState.value.copy(saving = false, saved = true)
-            } catch (e: CellarError) {
-                mutableState.value.copy(saving = false, error = e.code)
             }
+            mutableState.update { it.copy(saving = false, saved = refusal == null, error = refusal) }
         }
     }
 
@@ -110,7 +111,12 @@ fun ReferentialFormScreen(
     val texts = viewModel.kind.texts
     val isNew = viewModel.id == null
 
-    LaunchedEffect(state.saved) { if (state.saved) onBack() }
+    val notify = LocalNotify.current
+    LaunchedEffect(state.saved) {
+        if (!state.saved) return@LaunchedEffect
+        notify(Notice(if (isNew) texts.added else texts.updated, carried = true))
+        onBack()
+    }
 
     ScreenScaffold(title = stringResource(if (isNew) texts.add else texts.renameTitle), onBack = onBack) { modifier ->
         when {

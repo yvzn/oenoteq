@@ -48,6 +48,7 @@ import net.ludeo.oenoteq.ui.components.Pagination
 import net.ludeo.oenoteq.ui.components.SortSheet
 import net.ludeo.oenoteq.ui.components.rememberFromTop
 import net.ludeo.oenoteq.ui.components.GardeStatusBadge
+import net.ludeo.oenoteq.ui.components.LanguageToggle
 import net.ludeo.oenoteq.ui.components.Loading
 import net.ludeo.oenoteq.ui.components.ScreenScaffold
 import net.ludeo.oenoteq.ui.components.StatusMessage
@@ -75,6 +76,7 @@ fun CellarScreen(
     ScreenScaffold(
         title = if (hasList) pluralStringResource(R.plurals.cellar_count, state.page.total, state.page.total)
         else stringResource(R.string.nav_cellar),
+        actions = { LanguageToggle() },
         floatingActionButton = {
             if (hasList || state.filters.activeCount > 0) {
                 ExtendedFloatingActionButton(

@@ -190,7 +190,7 @@ Enforced in repositories, inside a transaction where more than one row changes. 
 
 - Filter bar shared by cellar list and History, with "ready now" as cellar-only extra content; filter count; clear filters; on narrow screens a bottom sheet for filters and for sort.
 - List state (filters, sort, page) held in the screen's `SavedStateHandle`, so it survives back navigation, rotation and process death. Scroll position restored when returning from detail.
-- Success message after a save (Snackbar), and changed values highlighted on the screen the user lands on (`useHighlight` behaviour).
+- Confirmations as in the PWA's utilities UX (`.scratch/utilities-ux/spec.md`). A change already visible on screen (Consumption recorded, updated or deleted; quantity adjusted; meal pairing added) is highlighted until the user leaves the screen, with no message. Every other change shows a message in an app-wide Snackbar: one at a time, queued, kept until dismissed, dropped on navigation except the one carried to the page a save lands on (ADR 0003).
 - Confirm dialog before every delete.
 - Bottom navigation (Material pattern): each area keeps its own back stack; tapping another tab returns to where that area was left, tapping the selected tab returns to its top screen (cellar list, History, Manage hub). A Wine opened from the cellar list or the History stays in that area (each area declares its own route types for the Wine detail, edit and pairing screens).
 - Autocomplete fields for Appellation, Producer and Meal (pairing screen) with keyboard/IME-friendly filtering and a "create new" entry when the text matches nothing exactly.
@@ -200,7 +200,7 @@ Enforced in repositories, inside a transaction where more than one row changes. 
 ### Localisation
 
 - `res/values/strings.xml` (English, default) and `res/values-fr/strings.xml` (French), translated from `web/src/i18n/messages/{en,fr}/*` with the vocabulary in `docs/i18n-vocabulary.md`. Plurals through `<plurals>`.
-- Initial language: French if the device's first preferred language is French, English otherwise (same as `resolveLocale`). In-app switch through `AppCompatDelegate.setApplicationLocales`, with `android:localeConfig` (`res/xml/locales_config.xml`) and the `AppLocalesMetadataHolderService` (`autoStoreLocales = true`) so the choice persists on API < 33.
+- Initial language: French if the device's first preferred language is French, English otherwise (same as `resolveLocale`). In-app switch: a plain `FR | EN` toggle in the top bar of the Cellar, History and Manage screens (where the PWA has it in the header, ADR 0011), through `AppCompatDelegate.setApplicationLocales`, with `android:localeConfig` (`res/xml/locales_config.xml`) and the `AppLocalesMetadataHolderService` (`autoStoreLocales = true`) so the choice persists on API < 33.
 - Dates through `java.time` (available on minSdk 24 with core library desugaring enabled) formatted with the current locale.
 
 ### Backup

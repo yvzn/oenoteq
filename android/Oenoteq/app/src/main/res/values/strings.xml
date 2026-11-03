@@ -204,4 +204,17 @@
     <string name="pairing_remove">Remove</string>
     <string name="pairing_add_meal">Add meal</string>
     <string name="pairing_add_or_create_meal">Add or create a meal</string>
+
+    <!-- Success messages and language -->
+    <string name="action_dismiss">Dismiss</string>
+    <string name="notice_wine_added">Wine added.</string>
+    <string name="notice_wine_updated">Wine updated.</string>
+    <string name="notice_producer_added">Producer added.</string>
+    <string name="notice_producer_updated">Producer updated.</string>
+    <string name="notice_appellation_added">Appellation added.</string>
+    <string name="notice_appellation_updated">Appellation updated.</string>
+    <string name="notice_meal_added">Meal added.</string>
+    <string name="notice_meal_updated">Meal updated.</string>
+    <string name="notice_deleted">Deleted “%s”.</string>
+    <string name="notice_pairing_removed">Meal pairing removed.</string>
 </resources>

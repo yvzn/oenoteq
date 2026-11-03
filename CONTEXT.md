@@ -63,3 +63,7 @@ _Avoid_: Local mode, PWA mode
 **Change to Sync**:
 A change made in Offline Mode that has not reached the server yet — either still queued, or failed and awaiting the user's retry or discard. Never dropped silently.
 _Avoid_: Pending item, outbox item (in user-facing wording)
+
+## Android app
+
+The native Android app (ADR 0012) uses every term above unchanged, except three that only exist in the PWA: **Cookie Consent**, **Offline Mode** and **Change to Sync**. On Android the cellar always lives on the phone, nothing syncs, and nothing is ever queued. Its Consumption History is therefore never "online-only".

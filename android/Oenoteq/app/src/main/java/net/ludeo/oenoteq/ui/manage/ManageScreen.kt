@@ -14,13 +14,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import net.ludeo.oenoteq.R
 import net.ludeo.oenoteq.domain.Referential
+import net.ludeo.oenoteq.ui.components.LanguageToggle
 import net.ludeo.oenoteq.ui.components.ScreenScaffold
 import net.ludeo.oenoteq.ui.components.texts
 
 /** The Manage hub: one card per kind of reference data, then Meal Pairings. */
 @Composable
 fun ManageScreen(onOpen: (Referential) -> Unit, onOpenPairings: () -> Unit) {
-    ScreenScaffold(title = stringResource(R.string.nav_manage)) { modifier ->
+    ScreenScaffold(title = stringResource(R.string.nav_manage), actions = { LanguageToggle() }) { modifier ->
         Column(
             modifier.padding(16.dp).testTag("manage-screen"),
             verticalArrangement = Arrangement.spacedBy(12.dp),

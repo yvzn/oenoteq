@@ -21,5 +21,8 @@ class CellarError(val code: Code) : Exception(code.name) {
         INVALID_RATING,
         QUANTITY_ZERO,
         CONSUMPTION_NOT_FOUND,
+
+        /** Not a rule: something failed that no rule explains (`internal_error`). */
+        INTERNAL_ERROR,
     }
 }

@@ -1,5 +1,6 @@
 package net.ludeo.oenoteq.ui.manage
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
@@ -29,12 +31,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -45,9 +50,13 @@ import net.ludeo.oenoteq.domain.CellarError
 import net.ludeo.oenoteq.domain.NamedItem
 import net.ludeo.oenoteq.domain.Referential
 import net.ludeo.oenoteq.domain.WineColor
+import net.ludeo.oenoteq.ui.CollectNotices
+import net.ludeo.oenoteq.ui.Notice
+import net.ludeo.oenoteq.ui.attempt
 import net.ludeo.oenoteq.ui.components.AutocompleteField
 import net.ludeo.oenoteq.ui.components.ColorDot
 import net.ludeo.oenoteq.ui.components.ScreenScaffold
+import net.ludeo.oenoteq.ui.components.highlight
 import net.ludeo.oenoteq.ui.components.label
 import net.ludeo.oenoteq.ui.components.message
 import net.ludeo.oenoteq.ui.container
@@ -61,6 +70,8 @@ data class PairingSelection(
     val addCount: Int = 0,
     val error: CellarError.Code? = null,
     val busy: Boolean = false,
+    /** Meals just paired, shown highlighted until the selection changes or the user leaves. */
+    val highlighted: Set<Long> = emptySet(),
 )
 
 data class MealPairingState(
@@ -82,6 +93,8 @@ class MealPairingViewModel(
     private val pairings: MealPairingRepository,
 ) : ViewModel() {
     private val selection = MutableStateFlow(PairingSelection(appellationId, color))
+    private val noticeChannel = Channel<Notice>(Channel.BUFFERED)
+    val notices: Flow<Notice> = noticeChannel.receiveAsFlow()
 
     private val paired = selection.flatMapLatest { s ->
         if (s.appellationId == null || s.color == null) flowOf(emptyList()) else pairings.observeMeals(s.appellationId, s.color)
@@ -91,41 +104,56 @@ class MealPairingViewModel(
         MealPairingState(a, m, p, s)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MealPairingState(selection = selection.value))
 
-    fun selectAppellation(id: Long?) = selection.update { it.copy(appellationId = id, error = null) }
+    fun selectAppellation(id: Long?) = selection.update { it.copy(appellationId = id, error = null, highlighted = emptySet()) }
 
-    fun selectColor(color: WineColor) = selection.update { it.copy(color = color, error = null) }
+    fun selectColor(color: WineColor) = selection.update { it.copy(color = color, error = null, highlighted = emptySet()) }
+
+    fun clearHighlights() = selection.update { it.copy(highlighted = emptySet()) }
 
     fun pickMeal(id: Long?) = selection.update { it.copy(mealId = id, error = null) }
 
     fun addPicked() {
         val mealId = selection.value.mealId ?: return
-        change { appellationId, color -> pairings.add(appellationId, color, mealId) }
+        change { appellationId, color ->
+            pairings.add(appellationId, color, mealId)
+            mealId
+        }
     }
 
     /** A Meal created here is paired at once with the current Appellation and Color. */
     fun createAndAdd(name: String) = change { appellationId, color ->
-        pairings.add(appellationId, color, meals.create(name).id)
+        val meal = meals.create(name)
+        pairings.add(appellationId, color, meal.id)
+        meal.id
     }
 
-    fun remove(mealId: Long) = change(clearsPick = false) { appellationId, color ->
+    fun remove(mealId: Long) = change(notice = R.string.notice_pairing_removed, clearsPick = false) { appellationId, color ->
         pairings.remove(appellationId, color, mealId)
+        null
     }
 
-    private fun change(clearsPick: Boolean = true, action: suspend (Long, WineColor) -> Unit) {
+    /**
+     * [action] returns the Meal it paired, highlighted in the list; a change
+     * that leaves nothing to highlight is confirmed by [notice] instead.
+     */
+    private fun change(@StringRes notice: Int? = null, clearsPick: Boolean = true, action: suspend (Long, WineColor) -> Long?) {
         val current = selection.value
         val appellationId = current.appellationId ?: return
         val color = current.color ?: return
         if (current.busy) return
         selection.update { it.copy(busy = true, error = null) }
         viewModelScope.launch {
-            try {
-                action(appellationId, color)
-                selection.update {
-                    if (clearsPick) it.copy(mealId = null, addCount = it.addCount + 1, busy = false) else it.copy(busy = false)
-                }
-            } catch (e: CellarError) {
-                selection.update { it.copy(error = e.code, busy = false) }
+            var paired: Long? = null
+            val refusal = attempt { paired = action(appellationId, color) }
+            if (refusal != null) {
+                selection.update { it.copy(error = refusal, busy = false) }
+                return@launch
             }
+            selection.update {
+                val done = it.copy(busy = false, highlighted = it.highlighted + setOfNotNull(paired))
+                if (clearsPick) done.copy(mealId = null, addCount = it.addCount + 1) else done
+            }
+            if (notice != null) noticeChannel.send(Notice(notice))
         }
     }
 
@@ -153,6 +181,8 @@ fun MealPairingScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val selection = state.selection
+    CollectNotices(viewModel.notices)
+    DisposableEffect(viewModel) { onDispose(viewModel::clearHighlights) }
 
     ScreenScaffold(title = stringResource(R.string.manage_meal_pairings_label), onBack = onBack) { modifier ->
         Column(
@@ -200,7 +230,10 @@ fun MealPairingScreen(
                 Text(stringResource(R.string.pairing_none_paired), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             for (meal in state.paired) {
-                Row(Modifier.fillMaxWidth().testTag("paired-meal"), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.fillMaxWidth().highlight(meal.id in selection.highlighted).testTag("paired-meal"),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(meal.name, Modifier.weight(1f).testTag("paired-meal-name"))
                     TextButton(
                         onClick = { viewModel.remove(meal.id) },

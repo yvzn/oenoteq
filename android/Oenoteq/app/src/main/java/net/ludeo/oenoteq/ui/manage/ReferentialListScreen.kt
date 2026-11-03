@@ -31,10 +31,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.toRoute
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import net.ludeo.oenoteq.R
@@ -42,7 +45,10 @@ import net.ludeo.oenoteq.data.ReferentialRepository
 import net.ludeo.oenoteq.domain.CellarError
 import net.ludeo.oenoteq.domain.NamedItem
 import net.ludeo.oenoteq.domain.Referential
+import net.ludeo.oenoteq.ui.CollectNotices
+import net.ludeo.oenoteq.ui.Notice
 import net.ludeo.oenoteq.ui.ReferentialListRoute
+import net.ludeo.oenoteq.ui.attempt
 import net.ludeo.oenoteq.ui.components.ConfirmDialog
 import net.ludeo.oenoteq.ui.components.Loading
 import net.ludeo.oenoteq.ui.components.ScreenScaffold
@@ -62,6 +68,8 @@ class ReferentialListViewModel(private val repository: ReferentialRepository) : 
     val kind: Referential = repository.kind
     private val confirming = MutableStateFlow<NamedItem?>(null)
     private val deleteError = MutableStateFlow<CellarError.Code?>(null)
+    private val noticeChannel = Channel<Notice>(Channel.BUFFERED)
+    val notices: Flow<Notice> = noticeChannel.receiveAsFlow()
 
     val state: StateFlow<ReferentialListState> = combine(repository.observeAll(), confirming, deleteError) { items, c, e ->
         ReferentialListState(loading = false, items = items, confirming = c, deleteError = e)
@@ -80,11 +88,8 @@ class ReferentialListViewModel(private val repository: ReferentialRepository) : 
         val item = confirming.value ?: return
         confirming.value = null
         viewModelScope.launch {
-            try {
-                repository.delete(item.id)
-            } catch (e: CellarError) {
-                deleteError.value = e.code
-            }
+            val refusal = attempt { repository.delete(item.id) }
+            if (refusal == null) noticeChannel.send(Notice(R.string.notice_deleted, item.name)) else deleteError.value = refusal
         }
     }
 
@@ -107,6 +112,7 @@ fun ReferentialListScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val texts = viewModel.kind.texts
+    CollectNotices(viewModel.notices)
 
     ScreenScaffold(
         title = stringResource(texts.label),

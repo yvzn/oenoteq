@@ -25,6 +25,7 @@ import net.ludeo.oenoteq.domain.GardeStatus
 import net.ludeo.oenoteq.domain.NamedItem
 import net.ludeo.oenoteq.domain.gardeStatus
 import net.ludeo.oenoteq.domain.parseQuantityDelta
+import net.ludeo.oenoteq.ui.attempt
 import net.ludeo.oenoteq.ui.container
 import java.time.LocalDate
 
@@ -46,6 +47,8 @@ data class WineDetailEditing(
     val adjustText: String = "",
     val adjustError: CellarError.Code? = null,
     val busy: Boolean = false,
+    /** What the last changes touched (`quantity`, `consumption-<id>`), shown highlighted until the user leaves. */
+    val highlights: Set<String> = emptySet(),
 )
 
 data class WineDetailState(
@@ -96,7 +99,7 @@ class WineDetailViewModel(
     fun editRecord(draft: ConsumptionDraft) = editing.update { it.copy(record = draft, recordError = null) }
 
     fun record() = run(
-        action = { consumptions.create(id, editing.value.record.toInput()) },
+        action = { setOf(QUANTITY, consumptionKey(consumptions.create(id, editing.value.record.toInput()))) },
         // A fresh form for the next bottle, dated today again.
         done = { it.copy(record = ConsumptionDraft(today().toString())) },
         failed = { e, code -> e.copy(recordError = code) },
@@ -117,7 +120,10 @@ class WineDetailViewModel(
     fun saveEdit() {
         val consumptionId = editing.value.editingId ?: return
         run(
-            action = { consumptions.update(consumptionId, editing.value.edit.toInput()) },
+            action = {
+                consumptions.update(consumptionId, editing.value.edit.toInput())
+                setOf(consumptionKey(consumptionId))
+            },
             done = { it.copy(editingId = null) },
             failed = { e, code -> e.copy(editError = code) },
         )
@@ -132,7 +138,10 @@ class WineDetailViewModel(
         val consumption = editing.value.confirmingDelete ?: return
         editing.update { it.copy(confirmingDelete = null) }
         run(
-            action = { consumptions.delete(consumption.id) },
+            action = {
+                consumptions.delete(consumption.id)
+                setOf(QUANTITY)
+            },
             done = { if (it.editingId == consumption.id) it.copy(editingId = null) else it },
             failed = { e, code -> e.copy(deleteError = code) },
         )
@@ -147,31 +156,46 @@ class WineDetailViewModel(
     fun adjust() {
         val delta = parseQuantityDelta(editing.value.adjustText) ?: return
         run(
-            action = { wines.adjustQuantity(id, delta) },
+            action = {
+                wines.adjustQuantity(id, delta)
+                setOf(QUANTITY)
+            },
             done = { it.copy(adjusting = false) },
             failed = { e, code -> e.copy(adjustError = code) },
         )
     }
 
-    /** One write at a time; a refusal lands next to the form that asked for it. */
+    /** Leaving the page forgets what was highlighted, as the PWA does on navigation. */
+    fun clearHighlights() = editing.update { it.copy(highlights = emptySet()) }
+
+    /**
+     * One write at a time. On success the keys [action] returns are
+     * highlighted: the change is on screen, so no message confirms it (as the
+     * PWA's `useHighlight`). A refusal lands next to the form that asked for it.
+     */
     private fun run(
-        action: suspend () -> Unit,
+        action: suspend () -> Set<String>,
         done: (WineDetailEditing) -> WineDetailEditing,
         failed: (WineDetailEditing, CellarError.Code) -> WineDetailEditing,
     ) {
         if (editing.value.busy) return
         editing.update { it.copy(busy = true) }
         viewModelScope.launch {
-            try {
-                action()
-                editing.update { done(it).copy(busy = false) }
-            } catch (e: CellarError) {
-                editing.update { failed(it, e.code).copy(busy = false) }
+            var changed = emptySet<String>()
+            val refusal = attempt { changed = action() }
+            if (refusal == null) {
+                editing.update { done(it).copy(busy = false, highlights = it.highlights + changed) }
+            } else {
+                editing.update { failed(it, refusal).copy(busy = false) }
             }
         }
     }
 
     companion object {
+        const val QUANTITY = "quantity"
+
+        fun consumptionKey(id: Long) = "consumption-$id"
+
         fun factory(id: Long) = viewModelFactory {
             initializer {
                 WineDetailViewModel(id, container.wines, container.consumptions, container.mealPairings)

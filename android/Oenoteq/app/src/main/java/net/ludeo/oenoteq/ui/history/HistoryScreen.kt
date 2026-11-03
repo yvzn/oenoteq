@@ -35,6 +35,7 @@ import net.ludeo.oenoteq.domain.HistorySortBy
 import net.ludeo.oenoteq.ui.components.ColorRail
 import net.ludeo.oenoteq.ui.components.FilterBar
 import net.ludeo.oenoteq.ui.components.FiltersSheet
+import net.ludeo.oenoteq.ui.components.LanguageToggle
 import net.ludeo.oenoteq.ui.components.Loading
 import net.ludeo.oenoteq.ui.components.Pagination
 import net.ludeo.oenoteq.ui.components.ScreenScaffold
@@ -60,6 +61,7 @@ fun HistoryScreen(onOpenWine: (Long) -> Unit, viewModel: HistoryViewModel = view
         } else {
             stringResource(R.string.nav_history)
         },
+        actions = { LanguageToggle() },
     ) { modifier ->
         when {
             state.loading -> Loading(modifier)

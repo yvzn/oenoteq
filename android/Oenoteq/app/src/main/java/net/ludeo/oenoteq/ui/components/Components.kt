@@ -32,6 +32,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -150,3 +155,20 @@ fun ConfirmDialog(message: String, confirmLabel: String, onConfirm: () -> Unit, 
         },
     )
 }
+
+/** Marks a value the user just changed, so tests can see it as the user does. */
+val Highlighted = SemanticsPropertyKey<Boolean>("Highlighted")
+var SemanticsPropertyReceiver.highlighted by Highlighted
+
+/**
+ * The PWA's `useHighlight`: a soft gold background on what the last change
+ * touched, standing in for a confirmation message; announced politely to
+ * screen readers.
+ */
+@Composable
+fun Modifier.highlight(on: Boolean): Modifier =
+    if (!on) this
+    else this.background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(8.dp)).semantics {
+        highlighted = true
+        liveRegion = LiveRegionMode.Polite
+    }

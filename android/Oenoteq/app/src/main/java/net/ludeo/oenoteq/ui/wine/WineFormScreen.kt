@@ -41,6 +41,8 @@ import net.ludeo.oenoteq.domain.Referential
 import net.ludeo.oenoteq.domain.WineColor
 import net.ludeo.oenoteq.domain.WineFormError
 import net.ludeo.oenoteq.domain.WineFormField
+import net.ludeo.oenoteq.ui.LocalNotify
+import net.ludeo.oenoteq.ui.Notice
 import net.ludeo.oenoteq.ui.components.AutocompleteField
 import net.ludeo.oenoteq.ui.components.ColorDot
 import net.ludeo.oenoteq.ui.components.Loading
@@ -60,7 +62,13 @@ fun WineFormScreen(
     val appellations by viewModel.appellationOptions.collectAsStateWithLifecycle()
     val producers by viewModel.producerOptions.collectAsStateWithLifecycle()
 
-    LaunchedEffect(state.savedId) { state.savedId?.let(onSaved) }
+    val notify = LocalNotify.current
+    LaunchedEffect(state.savedId) {
+        val id = state.savedId ?: return@LaunchedEffect
+        // The message outlives this screen: it shows on the Wine it lands on.
+        notify(Notice(if (viewModel.isNew) R.string.notice_wine_added else R.string.notice_wine_updated, carried = true))
+        onSaved(id)
+    }
 
     ScreenScaffold(
         title = stringResource(if (viewModel.isNew) R.string.wine_add_title else R.string.wine_edit_title),

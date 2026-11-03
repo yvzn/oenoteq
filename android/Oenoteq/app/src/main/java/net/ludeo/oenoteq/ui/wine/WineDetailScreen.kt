@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +47,7 @@ import net.ludeo.oenoteq.ui.components.RatingField
 import net.ludeo.oenoteq.ui.components.ScreenScaffold
 import net.ludeo.oenoteq.ui.components.StatusMessage
 import net.ludeo.oenoteq.ui.components.formatDate
+import net.ludeo.oenoteq.ui.components.highlight
 import net.ludeo.oenoteq.ui.components.label
 import net.ludeo.oenoteq.ui.components.message
 import net.ludeo.oenoteq.ui.components.millesimeText
@@ -63,6 +65,7 @@ fun WineDetailScreen(
     val adjustResult by viewModel.adjustResult.collectAsStateWithLifecycle()
     val wine = state.wine
     val editing = state.editing
+    DisposableEffect(viewModel) { onDispose(viewModel::clearHighlights) }
 
     ScreenScaffold(
         title = wine?.producerName.orEmpty(),
@@ -139,7 +142,10 @@ private fun WineHeader(wine: WineWithNames, state: WineDetailState, onAdjust: ()
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         GardeStatusBadge(state.gardeStatus, Modifier.testTag("wine-status"))
         // The quantity opens the stock correction, as in the PWA.
-        TextButton(onClick = onAdjust, modifier = Modifier.testTag("quantity-adjust")) {
+        TextButton(
+            onClick = onAdjust,
+            modifier = Modifier.highlight(WineDetailViewModel.QUANTITY in state.editing.highlights).testTag("quantity-adjust"),
+        ) {
             Text(
                 stringResource(R.string.quantity_short, wine.quantity),
                 style = MaterialTheme.typography.titleMedium,
@@ -192,14 +198,19 @@ private fun Consumptions(state: WineDetailState, viewModel: WineDetailViewModel)
                 }
             }
         } else {
-            ConsumptionRow(consumption, onEdit = { viewModel.startEdit(consumption) }, onDelete = { viewModel.askDelete(consumption) })
+            ConsumptionRow(
+                consumption,
+                highlighted = WineDetailViewModel.consumptionKey(consumption.id) in editing.highlights,
+                onEdit = { viewModel.startEdit(consumption) },
+                onDelete = { viewModel.askDelete(consumption) },
+            )
         }
     }
 }
 
 @Composable
-private fun ConsumptionRow(consumption: ConsumptionEntity, onEdit: () -> Unit, onDelete: () -> Unit) {
-    Row(Modifier.fillMaxWidth().testTag("consumption-entry"), verticalAlignment = Alignment.Top) {
+private fun ConsumptionRow(consumption: ConsumptionEntity, highlighted: Boolean, onEdit: () -> Unit, onDelete: () -> Unit) {
+    Row(Modifier.fillMaxWidth().highlight(highlighted).testTag("consumption-entry"), verticalAlignment = Alignment.Top) {
         Column(Modifier.weight(1f).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(formatDate(consumption.date), fontWeight = FontWeight.SemiBold)
             consumption.rating?.let { Text(stringResource(R.string.consumption_rating_line, it)) }

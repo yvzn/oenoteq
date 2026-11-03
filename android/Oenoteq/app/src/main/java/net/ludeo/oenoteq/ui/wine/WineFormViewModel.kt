@@ -24,6 +24,7 @@ import net.ludeo.oenoteq.domain.initialQuantity
 import net.ludeo.oenoteq.domain.toFormFields
 import net.ludeo.oenoteq.domain.toInput
 import net.ludeo.oenoteq.domain.validateWineForm
+import net.ludeo.oenoteq.ui.attempt
 import net.ludeo.oenoteq.ui.container
 
 data class WineFormState(
@@ -85,12 +86,11 @@ class WineFormViewModel(
         val repository = if (kind == Referential.APPELLATION) appellations else producers
         form.update { it.copy(refusals = it.refusals - field) }
         viewModelScope.launch {
-            try {
+            val refusal = attempt {
                 val created = repository.create(name)
                 edit { if (kind == Referential.APPELLATION) it.copy(appellationId = created.id) else it.copy(producerId = created.id) }
-            } catch (e: CellarError) {
-                form.update { it.copy(refusals = it.refusals + (field to e.code)) }
             }
+            if (refusal != null) form.update { it.copy(refusals = it.refusals + (field to refusal)) }
         }
     }
 
@@ -103,17 +103,16 @@ class WineFormViewModel(
 
         form.update { it.copy(saving = true) }
         viewModelScope.launch {
-            try {
+            var id: Long? = null
+            val refusal = attempt {
                 val input = current.fields.toInput()
-                val id = if (editId == null) {
+                id = if (editId == null) {
                     wines.create(input, current.fields.initialQuantity())
                 } else {
                     wines.update(editId, input).let { editId }
                 }
-                form.update { it.copy(saving = false, savedId = id) }
-            } catch (e: CellarError) {
-                form.update { it.copy(saving = false, saveError = e.code) }
             }
+            form.update { it.copy(saving = false, savedId = id, saveError = refusal) }
         }
     }
 
