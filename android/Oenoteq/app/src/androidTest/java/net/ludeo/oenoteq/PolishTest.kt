@@ -66,7 +66,7 @@ class PolishTest {
         compose.onNodeWithTag("empty-add-wine").performClick()
         compose.onNodeWithTag("appellation-field").performTextInput(appellation.name)
         compose.onNodeWithTag("producer-field").performTextInput(producer.name)
-        compose.onNodeWithTag("color-rouge").performClick()
+        compose.onNodeWithTag("color-rouge").performScrollTo().performClick()
         compose.onNodeWithTag("wine-save").performScrollTo().performClick()
 
         await(hasTestTag("wine-detail"))

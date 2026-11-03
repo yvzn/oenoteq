@@ -45,10 +45,10 @@ class CellarFlowsTest {
         compose.onNodeWithTag("appellation-field-create").performClick()
         compose.onNodeWithTag("producer-field").performTextInput("Château Palmer")
         compose.onNodeWithTag("producer-field-create").performClick()
-        compose.onNodeWithTag("color-rouge").performClick()
-        compose.onNodeWithTag("millesime-input").performTextInput("2015")
+        compose.onNodeWithTag("color-rouge").performScrollTo().performClick()
+        compose.onNodeWithTag("millesime-input").performScrollTo().performTextInput("2015")
         compose.onNodeWithTag("garde-debut-input").performScrollTo().performTextInput("2022")
-        compose.onNodeWithTag("garde-fin-input").performTextInput("2040")
+        compose.onNodeWithTag("garde-fin-input").performScrollTo().performTextInput("2040")
         compose.onNodeWithTag("quantity-increment").performScrollTo().performClick()
         compose.onNodeWithTag("wine-save").performScrollTo().performClick()
 
@@ -139,7 +139,7 @@ class CellarFlowsTest {
         // The main button says what it will show, then applies the draft.
         compose.onNodeWithTag("open-filters").performClick()
         compose.onNodeWithTag("filter-color-blanc").performClick()
-        compose.onNodeWithTag("filters-apply")
+        compose.onNodeWithTag("filters-apply").performScrollTo()
             .assertTextEquals(compose.activity.resources.getQuantityString(R.plurals.filters_show_wines, 6, 6))
             .performClick()
         // Wines alternate rouge / blanc: six white ones, one page, producer descending.
@@ -166,13 +166,21 @@ class CellarFlowsTest {
         compose.onNodeWithTag("filter-appellation").performTextInput("cha")
         compose.onAllNodesWithTag("filter-appellation-option").assertCountEquals(1)
         compose.onNodeWithTag("filter-appellation-option").performClick()
-        compose.onNodeWithTag("filters-apply")
+        compose.onNodeWithTag("filters-apply").performScrollTo()
             .assertTextEquals(compose.activity.resources.getQuantityString(R.plurals.filters_show_wines, 1, 1))
             .performClick()
 
         await(hasTestTag("clear-filters"))
         compose.onNodeWithTag("screen-title")
             .assertTextEquals(compose.activity.resources.getQuantityString(R.plurals.cellar_count, 1, 1))
+
+        // "Clear filters" in the sheet acts at once, like the bar's ✕: everything back, sheet closed.
+        compose.onNodeWithTag("open-filters").performClick()
+        compose.onNodeWithTag("sheet-clear-filters").performClick()
+        compose.waitUntilDoesNotExist(hasTestTag("filters-sheet"), timeoutMillis = 5_000)
+        compose.onNodeWithTag("clear-filters").assertDoesNotExist()
+        compose.onNodeWithTag("screen-title")
+            .assertTextEquals(compose.activity.resources.getQuantityString(R.plurals.cellar_count, 2, 2))
     }
 
     /** Wines "Producer 01"… sharing one Appellation, alternating red and white, all ready to drink. */
