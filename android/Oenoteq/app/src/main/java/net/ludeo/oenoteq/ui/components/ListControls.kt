@@ -86,18 +86,18 @@ fun FilterBar(
             leadingIcon = { Icon(Icons.Outlined.FilterList, contentDescription = null) },
             modifier = Modifier.testTag("open-filters"),
         )
-        // A ✕ next to the filters it clears: a text button doesn't fit beside both chips on a small phone.
-        if (filters.activeCount > 0) {
-            IconButton(onClick = onClear, modifier = Modifier.size(40.dp).testTag("clear-filters")) {
-                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.filters_clear))
-            }
-        }
         AssistChip(
             onClick = onOpenSort,
             label = { Text("${stringResource(sortLabel)} ${if (sortDir == SortDir.ASC) "↑" else "↓"}") },
             leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = stringResource(R.string.sort_title)) },
             modifier = Modifier.testTag("open-sort"),
         )
+        // A ✕ rather than a text button, which doesn't fit beside both chips on a small phone.
+        if (filters.activeCount > 0) {
+            IconButton(onClick = onClear, modifier = Modifier.size(40.dp).testTag("clear-filters")) {
+                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.filters_clear))
+            }
+        }
     }
 }
 
