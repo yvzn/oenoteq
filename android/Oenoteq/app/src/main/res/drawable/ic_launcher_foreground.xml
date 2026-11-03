@@ -1,30 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The PWA's icon (web/public/favicon.svg): a parchment Fraunces "O" on bordeaux. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="85.84757"
-                android:endY="92.4963"
-                android:startX="42.9492"
-                android:startY="49.59793"
-                android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <path
-        android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
-        android:strokeWidth="1"
-        android:strokeColor="#00000000" />
+    android:viewportWidth="700"
+    android:viewportHeight="700">
+    <group
+        android:translateX="194.68"
+        android:translateY="485.97"
+        android:scaleX="0.194518"
+        android:scaleY="-0.194518">
+        <path
+            android:fillColor="#F3E9D3"
+            android:pathData="M794 1436Q959 1436 1092.0 1381.5Q1225 1327 1319.5 1227.5Q1414 1128 1465.0 992.0Q1516 856 1516 691Q1516 534 1465.5 401.0Q1415 268 1320.5 169.5Q1226 71 1094.0 16.5Q962 -38 800 -38Q637 -38 504.5 16.5Q372 71 277.0 170.5Q182 270 131.5 406.5Q81 543 81 708Q81 864 131.0 997.0Q181 1130 275.0 1228.5Q369 1327 500.5 1381.5Q632 1436 794 1436ZM1197 513Q1197 646 1172.5 767.5Q1148 889 1104.0 991.0Q1060 1093 1001.0 1169.0Q942 1245 872.5 1287.0Q803 1329 728 1329Q629 1329 556.0 1276.0Q483 1223 443.0 1124.0Q403 1025 403 885Q403 752 427.5 630.0Q452 508 495.5 406.0Q539 304 598.0 228.0Q657 152 726.0 109.5Q795 67 870 67Q970 67 1043.0 120.0Q1116 173 1156.5 273.0Q1197 373 1197 513Z" />
+    </group>
 </vector>
