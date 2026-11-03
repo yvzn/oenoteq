@@ -95,6 +95,15 @@
     <string name="filters_any_color">Any color</string>
     <string name="filters_ready_now">Ready now</string>
     <string name="filters_clear">Clear filters</string>
+    <string name="filters_show_none">No match</string>
+    <plurals name="filters_show_wines">
+        <item quantity="one">Show %d wine</item>
+        <item quantity="other">Show %d wines</item>
+    </plurals>
+    <plurals name="filters_show_consumptions">
+        <item quantity="one">Show %d consumption</item>
+        <item quantity="other">Show %d consumptions</item>
+    </plurals>
     <string name="sort_title">Sort</string>
     <string name="sort_ascending">↑ Ascending</string>
     <string name="sort_descending">↓ Descending</string>

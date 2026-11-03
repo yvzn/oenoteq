@@ -125,8 +125,9 @@ fun CellarScreen(
             appellations = state.appellations,
             meals = state.meals,
             showReadyNow = true,
-            onChange = { next -> fromTop { viewModel.updateFilters(next) } },
-            onClear = { fromTop(viewModel::clearFilters) },
+            count = viewModel::count,
+            showLabel = { pluralStringResource(R.plurals.filters_show_wines, it, it) },
+            onApply = { next -> fromTop { viewModel.updateFilters(next) } },
             onDismiss = { filtersOpen = false },
         )
     }

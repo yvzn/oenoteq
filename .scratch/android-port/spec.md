@@ -189,6 +189,7 @@ Enforced in repositories, inside a transaction where more than one row changes. 
 ### UI behaviour carried over from the PWA
 
 - Filter bar shared by cellar list and History, with "ready now" as cellar-only extra content; filter count; clear filters; on narrow screens a bottom sheet for filters and for sort.
+- Filters sheet edits a draft: one main button names what it will show ("Show 6 wines", "No match") and applies it; swipe, tap outside or Back discards the draft; "Clear filters" resets the draft. Sort sheet applies on tap and closes; tapping the axis in use flips its direction, as the PWA's column headers.
 - List state (filters, sort, page) held in the screen's `SavedStateHandle`, so it survives back navigation, rotation and process death. Scroll position restored when returning from detail.
 - Confirmations as in the PWA's utilities UX (`.scratch/utilities-ux/spec.md`). A change already visible on screen (Consumption recorded, updated or deleted; quantity adjusted; meal pairing added) is highlighted until the user leaves the screen, with no message. Every other change shows a message in an app-wide Snackbar: one at a time, queued, kept until dismissed, dropped on navigation except the one carried to the page a save lands on (ADR 0003).
 - Confirm dialog before every delete.

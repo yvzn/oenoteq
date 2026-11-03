@@ -100,6 +100,17 @@
     <string name="filters_any_color">Toutes les couleurs</string>
     <string name="filters_ready_now">À boire maintenant</string>
     <string name="filters_clear">Effacer les filtres</string>
+    <string name="filters_show_none">Aucun résultat</string>
+    <plurals name="filters_show_wines">
+        <item quantity="one">Voir %d vin</item>
+        <item quantity="many">Voir %d vins</item>
+        <item quantity="other">Voir %d vins</item>
+    </plurals>
+    <plurals name="filters_show_consumptions">
+        <item quantity="one">Voir %d consommation</item>
+        <item quantity="many">Voir %d consommations</item>
+        <item quantity="other">Voir %d consommations</item>
+    </plurals>
     <string name="sort_title">Trier</string>
     <string name="sort_ascending">↑ Croissant</string>
     <string name="sort_descending">↓ Décroissant</string>

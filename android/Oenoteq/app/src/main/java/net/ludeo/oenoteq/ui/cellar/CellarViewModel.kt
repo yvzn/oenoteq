@@ -20,6 +20,7 @@ import net.ludeo.oenoteq.data.WineRepository
 import net.ludeo.oenoteq.data.snapshot.ImportSummary
 import net.ludeo.oenoteq.data.snapshot.SnapshotImportError
 import net.ludeo.oenoteq.data.snapshot.SnapshotImporter
+import net.ludeo.oenoteq.domain.CellarSearchData
 import net.ludeo.oenoteq.domain.NamedItem
 import net.ludeo.oenoteq.domain.Page
 import net.ludeo.oenoteq.domain.Referential
@@ -62,14 +63,18 @@ class CellarViewModel(
     wines: WineRepository,
     meals: ReferentialRepository,
     private val importer: SnapshotImporter,
-    currentYear: () -> Int = { Year.now().value },
+    private val currentYear: () -> Int = { Year.now().value },
 ) : ViewModel() {
     private val importState = MutableStateFlow<ImportState>(ImportState.Idle)
     private val filters = savedState.getStateFlow(FILTERS, SearchFilters())
     private val sort = savedState.getStateFlow(SORT, WineSort())
     private val page = savedState.getStateFlow(PAGE, 1)
 
+    /** The data the list was last built from, to count a filter draft against. */
+    private var searchData: CellarSearchData? = null
+
     private val listing = combine(wines.observeSearchData(), filters, sort, page) { data, f, s, p ->
+        searchData = data
         CellarUiState(
             loading = false,
             filters = f,
@@ -89,6 +94,9 @@ class CellarViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CellarUiState())
 
     /** A new filter or sort starts again from the first page, as the PWA's query does. */
+    /** How many Wines [draft] would list: the filters sheet's "Show N wines". */
+    fun count(draft: SearchFilters): Int = searchData?.let { searchCellar(it, draft, WineSort(), currentYear()).size } ?: 0
+
     fun updateFilters(next: SearchFilters) {
         savedState[FILTERS] = next
         savedState[PAGE] = 1

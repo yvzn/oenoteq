@@ -109,10 +109,13 @@ class CellarFlowsTest {
         seedWines(12)
         awaitPagination()
 
+        // A sort applies and closes on tap; the axis in use flips its direction.
         compose.onNodeWithTag("open-sort").performClick()
         compose.onNodeWithTag("sort-producer").performClick()
-        compose.onNodeWithTag("sort-dir-desc").performClick()
-        Espresso.pressBack()
+        compose.waitUntilDoesNotExist(hasTestTag("sort-sheet"), timeoutMillis = 5_000)
+        compose.onNodeWithTag("open-sort").performClick()
+        compose.onNodeWithTag("sort-producer").performClick()
+        compose.waitUntilDoesNotExist(hasTestTag("sort-sheet"), timeoutMillis = 5_000)
         awaitPagination()
         compose.onNodeWithTag("pagination-next").performClick()
         await(hasText(compose.activity.getString(R.string.pagination_status, 2, 2)))
@@ -126,9 +129,19 @@ class CellarFlowsTest {
         compose.onNodeWithTag("pagination-status").assertTextEquals(compose.activity.getString(R.string.pagination_status, 2, 2))
         compose.onAllNodesWithTag("wine-item-producer", useUnmergedTree = true).onFirst().assertTextEquals("Producer 02")
 
+        // A filter draft dismissed with Back changes nothing.
         compose.onNodeWithTag("open-filters").performClick()
         compose.onNodeWithTag("filter-color-blanc").performClick()
         Espresso.pressBack()
+        compose.waitUntilDoesNotExist(hasTestTag("filters-sheet"), timeoutMillis = 5_000)
+        compose.onNodeWithTag("clear-filters").assertDoesNotExist()
+
+        // The main button says what it will show, then applies the draft.
+        compose.onNodeWithTag("open-filters").performClick()
+        compose.onNodeWithTag("filter-color-blanc").performClick()
+        compose.onNodeWithTag("filters-apply")
+            .assertTextEquals(compose.activity.resources.getQuantityString(R.plurals.filters_show_wines, 6, 6))
+            .performClick()
         // Wines alternate rouge / blanc: six white ones, one page, producer descending.
         await(hasTestTag("clear-filters"))
         compose.onNodeWithTag("screen-title").assertTextEquals(compose.activity.resources.getQuantityString(R.plurals.cellar_count, 6, 6))

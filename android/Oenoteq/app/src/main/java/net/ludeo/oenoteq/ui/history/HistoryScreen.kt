@@ -100,8 +100,9 @@ fun HistoryScreen(onOpenWine: (Long) -> Unit, viewModel: HistoryViewModel = view
             appellations = state.appellations,
             meals = state.meals,
             showReadyNow = false,
-            onChange = { next -> fromTop { viewModel.updateFilters(next) } },
-            onClear = { fromTop(viewModel::clearFilters) },
+            count = viewModel::count,
+            showLabel = { pluralStringResource(R.plurals.filters_show_consumptions, it, it) },
+            onApply = { next -> fromTop { viewModel.updateFilters(next) } },
             onDismiss = { filtersOpen = false },
         )
     }

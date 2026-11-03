@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -26,11 +27,13 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -39,6 +42,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.ludeo.oenoteq.R
 import net.ludeo.oenoteq.domain.NamedItem
 import net.ludeo.oenoteq.domain.Page
@@ -89,7 +93,12 @@ fun FilterBar(
     }
 }
 
-/** Changes apply at once; the list behind the sheet follows. "Ready now" is the cellar's own extra. */
+/**
+ * The filters as a draft: nothing changes until the main button, which says
+ * what it will show ([showLabel] for the draft's [count]). Swiping the sheet
+ * away, tapping outside it or Back discards the draft. "Ready now" is the
+ * cellar's own extra.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FiltersSheet(
@@ -97,43 +106,56 @@ fun FiltersSheet(
     appellations: List<NamedItem>,
     meals: List<NamedItem>,
     showReadyNow: Boolean,
-    onChange: (SearchFilters) -> Unit,
-    onClear: () -> Unit,
+    count: (SearchFilters) -> Int,
+    showLabel: @Composable (Int) -> String,
+    onApply: (SearchFilters) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("filters-sheet")) {
+    var draft by rememberSaveable { mutableStateOf(filters) }
+    val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    val matches = count(draft)
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, modifier = Modifier.testTag("filters-sheet")) {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(stringResource(R.string.filters_title), style = MaterialTheme.typography.titleLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.filters_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                if (draft.activeCount > 0) {
+                    TextButton(onClick = { draft = SearchFilters() }, modifier = Modifier.testTag("sheet-clear-filters")) {
+                        Text(stringResource(R.string.filters_clear))
+                    }
+                }
+            }
             SelectField(
                 label = stringResource(R.string.label_meal),
                 anyLabel = stringResource(R.string.filters_any_meal),
                 options = meals,
-                selected = meals.firstOrNull { it.id == filters.mealId },
+                selected = meals.firstOrNull { it.id == draft.mealId },
                 optionLabel = { it.name },
-                onSelect = { onChange(filters.copy(mealId = it?.id)) },
+                onSelect = { draft = draft.copy(mealId = it?.id) },
                 testTag = "filter-meal",
             )
             SelectField(
                 label = stringResource(R.string.label_appellation),
                 anyLabel = stringResource(R.string.filters_any_appellation),
                 options = appellations,
-                selected = appellations.firstOrNull { it.id == filters.appellationId },
+                selected = appellations.firstOrNull { it.id == draft.appellationId },
                 optionLabel = { it.name },
-                onSelect = { onChange(filters.copy(appellationId = it?.id)) },
+                onSelect = { draft = draft.copy(appellationId = it?.id) },
                 testTag = "filter-appellation",
             )
             Text(stringResource(R.string.label_color), style = MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
-                    selected = filters.color == null,
-                    onClick = { onChange(filters.copy(color = null)) },
+                    selected = draft.color == null,
+                    onClick = { draft = draft.copy(color = null) },
                     label = { Text(stringResource(R.string.filters_any_color)) },
                     modifier = Modifier.testTag("filter-color-any"),
                 )
                 for (color in WineColor.entries) {
                     FilterChip(
-                        selected = filters.color == color,
-                        onClick = { onChange(filters.copy(color = color)) },
+                        selected = draft.color == color,
+                        onClick = { draft = draft.copy(color = color) },
                         label = { Text(stringResource(color.label())) },
                         modifier = Modifier.testTag("filter-color-${color.code}"),
                     )
@@ -142,26 +164,34 @@ fun FiltersSheet(
             if (showReadyNow) {
                 Row(
                     Modifier.fillMaxWidth().selectable(
-                        selected = filters.readyNow,
+                        selected = draft.readyNow,
                         role = Role.Switch,
-                        onClick = { onChange(filters.copy(readyNow = !filters.readyNow)) },
+                        onClick = { draft = draft.copy(readyNow = !draft.readyNow) },
                     ).testTag("filter-ready-now"),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(stringResource(R.string.filters_ready_now), Modifier.weight(1f))
-                    Switch(checked = filters.readyNow, onCheckedChange = null)
+                    Switch(checked = draft.readyNow, onCheckedChange = null)
                 }
             }
-            if (filters.activeCount > 0) {
-                TextButton(onClick = onClear, modifier = Modifier.align(Alignment.End).testTag("sheet-clear-filters")) {
-                    Text(stringResource(R.string.filters_clear))
-                }
+            Button(
+                onClick = {
+                    onApply(draft)
+                    scope.launch { sheet.hide() }.invokeOnCompletion { onDismiss() }
+                },
+                modifier = Modifier.fillMaxWidth().testTag("filters-apply"),
+            ) {
+                Text(if (matches == 0) stringResource(R.string.filters_show_none) else showLabel(matches))
             }
         }
     }
 }
 
-/** Pick an axis, then a direction; [axisLabel] names each axis, [axisTag] tags it for tests. */
+/**
+ * A sort applies as soon as it is picked, and the sheet closes, as a menu
+ * would. Picking the axis already in use flips its direction, as the PWA's
+ * column headers do; a new axis starts ascending.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> SortSheet(
@@ -173,26 +203,37 @@ fun <T> SortSheet(
     onChange: (T, SortDir) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.testTag("sort-sheet")) {
+    val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    val pick: (T, SortDir) -> Unit = { axis, dir ->
+        onChange(axis, dir)
+        scope.launch { sheet.hide() }.invokeOnCompletion { onDismiss() }
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, modifier = Modifier.testTag("sort-sheet")) {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.sort_title), style = MaterialTheme.typography.titleLarge)
             for (axis in axes) {
+                val active = sortBy == axis
+                val flipped = if (sortDir == SortDir.ASC) SortDir.DESC else SortDir.ASC
                 Row(
                     Modifier.fillMaxWidth()
-                        .selectable(selected = sortBy == axis, role = Role.RadioButton) { onChange(axis, sortDir) }
+                        .selectable(selected = active, role = Role.RadioButton) {
+                            pick(axis, if (active) flipped else SortDir.ASC)
+                        }
                         .padding(vertical = 4.dp)
                         .testTag("sort-${axisTag(axis)}"),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    RadioButton(selected = sortBy == axis, onClick = null)
-                    Text(stringResource(axisLabel(axis)), Modifier.padding(start = 12.dp))
+                    RadioButton(selected = active, onClick = null)
+                    Text(stringResource(axisLabel(axis)), Modifier.padding(start = 12.dp).weight(1f))
+                    if (active) Text(if (sortDir == SortDir.ASC) "↑" else "↓", style = MaterialTheme.typography.titleMedium)
                 }
             }
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 SortDir.entries.forEachIndexed { index, dir ->
                     SegmentedButton(
                         selected = sortDir == dir,
-                        onClick = { onChange(sortBy, dir) },
+                        onClick = { pick(sortBy, dir) },
                         shape = SegmentedButtonDefaults.itemShape(index, SortDir.entries.size),
                         modifier = Modifier.testTag("sort-dir-${dir.name.lowercase()}"),
                     ) {

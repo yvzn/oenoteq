@@ -15,6 +15,7 @@ import net.ludeo.oenoteq.data.MealPairingRepository
 import net.ludeo.oenoteq.data.ReferentialRepository
 import net.ludeo.oenoteq.domain.HistoryEntry
 import net.ludeo.oenoteq.domain.HistorySort
+import net.ludeo.oenoteq.domain.MealPairing
 import net.ludeo.oenoteq.domain.NamedItem
 import net.ludeo.oenoteq.domain.Page
 import net.ludeo.oenoteq.domain.Referential
@@ -46,7 +47,11 @@ class HistoryViewModel(
     private val sort = savedState.getStateFlow(SORT, HistorySort())
     private val page = savedState.getStateFlow(PAGE, 1)
 
+    /** The Consumptions and pairings the list was last built from, to count a filter draft against. */
+    private var data: Pair<List<HistoryEntry>, List<MealPairing>>? = null
+
     private val listing = combine(consumptions.observeHistory(), pairings.observeAll(), filters, sort, page) { all, p, f, s, n ->
+        data = all to p
         HistoryUiState(
             loading = false,
             isEmpty = all.isEmpty(),
@@ -59,6 +64,9 @@ class HistoryViewModel(
     val uiState: StateFlow<HistoryUiState> = combine(listing, appellations.observeAll(), meals.observeAll()) { l, a, m ->
         l.copy(appellations = a, meals = m)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryUiState())
+
+    /** How many Consumptions [draft] would list: the filters sheet's "Show N consumptions". */
+    fun count(draft: SearchFilters): Int = data?.let { (all, p) -> consumptionHistory(all, p, draft, HistorySort()).size } ?: 0
 
     fun updateFilters(next: SearchFilters) {
         // "Ready now" is the cellar list's own filter.
