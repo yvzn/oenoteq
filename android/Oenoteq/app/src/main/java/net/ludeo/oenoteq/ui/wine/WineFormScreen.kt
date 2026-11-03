@@ -50,6 +50,8 @@ import net.ludeo.oenoteq.ui.components.ScreenScaffold
 import net.ludeo.oenoteq.ui.components.StatusMessage
 import net.ludeo.oenoteq.ui.components.label
 import net.ludeo.oenoteq.ui.components.message
+import net.ludeo.oenoteq.ui.components.selectedChipBorder
+import net.ludeo.oenoteq.ui.components.selectedChipColors
 
 @Composable
 fun WineFormScreen(
@@ -111,6 +113,8 @@ fun WineFormScreen(
                             onClick = { viewModel.edit { it.copy(color = color) } },
                             label = { Text(stringResource(color.label())) },
                             leadingIcon = { ColorDot(color) },
+                            colors = selectedChipColors(),
+                            border = selectedChipBorder(fields.color == color),
                             modifier = Modifier.testTag("color-${color.code}"),
                         )
                     }

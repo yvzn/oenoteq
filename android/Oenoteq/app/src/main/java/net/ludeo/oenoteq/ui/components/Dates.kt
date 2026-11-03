@@ -95,6 +95,9 @@ fun RatingField(value: Int?, onChange: (Int?) -> Unit, testTag: String) {
                 selected = value == rating,
                 onClick = { onChange(if (value == rating) null else rating) },
                 label = { Text(rating.toString()) },
+                leadingIcon = selectedCheck(value == rating),
+                colors = selectedChipColors(),
+                border = selectedChipBorder(value == rating),
                 modifier = Modifier.testTag("$testTag-$rating"),
             )
         }

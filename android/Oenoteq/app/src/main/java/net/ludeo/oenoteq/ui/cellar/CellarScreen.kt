@@ -81,6 +81,9 @@ fun CellarScreen(
             if (hasList || state.filters.activeCount > 0) {
                 ExtendedFloatingActionButton(
                     onClick = onAddWine,
+                    // Bordeaux like the app's other main actions; pink marks what is selected.
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
                     text = { Text(stringResource(R.string.cellar_add)) },
                     modifier = Modifier.testTag("add-wine"),

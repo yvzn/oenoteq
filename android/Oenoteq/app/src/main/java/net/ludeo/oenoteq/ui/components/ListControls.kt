@@ -82,6 +82,8 @@ fun FilterBar(
                 )
             },
             leadingIcon = { Icon(Icons.Outlined.FilterList, contentDescription = null) },
+            colors = selectedChipColors(),
+            border = selectedChipBorder(filters.activeCount > 0),
             modifier = Modifier.testTag("open-filters"),
         )
         AssistChip(
@@ -172,6 +174,9 @@ fun FiltersSheet(
                     selected = draft.color == null,
                     onClick = { draft = draft.copy(color = null) },
                     label = { Text(stringResource(R.string.filters_any_color)) },
+                    leadingIcon = selectedCheck(draft.color == null),
+                    colors = selectedChipColors(),
+                    border = selectedChipBorder(draft.color == null),
                     modifier = Modifier.testTag("filter-color-any"),
                 )
                 for (color in WineColor.entries) {
@@ -179,6 +184,9 @@ fun FiltersSheet(
                         selected = draft.color == color,
                         onClick = { draft = draft.copy(color = color) },
                         label = { Text(stringResource(color.label())) },
+                        leadingIcon = selectedCheck(draft.color == color),
+                        colors = selectedChipColors(),
+                        border = selectedChipBorder(draft.color == color),
                         modifier = Modifier.testTag("filter-color-${color.code}"),
                     )
                 }
@@ -254,6 +262,10 @@ fun <T> SortSheet(
                         selected = sortDir == dir,
                         onClick = { pick(sortBy, dir) },
                         shape = SegmentedButtonDefaults.itemShape(index, SortDir.entries.size),
+                        colors = SegmentedButtonDefaults.colors(
+                            activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            activeContentColor = MaterialTheme.colorScheme.primary,
+                        ),
                         modifier = Modifier.testTag("sort-dir-${dir.name.lowercase()}"),
                     ) {
                         Text(stringResource(if (dir == SortDir.ASC) R.string.sort_ascending else R.string.sort_descending))

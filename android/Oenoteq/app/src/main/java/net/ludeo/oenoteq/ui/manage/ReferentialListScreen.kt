@@ -120,6 +120,9 @@ fun ReferentialListScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { onAdd(viewModel.kind) },
+                // Bordeaux like the app's other main actions; pink marks what is selected.
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
                 text = { Text(stringResource(texts.add)) },
                 modifier = Modifier.testTag("referential-add"),

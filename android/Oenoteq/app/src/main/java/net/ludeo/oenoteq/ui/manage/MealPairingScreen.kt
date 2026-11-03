@@ -59,6 +59,8 @@ import net.ludeo.oenoteq.ui.components.ScreenScaffold
 import net.ludeo.oenoteq.ui.components.highlight
 import net.ludeo.oenoteq.ui.components.label
 import net.ludeo.oenoteq.ui.components.message
+import net.ludeo.oenoteq.ui.components.selectedChipBorder
+import net.ludeo.oenoteq.ui.components.selectedChipColors
 import net.ludeo.oenoteq.ui.container
 
 data class PairingSelection(
@@ -206,6 +208,8 @@ fun MealPairingScreen(
                         onClick = { viewModel.selectColor(wineColor) },
                         label = { Text(stringResource(wineColor.label())) },
                         leadingIcon = { ColorDot(wineColor) },
+                        colors = selectedChipColors(),
+                        border = selectedChipBorder(selection.color == wineColor),
                         modifier = Modifier.testTag("pairing-color-${wineColor.code}"),
                     )
                 }

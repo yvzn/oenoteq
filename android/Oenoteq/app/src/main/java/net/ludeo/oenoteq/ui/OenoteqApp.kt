@@ -8,8 +8,10 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.WineBar
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
@@ -159,6 +161,12 @@ fun OenoteqApp() {
                             },
                             icon = { Icon(destination.icon, contentDescription = null) },
                             label = { Text(stringResource(destination.label)) },
+                            // Bordeaux on pink: the default gold on soft gold barely shows which tab is open.
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            ),
                             modifier = Modifier.testTag(destination.testTag),
                         )
                     }

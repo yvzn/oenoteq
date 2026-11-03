@@ -1,5 +1,6 @@
 package net.ludeo.oenoteq.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -15,12 +16,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SelectableChipColors
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -71,6 +75,34 @@ fun ColorDot(color: WineColor) {
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
     )
 }
+
+/**
+ * Selected pills tinted pink with bordeaux text and outline, the tab bar's
+ * selection colors: the default soft gold barely stands out from the
+ * parchment page and sheets. A tint, not a solid fill, so a chosen pill
+ * doesn't pass for a button (Material 3 filter chips).
+ */
+@Composable
+fun selectedChipColors(): SelectableChipColors = FilterChipDefaults.filterChipColors(
+    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+    selectedLabelColor = MaterialTheme.colorScheme.primary,
+    selectedLeadingIconColor = MaterialTheme.colorScheme.primary,
+)
+
+@Composable
+fun selectedChipBorder(selected: Boolean): BorderStroke = FilterChipDefaults.filterChipBorder(
+    enabled = true,
+    selected = selected,
+    selectedBorderColor = MaterialTheme.colorScheme.primary,
+    selectedBorderWidth = 1.dp,
+)
+
+/** Material 3's ✓ on a selected chip that has no icon of its own. */
+fun selectedCheck(selected: Boolean): (@Composable () -> Unit)? =
+    if (!selected) null
+    else {
+        { Icon(Icons.Outlined.Check, contentDescription = null, Modifier.size(FilterChipDefaults.IconSize)) }
+    }
 
 @Composable
 fun GardeStatusBadge(status: GardeStatus, modifier: Modifier = Modifier) {
