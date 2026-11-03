@@ -32,7 +32,13 @@ private val LightColors = lightColorScheme(
     onSurface = Ink,
     surfaceVariant = Color(0xFFEDE5D4),
     onSurfaceVariant = InkSoft,
+    // Every container tone in parchment: left unset, Material's baseline lilac shows
+    // on cards (Highest), bottom sheets (Low), dialogs (High) and switch tracks.
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = ParchmentRaised,
     surfaceContainer = Color(0xFFF0E9DA),
+    surfaceContainerHigh = Color(0xFFEBE3D2),
+    surfaceContainerHighest = Color(0xFFE5DCC8),
     error = Danger,
 )
 
@@ -51,7 +57,11 @@ private val DarkColors = darkColorScheme(
     onSurface = Color(0xFFEDE4D3),
     surfaceVariant = Color(0xFF3A302A),
     onSurfaceVariant = Color(0xFFD4C7B4),
+    surfaceContainerLowest = Color(0xFF17110E),
+    surfaceContainerLow = Color(0xFF211A16),
     surfaceContainer = Color(0xFF2C231E),
+    surfaceContainerHigh = Color(0xFF362C26),
+    surfaceContainerHighest = Color(0xFF41362F),
     error = Color(0xFFF2B8B5),
 )
 
