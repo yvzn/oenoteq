@@ -194,7 +194,7 @@ Enforced in repositories, inside a transaction where more than one row changes. 
 - Confirmations as in the PWA's utilities UX (`.scratch/utilities-ux/spec.md`). A change already visible on screen (Consumption recorded, updated or deleted; quantity adjusted; meal pairing added) is highlighted until the user leaves the screen, with no message. Every other change shows a message in an app-wide Snackbar: one at a time, queued, kept until dismissed, dropped on navigation except the one carried to the page a save lands on (ADR 0003).
 - Confirm dialog before every delete.
 - Bottom navigation (Material pattern): each area keeps its own back stack; tapping another tab returns to where that area was left, tapping the selected tab returns to its top screen (cellar list, History, Manage hub). A Wine opened from the cellar list or the History stays in that area (each area declares its own route types for the Wine detail, edit and pairing screens).
-- Autocomplete fields for Appellation, Producer and Meal (pairing screen) with keyboard/IME-friendly filtering and a "create new" entry when the text matches nothing exactly.
+- Autocomplete fields for Appellation, Producer and Meal (pairing screen), and for the filter sheet's Meal and Appellation (no "create new" there; an empty field means "any") with keyboard/IME-friendly filtering and a "create new" entry when the text matches nothing exactly.
 - Empty states and friendly errors as in the PWA; no "can't reach the server" state exists any more.
 - Color shown as a swatch / rail as in the PWA; visual design follows Material 3 with the PWA's palette (burgundy / gold / parchment) as the theme's seed colors. Pixel parity with the PWA is not a goal; feature parity is.
 

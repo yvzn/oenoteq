@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.FilterList
@@ -32,6 +34,8 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -112,38 +116,56 @@ fun FiltersSheet(
     onDismiss: () -> Unit,
 ) {
     var draft by rememberSaveable { mutableStateOf(filters) }
+    // Bumped by "Clear filters", to empty the type-ahead fields along with the draft.
+    var clears by rememberSaveable { mutableIntStateOf(0) }
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val matches = count(draft)
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, modifier = Modifier.testTag("filters-sheet")) {
-        Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Scrolls above the keyboard, so "Show N wines" stays reachable while typing.
+        Column(
+            Modifier.imePadding().verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.filters_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 if (draft.activeCount > 0) {
-                    TextButton(onClick = { draft = SearchFilters() }, modifier = Modifier.testTag("sheet-clear-filters")) {
+                    TextButton(
+                        onClick = {
+                            draft = SearchFilters()
+                            clears++
+                        },
+                        modifier = Modifier.testTag("sheet-clear-filters"),
+                    ) {
                         Text(stringResource(R.string.filters_clear))
                     }
                 }
             }
-            SelectField(
-                label = stringResource(R.string.label_meal),
-                anyLabel = stringResource(R.string.filters_any_meal),
-                options = meals,
-                selected = meals.firstOrNull { it.id == draft.mealId },
-                optionLabel = { it.name },
-                onSelect = { draft = draft.copy(mealId = it?.id) },
-                testTag = "filter-meal",
-            )
-            SelectField(
-                label = stringResource(R.string.label_appellation),
-                anyLabel = stringResource(R.string.filters_any_appellation),
-                options = appellations,
-                selected = appellations.firstOrNull { it.id == draft.appellationId },
-                optionLabel = { it.name },
-                onSelect = { draft = draft.copy(appellationId = it?.id) },
-                testTag = "filter-appellation",
-            )
+            // Type to find a Meal or an Appellation, as in the PWA; an empty field means "any".
+            key(clears) {
+                AutocompleteField(
+                    label = stringResource(R.string.label_meal),
+                    placeholder = stringResource(R.string.filters_any_meal),
+                    items = meals,
+                    selectedId = draft.mealId,
+                    onSelect = { draft = draft.copy(mealId = it) },
+                    onCreate = null,
+                    alwaysShowPlaceholder = true,
+                    testTag = "filter-meal",
+                )
+                AutocompleteField(
+                    label = stringResource(R.string.label_appellation),
+                    placeholder = stringResource(R.string.filters_any_appellation),
+                    items = appellations,
+                    selectedId = draft.appellationId,
+                    onSelect = { draft = draft.copy(appellationId = it) },
+                    onCreate = null,
+                    alwaysShowPlaceholder = true,
+                    testTag = "filter-appellation",
+                )
+            }
             Text(stringResource(R.string.label_color), style = MaterialTheme.typography.labelLarge)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(

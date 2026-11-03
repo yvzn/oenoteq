@@ -151,6 +151,30 @@ class CellarFlowsTest {
         awaitPagination()
     }
 
+    @Test
+    fun typingInAFilterFindsTheAppellation() {
+        runBlocking {
+            val producer = container.referentials(Referential.PRODUCER).create("Producer")
+            for (name in listOf("Margaux", "Chablis")) {
+                val appellation = container.referentials(Referential.APPELLATION).create(name)
+                container.wines.create(WineInput(2020, appellation.id, producer.id, WineColor.ROUGE, null, null), 1)
+            }
+        }
+        await(hasTestTag("wine-item"))
+
+        compose.onNodeWithTag("open-filters").performClick()
+        compose.onNodeWithTag("filter-appellation").performTextInput("cha")
+        compose.onAllNodesWithTag("filter-appellation-option").assertCountEquals(1)
+        compose.onNodeWithTag("filter-appellation-option").performClick()
+        compose.onNodeWithTag("filters-apply")
+            .assertTextEquals(compose.activity.resources.getQuantityString(R.plurals.filters_show_wines, 1, 1))
+            .performClick()
+
+        await(hasTestTag("clear-filters"))
+        compose.onNodeWithTag("screen-title")
+            .assertTextEquals(compose.activity.resources.getQuantityString(R.plurals.cellar_count, 1, 1))
+    }
+
     /** Wines "Producer 01"… sharing one Appellation, alternating red and white, all ready to drink. */
     private fun seedWines(count: Int) = runBlocking {
         val appellation = container.referentials(Referential.APPELLATION).create("Appellation")

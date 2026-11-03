@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -46,10 +47,13 @@ fun AutocompleteField(
     modifier: Modifier = Modifier,
     placeholder: String? = null,
     error: String? = null,
+    /** Keeps [placeholder] in view while empty and unfocused, for a placeholder that means something ("Any meal"). */
+    alwaysShowPlaceholder: Boolean = false,
 ) {
     val selectedName = items.firstOrNull { it.id == selectedId }?.name
     var text by rememberSaveable { mutableStateOf(selectedName.orEmpty()) }
     var expanded by remember { mutableStateOf(false) }
+    var focused by remember { mutableStateOf(false) }
     // A selection made elsewhere (prefilled form, freshly created entry) shows up in the field.
     LaunchedEffect(selectedName) { if (selectedName != null) text = selectedName }
 
@@ -64,14 +68,15 @@ fun AutocompleteField(
                 expanded = true
                 onSelect(items.firstOrNull { it.name == typed.trim() }?.id)
             },
-            label = { Text(label) },
+            // An empty, unfocused field reads as its placeholder ("Any meal"); focused, as its label ("Meal").
+            label = { Text(if (alwaysShowPlaceholder && placeholder != null && text.isEmpty() && !focused) placeholder else label) },
             placeholder = placeholder?.let { { Text(it) } },
             isError = error != null,
             supportingText = error?.let { { Text(it, Modifier.testTag("$testTag-error")) } },
             singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier.fillMaxWidth().testTag(testTag)
+            modifier = Modifier.fillMaxWidth().testTag(testTag).onFocusChanged { focused = it.isFocused }
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable),
         )
         if (options.isNotEmpty() || canCreate) {
@@ -98,48 +103,6 @@ fun AutocompleteField(
                         modifier = Modifier.testTag("$testTag-create"),
                     )
                 }
-            }
-        }
-    }
-}
-
-/** A read-only pick list with an "any" first entry, for filters. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun <T> SelectField(
-    label: String,
-    anyLabel: String,
-    options: List<T>,
-    selected: T?,
-    optionLabel: (T) -> String,
-    onSelect: (T?) -> Unit,
-    testTag: String,
-    modifier: Modifier = Modifier,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
-        OutlinedTextField(
-            value = selected?.let(optionLabel) ?: anyLabel,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            singleLine = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier.fillMaxWidth().testTag(testTag)
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text(anyLabel) },
-                onClick = { expanded = false; onSelect(null) },
-                modifier = Modifier.testTag("$testTag-any"),
-            )
-            for (option in options) {
-                DropdownMenuItem(
-                    text = { Text(optionLabel(option)) },
-                    onClick = { expanded = false; onSelect(option) },
-                    modifier = Modifier.testTag("$testTag-option"),
-                )
             }
         }
     }
