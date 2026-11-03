@@ -8,17 +8,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -83,17 +86,18 @@ fun FilterBar(
             leadingIcon = { Icon(Icons.Outlined.FilterList, contentDescription = null) },
             modifier = Modifier.testTag("open-filters"),
         )
+        // A ✕ next to the filters it clears: a text button doesn't fit beside both chips on a small phone.
+        if (filters.activeCount > 0) {
+            IconButton(onClick = onClear, modifier = Modifier.size(40.dp).testTag("clear-filters")) {
+                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.filters_clear))
+            }
+        }
         AssistChip(
             onClick = onOpenSort,
             label = { Text("${stringResource(sortLabel)} ${if (sortDir == SortDir.ASC) "↑" else "↓"}") },
             leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = stringResource(R.string.sort_title)) },
             modifier = Modifier.testTag("open-sort"),
         )
-        if (filters.activeCount > 0) {
-            TextButton(onClick = onClear, modifier = Modifier.testTag("clear-filters")) {
-                Text(stringResource(R.string.filters_clear))
-            }
-        }
     }
 }
 
