@@ -31,6 +31,44 @@ From `android/Oenoteq/`:
 ./gradlew installDebug           # on the connected device/emulator
 ```
 
+## Release APK (CI)
+
+Pushing a `v*` tag makes the Release workflow's `android` job build a signed, minified APK and attach it to the GitHub Release as `oenoteq-<tag>.apk` (sideload it: allow "install unknown apps"). `versionName` is the tag, `versionCode` is `MAJOR*10000 + MINOR*100 + PATCH`, so tags must be `vMAJOR.MINOR.PATCH`.
+
+Signing comes from repository secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Create the keystore once and **keep it**: a different key later cannot update an installed app.
+
+```sh
+keytool -genkeypair -v -keystore release.jks -alias oenoteq -keyalg RSA -keysize 4096 -validity 10000
+base64 -w0 release.jks   # value of ANDROID_KEYSTORE_BASE64
+```
+
+Local `./gradlew assembleRelease` without `ANDROID_KEYSTORE_FILE` produces an unsigned APK.
+
+### Installing the release APK
+
+Download `oenoteq-<tag>.apk` from the GitHub Release, then either:
+
+**With adb** (phone connected by USB, or paired over Wi-Fi):
+
+1. On the phone: Settings → About phone → tap Build number 7 times, then Settings → Developer options → enable USB debugging.
+2. Connect the phone and accept the "Allow USB debugging" prompt. Check it shows as `device`:
+
+   ```sh
+   adb devices
+   ```
+
+3. Install:
+
+   ```sh
+   adb install oenoteq-v1.2.3.apk
+   ```
+
+   To update an installed copy, keep the data and replace it with `adb install -r oenoteq-v1.2.3.apk`. It only works if both APKs are signed with the same key and the new `versionCode` is not lower. With several devices attached, add `-s <serial>` (serial from `adb devices`).
+
+**Without adb:** copy the APK to the phone (USB, Drive, email), open it from a file manager and allow "Install unknown apps" for that app when Android asks.
+
+Uninstalling the app deletes the cellar. Export it from the Manage hub first.
+
 ## Tests
 
 ```sh

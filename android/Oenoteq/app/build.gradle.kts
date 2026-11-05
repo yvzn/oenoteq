@@ -16,14 +16,30 @@ android {
         applicationId = "net.ludeo.oenoteq"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        // The release workflow passes these from the git tag (-PappVersionCode, -PappVersionName).
+        versionCode = providers.gradleProperty("appVersionCode").map(String::toInt).getOrElse(1)
+        versionName = providers.gradleProperty("appVersionName").getOrElse("1.0")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        // Only defined when the release workflow provides the keystore; local release
+        // builds stay unsigned.
+        val keystorePath = System.getenv("ANDROID_KEYSTORE_FILE")
+        if (!keystorePath.isNullOrEmpty()) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")

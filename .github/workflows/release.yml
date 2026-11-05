@@ -48,6 +48,66 @@ jobs:
         with:
           files: cellar-windows-amd64.zip
 
+  # Signed, sideloadable APK attached to the release created above. Runs after
+  # `release` so the release already exists (two jobs creating it would race).
+  # Independent of image/deploy: a failure here never blocks a rollout.
+  android:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
+      - name: Decode signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] || { echo "::error::ANDROID_KEYSTORE_BASE64 secret is not set"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Derive version from tag
+        run: |
+          # vMAJOR.MINOR.PATCH[-suffix] -> versionName MAJOR.MINOR.PATCH, versionCode MAJOR*10000+MINOR*100+PATCH
+          VERSION="${GITHUB_REF_NAME#v}"
+          CORE="${VERSION%%[-+]*}"
+          IFS=. read -r MAJOR MINOR PATCH <<< "$CORE"
+          case "$MAJOR$MINOR$PATCH" in ''|*[!0-9]*) echo "::error::Tag $GITHUB_REF_NAME is not vMAJOR.MINOR.PATCH"; exit 1;; esac
+          echo "APP_VERSION_NAME=$VERSION" >> "$GITHUB_ENV"
+          echo "APP_VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        working-directory: android/Oenoteq
+        run: >
+          ./gradlew assembleRelease
+          -PappVersionName="$APP_VERSION_NAME"
+          -PappVersionCode="$APP_VERSION_CODE"
+
+      - name: Verify APK signature
+        run: |
+          APK="$(ls android/Oenoteq/app/build/outputs/apk/release/*.apk | head -n 1)"
+          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)/apksigner" verify --verbose "$APK"
+          cp "$APK" "oenoteq-${GITHUB_REF_NAME}.apk"
+
+      - name: Attach APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: oenoteq-${{ github.ref_name }}.apk
+
   image:
     runs-on: ubuntu-latest
     permissions:
