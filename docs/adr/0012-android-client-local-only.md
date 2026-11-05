@@ -4,7 +4,7 @@ status: accepted
 
 # Native Android client is local-only, separate from the PWA and backend
 
-A native Android app (`android/Oenoteq`) offers the same features as the PWA, but keeps the cellar only in a SQLite database on the phone. It never talks to the Go backend: no sync, no account, and no `INTERNET` permission. Android Auto Backup (database file only, cloud backup and device transfer) is the one safety net, accepting that it runs at Android's discretion, roughly daily, so the last day of changes can be lost. A cellar already kept by the backend comes over once, through an all-or-nothing import of a SQLite snapshot. The import replaces whatever the cellar holds, in one transaction, so a refused or failing snapshot leaves the existing cellar intact; the UI must ask for confirmation before it overwrites data.
+A native Android app (`android/Oenoteq`) offers the same features as the PWA, but keeps the cellar only in a SQLite database on the phone. It never talks to the Go backend: no sync, no account, and no `INTERNET` permission. Android Auto Backup (database file only, cloud backup and device transfer) is the automatic safety net, accepting that it runs at Android's discretion, roughly daily, so the last day of changes can be lost; a manual export to a file is the other. A cellar already kept by the backend comes over once, through an all-or-nothing import of a SQLite snapshot. The import replaces whatever the cellar holds, in one transaction, so a refused or failing snapshot leaves the existing cellar intact; the UI must ask for confirmation before it overwrites data.
 
 The app is Kotlin, Jetpack Compose (Material 3) and Room, in one activity with type-safe Navigation, with dependencies wired by hand (`AppContainer`), no DI framework. The rules the Go `db` layer enforces are enforced again in the app's repositories, and the PWA's domain logic (Garde Status, search and history ordering, pagination, form rules) is ported with its tests; the cellar search runs the same `testdata/search-fixtures.json` cases as the Go and TypeScript code.
 
@@ -13,7 +13,7 @@ The app is Kotlin, Jetpack Compose (Material 3) and Room, in one activity with t
 - **Sync with the backend, as the PWA's Offline Mode does** — rejected: the point is a phone that owns its cellar; syncing would bring back accounts, connectivity and conflict handling for a single-user app.
 - **Wrap the PWA (TWA or WebView)** — rejected: still needs the server, and the app should feel native.
 - **Kotlin Multiplatform shared with the backend, or a shared rules library** — rejected: different languages (Go, TypeScript, Kotlin); porting small rules with shared test fixtures is cheaper than a shared runtime.
-- **A manual export/import for backups** — deferred: Auto Backup covers device loss for now.
+- **A manual export/import for backups** — first deferred, then accepted: Auto Backup runs at Android's discretion and a sideloaded app isn't reliably restored on a new phone. The Manage hub's Backup section exports the cellar to one SQLite file (rows copied into a fresh Room database, no write-ahead log) and imports it back; the import also accepts a backend snapshot, telling the two apart by their tables, and replaces the cellar after a confirmation when it holds anything.
 
 ## Consequences
 

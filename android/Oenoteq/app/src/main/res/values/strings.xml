@@ -8,7 +8,7 @@
     <string name="action_ok">OK</string>
 
     <string name="cellar_empty_title">Your cellar is empty</string>
-    <string name="cellar_empty_import_hint">Already using the web app? Bring your whole cellar over from a snapshot of the server\'s database.</string>
+    <string name="cellar_empty_import_hint">Restoring a backup, or coming from the web app? Bring your whole cellar over from a file.</string>
 
     <string name="import_action">Import cellar</string>
     <string name="import_running">Importing your cellar…</string>
@@ -39,8 +39,9 @@
     </plurals>
 
     <string name="import_failed_title">Nothing was imported</string>
-    <string name="import_error_not_cellar">This file isn\'t a cellar database. Pick a snapshot of the server\'s cellar.db.</string>
-    <string name="import_error_corrupt">This snapshot is damaged. Take a new one with sqlite3 .backup and try again.</string>
+    <string name="import_error_not_cellar">This file isn\'t a cellar database. Pick a file exported from this app, or a snapshot of the server\'s cellar.db.</string>
+    <string name="import_error_corrupt">This file is damaged. Pick another copy, or make a new one, and try again.</string>
+    <string name="import_error_unsupported_backup">This file comes from a newer version of the app (schema %1$d). Update the app, then try again.</string>
     <string name="import_error_unsupported_schema">This snapshot comes from a different version of the server (last update: %1$s). Update the server or the app, then take a new snapshot.</string>
     <string name="import_error_orphans">The snapshot has %1$d rows pointing at records that no longer exist (%2$s). Clean them up on the server with PRAGMA foreign_key_check, then try again.</string>
     <string name="import_error_invalid_row">The snapshot has an invalid row (%1$s #%2$d: %3$s).</string>
@@ -215,6 +216,22 @@
 
     <!-- Success messages and language -->
     <string name="action_dismiss">Dismiss</string>
+
+    <string name="backup_section_title">Backup</string>
+    <string name="backup_export_label">Export cellar</string>
+    <string name="backup_export_description">Save a copy of your whole cellar to a file.</string>
+    <string name="backup_import_label">Import a cellar</string>
+    <string name="backup_import_description">Replace your cellar with a file you saved, or with a snapshot of the server. What your cellar holds now is lost.</string>
+    <string name="backup_export_running">Exporting your cellar…</string>
+    <string name="backup_export_done_title">Cellar exported</string>
+    <string name="backup_export_failed_title">Nothing was exported</string>
+    <string name="backup_export_failed">The export failed. Your cellar is unchanged.</string>
+    <string name="backup_replace_title">Replace your cellar?</string>
+    <plurals name="backup_replace_message">
+        <item quantity="one">Your %d wine and its history will be replaced by the content of the file. This can\'t be undone.</item>
+        <item quantity="other">Your %d wines and their history will be replaced by the content of the file. This can\'t be undone.</item>
+    </plurals>
+    <string name="backup_replace_confirm">Replace my cellar</string>
     <string name="notice_wine_added">Wine added.</string>
     <string name="notice_wine_updated">Wine updated.</string>
     <string name="notice_producer_added">Producer added.</string>

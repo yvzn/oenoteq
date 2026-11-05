@@ -17,9 +17,9 @@ import kotlinx.coroutines.launch
 import net.ludeo.oenoteq.data.CellarDatabase
 import net.ludeo.oenoteq.data.ReferentialRepository
 import net.ludeo.oenoteq.data.WineRepository
+import net.ludeo.oenoteq.data.backup.CellarImporter
 import net.ludeo.oenoteq.data.snapshot.ImportSummary
 import net.ludeo.oenoteq.data.snapshot.SnapshotImportError
-import net.ludeo.oenoteq.data.snapshot.SnapshotImporter
 import net.ludeo.oenoteq.domain.CellarSearchData
 import net.ludeo.oenoteq.domain.NamedItem
 import net.ludeo.oenoteq.domain.Page
@@ -62,7 +62,7 @@ class CellarViewModel(
     database: CellarDatabase,
     wines: WineRepository,
     meals: ReferentialRepository,
-    private val importer: SnapshotImporter,
+    private val importer: CellarImporter,
     private val currentYear: () -> Int = { Year.now().value },
 ) : ViewModel() {
     private val importState = MutableStateFlow<ImportState>(ImportState.Idle)
@@ -145,7 +145,7 @@ class CellarViewModel(
                     container.database,
                     container.wines,
                     container.referentials(Referential.MEAL),
-                    container.snapshotImporter,
+                    container.cellarImporter,
                 )
             }
         }

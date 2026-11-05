@@ -72,21 +72,22 @@ fun EmptyCellar(onAddWine: () -> Unit, onImport: (() -> Unit)?, modifier: Modifi
 }
 
 @Composable
-fun ImportRunning(modifier: Modifier = Modifier) {
+fun ImportRunning(modifier: Modifier = Modifier, text: Int = R.string.import_running) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CircularProgressIndicator()
-            Text(stringResource(R.string.import_running))
+            Text(stringResource(text))
         }
     }
 }
 
+/** What an import or an export moved, one line per kind of row. */
 @Composable
-fun ImportDoneDialog(summary: ImportSummary, onDismiss: () -> Unit) {
+fun ImportDoneDialog(summary: ImportSummary, onDismiss: () -> Unit, title: Int = R.string.import_done_title) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_ok)) } },
-        title = { Text(stringResource(R.string.import_done_title)) },
+        title = { Text(stringResource(title)) },
         text = {
             Column(Modifier.testTag("import-summary"), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SummaryLine(R.plurals.import_summary_wines, summary.wines)
@@ -97,6 +98,22 @@ fun ImportDoneDialog(summary: ImportSummary, onDismiss: () -> Unit) {
                 SummaryLine(R.plurals.import_summary_consumptions, summary.consumptions)
             }
         },
+    )
+}
+
+/** Asked before a file replaces a cellar that holds something: the button says what it does. */
+@Composable
+fun ReplaceCellarDialog(wineCount: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onConfirm, modifier = Modifier.testTag("replace-confirm")) {
+                Text(stringResource(R.string.backup_replace_confirm))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
+        title = { Text(stringResource(R.string.backup_replace_title)) },
+        text = { Text(pluralStringResource(R.plurals.backup_replace_message, wineCount, wineCount)) },
     )
 }
 
@@ -121,6 +138,7 @@ private fun importErrorMessage(error: SnapshotImportError?): String = when (erro
     is SnapshotImportError.Corrupt -> stringResource(R.string.import_error_corrupt)
     is SnapshotImportError.UnsupportedSchema ->
         stringResource(R.string.import_error_unsupported_schema, error.found ?: "—")
+    is SnapshotImportError.UnsupportedBackup -> stringResource(R.string.import_error_unsupported_backup, error.found)
     is SnapshotImportError.OrphanRows -> stringResource(
         R.string.import_error_orphans,
         error.countsByTable.values.sum(),

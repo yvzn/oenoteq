@@ -2,7 +2,6 @@ package net.ludeo.oenoteq.data.snapshot
 
 import android.content.ContentResolver
 import android.net.Uri
-import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.ludeo.oenoteq.data.CellarDatabase
@@ -50,32 +49,9 @@ class SnapshotImporter(
         val rows = withContext(Dispatchers.IO) { SnapshotReader.read(file) }
         val cellar = SnapshotMapper.map(rows, clock())
 
-        database.withTransaction {
-            // Same transaction as the inserts: a failure rolls the old cellar back.
-            val cellarDao = database.cellarDao()
-            cellarDao.deleteQuantityAdjustments()
-            cellarDao.deleteConsumptions()
-            cellarDao.deleteMealPairings()
-            cellarDao.deleteWines()
-            cellarDao.deleteMeals()
-            cellarDao.deleteProducers()
-            cellarDao.deleteAppellations()
-            database.appellationDao().insertAll(cellar.appellations)
-            database.producerDao().insertAll(cellar.producers)
-            database.mealDao().insertAll(cellar.meals)
-            database.wineDao().insertAll(cellar.wines)
-            database.mealPairingDao().insertAll(cellar.mealPairings)
-            database.consumptionDao().insertAll(cellar.consumptions)
-            database.quantityAdjustmentDao().insertAll(cellar.adjustments)
-        }
+        // One transaction: a failure rolls the old cellar back.
+        database.replaceAll(cellar)
 
-        return ImportSummary(
-            wines = cellar.wines.size,
-            producers = cellar.producers.size,
-            appellations = cellar.appellations.size,
-            meals = cellar.meals.size,
-            mealPairings = cellar.mealPairings.size,
-            consumptions = cellar.consumptions.size,
-        )
+        return cellar.summary()
     }
 }

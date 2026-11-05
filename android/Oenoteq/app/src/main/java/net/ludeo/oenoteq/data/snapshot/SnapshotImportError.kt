@@ -12,7 +12,9 @@ sealed class SnapshotImportError(message: String) : Exception(message) {
     class UnsupportedSchema(val found: String?) :
         SnapshotImportError("unsupported backend schema: ${found ?: "none"}")
 
-    /** Something is already recorded on the device; the import never merges. */
+    /** A file exported by a newer version of this app: its schema is unknown here. */
+    class UnsupportedBackup(val found: Int) :
+        SnapshotImportError("backup from a newer version of the app: schema $found")
 
     /** Rows pointing at a missing parent, counted per table. */
     class OrphanRows(val countsByTable: Map<String, Int>) :

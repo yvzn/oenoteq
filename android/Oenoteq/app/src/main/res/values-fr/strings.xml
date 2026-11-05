@@ -6,7 +6,7 @@
     <string name="action_ok">OK</string>
 
     <string name="cellar_empty_title">Votre cave est vide</string>
-    <string name="cellar_empty_import_hint">Vous utilisez déjà l\'application web ? Récupérez toute votre cave depuis une copie de la base du serveur.</string>
+    <string name="cellar_empty_import_hint">Vous restaurez une sauvegarde, ou vous venez de l\'application web ? Récupérez toute votre cave depuis un fichier.</string>
 
     <string name="import_action">Importer la cave</string>
     <string name="import_running">Import de votre cave…</string>
@@ -43,8 +43,9 @@
     </plurals>
 
     <string name="import_failed_title">Rien n\'a été importé</string>
-    <string name="import_error_not_cellar">Ce fichier n\'est pas une base de cave. Choisissez une copie du fichier cellar.db du serveur.</string>
-    <string name="import_error_corrupt">Cette copie est endommagée. Refaites-en une avec sqlite3 .backup et réessayez.</string>
+    <string name="import_error_not_cellar">Ce fichier n\'est pas une base de cave. Choisissez un fichier exporté depuis cette application, ou une copie du fichier cellar.db du serveur.</string>
+    <string name="import_error_corrupt">Ce fichier est endommagé. Choisissez une autre copie, ou refaites-en une, et réessayez.</string>
+    <string name="import_error_unsupported_backup">Ce fichier vient d\'une version plus récente de l\'application (schéma %1$d). Mettez l\'application à jour, puis réessayez.</string>
     <string name="import_error_unsupported_schema">Cette copie vient d\'une autre version du serveur (dernière mise à jour : %1$s). Mettez à jour le serveur ou l\'application, puis refaites une copie.</string>
     <string name="import_error_orphans">La copie contient %1$d lignes qui pointent vers des éléments disparus (%2$s). Nettoyez-les sur le serveur avec PRAGMA foreign_key_check, puis réessayez.</string>
     <string name="import_error_invalid_row">La copie contient une ligne invalide (%1$s n° %2$d : %3$s).</string>
@@ -223,6 +224,22 @@
 
     <!-- Messages de confirmation et langue -->
     <string name="action_dismiss">Fermer</string>
+
+    <string name="backup_section_title">Sauvegarde</string>
+    <string name="backup_export_label">Exporter la cave</string>
+    <string name="backup_export_description">Enregistrer une copie de toute votre cave dans un fichier.</string>
+    <string name="backup_import_label">Importer une cave</string>
+    <string name="backup_import_description">Remplacer votre cave par un fichier enregistré, ou par une copie du serveur. Le contenu actuel de votre cave sera perdu.</string>
+    <string name="backup_export_running">Export de votre cave…</string>
+    <string name="backup_export_done_title">Cave exportée</string>
+    <string name="backup_export_failed_title">Rien n\'a été exporté</string>
+    <string name="backup_export_failed">L\'export a échoué. Votre cave est inchangée.</string>
+    <string name="backup_replace_title">Remplacer votre cave ?</string>
+    <plurals name="backup_replace_message">
+        <item quantity="one">Votre %d vin et son historique seront remplacés par le contenu du fichier. Cette action est irréversible.</item>
+        <item quantity="other">Vos %d vins et leur historique seront remplacés par le contenu du fichier. Cette action est irréversible.</item>
+    </plurals>
+    <string name="backup_replace_confirm">Remplacer ma cave</string>
     <string name="notice_wine_added">Vin ajouté.</string>
     <string name="notice_wine_updated">Vin modifié.</string>
     <string name="notice_producer_added">Producteur ajouté.</string>

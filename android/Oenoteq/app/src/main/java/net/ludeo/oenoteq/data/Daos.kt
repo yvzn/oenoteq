@@ -39,6 +39,8 @@ interface AppellationDao : NamedDao {
 
     @Query("SELECT COUNT(*) FROM appellation") suspend fun count(): Int
 
+    @Query("SELECT * FROM appellation ORDER BY id") suspend fun all(): List<AppellationEntity>
+
     @Query("SELECT id, name FROM appellation ORDER BY name")
     override fun observeAll(): Flow<List<NamedItem>>
 
@@ -72,6 +74,8 @@ interface ProducerDao : NamedDao {
 
     @Query("SELECT COUNT(*) FROM producer") suspend fun count(): Int
 
+    @Query("SELECT * FROM producer ORDER BY id") suspend fun all(): List<ProducerEntity>
+
     @Query("SELECT id, name FROM producer ORDER BY name")
     override fun observeAll(): Flow<List<NamedItem>>
 
@@ -99,6 +103,8 @@ interface MealDao : NamedDao {
     @Insert suspend fun insertAll(rows: List<MealEntity>)
 
     @Query("SELECT COUNT(*) FROM meal") suspend fun count(): Int
+
+    @Query("SELECT * FROM meal ORDER BY id") suspend fun all(): List<MealEntity>
 
     @Query("SELECT id, name FROM meal ORDER BY name")
     override fun observeAll(): Flow<List<NamedItem>>
@@ -188,6 +194,8 @@ interface WineDao {
 
     @Query("SELECT COUNT(*) FROM wine WHERE quantity > 0") fun observeInStockCount(): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM wine") fun observeCount(): Flow<Int>
+
     @Query("UPDATE wine SET quantity = quantity + :delta, updated_at = :updatedAt WHERE id = :id")
     suspend fun addToQuantity(id: Long, delta: Int, updatedAt: Long): Int
 }
@@ -202,6 +210,8 @@ interface MealPairingDao {
     suspend fun delete(appellationId: Long, color: WineColor, mealId: Long): Int
 
     @Query("SELECT COUNT(*) FROM meal_pairing") suspend fun count(): Int
+
+    @Query("SELECT * FROM meal_pairing") suspend fun all(): List<MealPairingEntity>
 
     @Query("SELECT appellation_id AS appellationId, color, meal_id AS mealId FROM meal_pairing")
     fun observeAll(): Flow<List<MealPairing>>
@@ -262,6 +272,8 @@ interface QuantityAdjustmentDao {
     suspend fun forWine(wineId: Long): List<QuantityAdjustmentEntity>
 
     @Query("SELECT COUNT(*) FROM quantity_adjustment") suspend fun count(): Int
+
+    @Query("SELECT * FROM quantity_adjustment ORDER BY id") suspend fun all(): List<QuantityAdjustmentEntity>
 }
 
 @Dao
