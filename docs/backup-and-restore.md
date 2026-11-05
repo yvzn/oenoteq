@@ -28,6 +28,28 @@ export DB_PATH=/tmp/restored.db LITESTREAM_AZURE_PATH=cellar LITESTREAM_AZURE_EN
 litestream restore -config webapp/docker/litestream.yml "$DB_PATH"
 ```
 
+## Export the production DB
+
+Gets a plain SQLite `.db` file of production onto your machine. Read-only: the app and the replica are not touched. Needs `az` (logged in) and `docker`; `sqlite3` is optional (integrity check).
+
+```sh
+sh infra/export-db.sh                      # writes cellar-export-<UTC timestamp>.db
+sh infra/export-db.sh path/to/prod.db      # explicit output (never overwrites an existing file)
+TIMESTAMP=2026-10-07T15:00:00Z sh infra/export-db.sh   # point-in-time export (UTC, within retention)
+```
+
+The script:
+
+1. Looks up the storage account and its key with `az` (the same key the app gets as the `storage-key` secret).
+2. Runs a throwaway `litestream/litestream:0.3.13` container that restores the replica to a file, copies it out with `docker cp`, removes the container.
+3. Runs `PRAGMA integrity_check` on the result when `sqlite3` is available.
+
+Env overrides: `RG` (`cellar-rg`), `LITESTREAM_AZURE_CONTAINER` (`backups`), `LITESTREAM_AZURE_PATH` (`cellar`).
+
+The export comes from Blob, not the live container: it lags by about a second of WAL, and if the app is scaled to zero it reflects the last sync before shutdown. It is a single file (no `-wal`/`-shm`), so open it directly with `sqlite3` or point `DB_PATH` at it for a local run. It contains real user data: keep it out of the repo and delete it when done.
+
+Without Docker: install the `litestream` 0.3.x CLI, export `LITESTREAM_AZURE_ACCOUNT_NAME`, `LITESTREAM_AZURE_ACCOUNT_KEY`, `LITESTREAM_AZURE_CONTAINER`, `LITESTREAM_AZURE_PATH` and an empty `LITESTREAM_AZURE_ENDPOINT`, then use the commands in Manual restore with `-o <file>`.
+
 ## Point-in-time recovery
 
 Retention is 7 days (`retention: 168h`, snapshot every 24h in `webapp/docker/litestream.yml`). Litestream deletes older snapshots and WAL itself, so no manual cleanup; nothing older than 7 days can be restored. For a backstop, add an Azure Blob lifecycle rule in the infra ticket (04).
