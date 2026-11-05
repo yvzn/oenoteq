@@ -11,35 +11,37 @@ Self-hosted, single-user app for tracking a wine cellar: what's owned, its drink
 
 Two processes, run in separate terminals.
 
-**API** (repo root):
+**API** (`webapp/`):
 
 ```powershell
+cd webapp
 $env:DB_PATH = "$PWD\cellar.db"
 go run .
 ```
 
 Starts the Go API on `:8080`, backed by SQLite (`cellar.db`, created/migrated automatically on first run).
 
-**Frontend** (`web/`):
+**Frontend** (`webapp/web/`):
 
 ```sh
-cd web
+cd webapp/web
 npm install
 npm run dev
 ```
 
-Starts the Vite dev server (with hot reload) and proxies `/wines` and `/health` to the API on `:8080` (see `web/vite.config.ts`). Open the URL Vite prints (typically `http://localhost:5173`).
+Starts the Vite dev server (with hot reload) and proxies `/wines` and `/health` to the API on `:8080` (see `webapp/web/vite.config.ts`). Open the URL Vite prints (typically `http://localhost:5173`).
 
 ## Tests
 
 ```sh
+cd webapp
 go test ./...
 ```
 
 ## E2E (offline-first sync tracer)
 
 ```sh
-cd web
+cd webapp/web
 npm run e2e
 ```
 
@@ -47,7 +49,7 @@ Builds the web app and the Go exe (SPA embedded), starts it on a free port with 
 
 ## API
 
-Endpoints are documented as runnable requests in `api.http`.
+Endpoints are documented as runnable requests in `webapp/api.http`.
 
 ## Production build
 

@@ -3,10 +3,10 @@
 Researched 2026-10-07. Question: what is the cheapest way to put the app on a public HTTPS URL (so the service worker registers, see `service-workers-on-lan.md`) for under 10 users and tiny data, with real-data-safe backups? Low price is priority #1; swapping the DB engine is allowed.
 
 **Facts that scope the answer (read from repo)**
-- Go 1.22, **`modernc.org/sqlite` v1.28.0 (pure Go, no cgo)** (`go.mod`). `CGO_ENABLED=0` cross-compiles to linux/amd64 and linux/arm64 trivially; image can be `scratch`/distroless.
-- DB opened with WAL, `busy_timeout`, `synchronous=NORMAL`, `foreign_keys=1`, **one connection** (`internal/db/db.go`). WAL needs shared memory / POSIX locks, so the DB file must live on a **local** disk, never on SMB/NFS/FUSE.
+- Go 1.22, **`modernc.org/sqlite` v1.28.0 (pure Go, no cgo)** (`webapp/go.mod`). `CGO_ENABLED=0` cross-compiles to linux/amd64 and linux/arm64 trivially; image can be `scratch`/distroless.
+- DB opened with WAL, `busy_timeout`, `synchronous=NORMAL`, `foreign_keys=1`, **one connection** (`webapp/internal/db/db.go`). WAL needs shared memory / POSIX locks, so the DB file must live on a **local** disk, never on SMB/NFS/FUSE.
 - SQL is plain SQLite: `AUTOINCREMENT`, `PRAGMA foreign_keys/legacy_alter_table` inside a table-rebuild migration (`002_producer.sql`), hand-written SQL in a 40 KB `db.go`. No FTS5 or JSON functions found by grep (not a full audit).
-- Config: `DB_PATH` env (default: beside the exe). **Port is hard-coded `:8080`** (`main.go`), no TLS, no env override. 10 s read/write timeouts.
+- Config: `DB_PATH` env (default: beside the exe). **Port is hard-coded `:8080`** (`webapp/main.go`), no TLS, no env override. 10 s read/write timeouts.
 - **No Dockerfile exists.** CI (per ADR 0002) only builds `windows/amd64`; a Linux target would be new, and ADR 0002 would need amending.
 - **No authentication at all** (ADR 0002 "no auth"). On the public internet anyone with the URL can read and delete the cellar. This is the largest non-cost gap: add auth, or gate with Caddy basic auth / Cloudflare Access (Access free tier **[UNVERIFIED]**, not read on a primary page).
 - Data is tiny (`cellar.db` is 88 KB today).
@@ -87,7 +87,7 @@ You own OS patching (unattended-upgrades), firewall, Caddy, systemd unit, backup
 |---|---|---|---|
 | **Turso (libSQL)** | Free: 100 DBs, 5 GB, 500 M rows read, 10 M rows written/mo; Developer USD 4.99/mo (9 GB). No sleep policy stated ([pricing](https://turso.tech/pricing)) | Same SQLite dialect, so SQL and migrations mostly unchanged; driver swap from `modernc` to a libSQL client (cgo `go-libsql` or HTTP/WebSocket client, **[UNVERIFIED]** which fit your build), network latency per query, the single-connection assumption changes. Moderate. | Pairs with free ephemeral compute (Cloud Run / Container Apps), removing the need for Litestream. Does **not** remove the host cost on its own. Vendor-lock and free-tier vanish risk. |
 | **Cloudflare D1 + Workers** | Free: 5 M rows read/day, 100 k rows written/day, 5 GB; hitting a cap makes queries error until 00:00 UTC ([D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/)) | **Full rewrite**: Workers runtime (JS/TS or Go-to-WASM), D1 binding API instead of `database/sql`, no embedded-exe model, break of ADR 0002. | Cheapest possible runtime, but rewrite cost far exceeds a year of VPS fees. Reject. |
-| **Neon Postgres** | Free: 1 GB/project, 100 CU-hours, compute suspends after 5 min idle (cannot disable); launch is pay-as-you-go USD 0.106/CU-h, USD 0.35/GB-mo ([pricing](https://neon.com/pricing)) | Moderate to high: new driver (`pgx`), `?` to `$n` placeholders, `AUTOINCREMENT` to identity, rewrite SQLite PRAGMA-based migration, test harness uses in-memory SQLite (`internal/test`). | Not worth it for cost. Cold resume adds latency. |
+| **Neon Postgres** | Free: 1 GB/project, 100 CU-hours, compute suspends after 5 min idle (cannot disable); launch is pay-as-you-go USD 0.106/CU-h, USD 0.35/GB-mo ([pricing](https://neon.com/pricing)) | Moderate to high: new driver (`pgx`), `?` to `$n` placeholders, `AUTOINCREMENT` to identity, rewrite SQLite PRAGMA-based migration, test harness uses in-memory SQLite (`webapp/internal/test`). | Not worth it for cost. Cold resume adds latency. |
 | **Supabase** | Free: 500 MB, 2 active projects, **paused after 1 week inactivity**; Pro USD 25/mo ([pricing](https://supabase.com/pricing)) | Same as Postgres | Reject: auto-pause hits a rarely-used cellar app. |
 | **Render free Postgres** | Expires after 30 days, deleted after 14-day grace, no backups ([free](https://render.com/docs/free)) | Postgres | Reject. |
 
@@ -147,7 +147,7 @@ Free tiers that sleep or expire (Render free, Supabase, Neon) are excluded from 
 2. **If a hard EUR 0 matters more than convenience**: Oracle Always Free (accept reclaim risk, Litestream makes recovery a 10-minute job) or Cloud Run/Azure Container Apps with Litestream (accept cold-start restore, force max 1 instance). These win only by about USD 2/month, so pick them for principle, not savings.
 3. **If you want a VPS you own**: Hetzner CAX11/CX23 once available again (EUR 5.49-5.99, IPv6-only, + Cloudflare proxy or EUR 0.50 for IPv4) with Caddy + Litestream. Vultr (USD 2.50-3.50) and DO (USD 4) are cheaper but weaker on RAM/IPv4.
 4. **Do not** swap the DB engine to save money. The only free engines worth it (Turso) do not remove the host cost, and Postgres/D1/Azure SQL need real rewrites. Azure is only competitive with scale-to-zero containers, not VMs or App Service.
-5. **Before going public, whatever the host**: add authentication (or Cloudflare Access / Caddy basic auth), a health-check URL for the platform (`internal/handlers/health_test.go` suggests one exists; path not checked), pin to one instance, and plan the origin change (new IndexedDB origin, drain the outbox first).
+5. **Before going public, whatever the host**: add authentication (or Cloudflare Access / Caddy basic auth), a health-check URL for the platform (`webapp/internal/handlers/health_test.go` suggests one exists; path not checked), pin to one instance, and plan the origin change (new IndexedDB origin, drain the outbox first).
 
 ---
 

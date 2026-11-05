@@ -6,9 +6,9 @@
 .scratch
 .venv
 docs
-web/node_modules
-web/dist
-internal/static/dist
+webapp/web/node_modules
+webapp/web/dist
+webapp/internal/static/dist
 *.db
 *.db-shm
 *.db-wal

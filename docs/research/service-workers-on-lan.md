@@ -3,7 +3,7 @@
 Researched 2026-10-06. Question: the PWA ships as one Go exe (ADR 0002) serving `http://192.168.x.x:8080`; service workers refuse to register there. What are the viable fixes?
 
 **Facts that scope the answer**
-- Stack (read from repo): Go `net/http` on `:8080` (`main.go`), Vue frontend embedded via `go:embed`, `vite-plugin-pwa` with `registerType: 'prompt'` + Workbox precache (`web/vite.config.ts`, `web/src/registerPwa.ts`), Dexie/IndexedDB outbox (ADR 0006).
+- Stack (read from repo): Go `net/http` on `:8080` (`webapp/main.go`), Vue frontend embedded via `go:embed`, `vite-plugin-pwa` with `registerType: 'prompt'` + Workbox precache (`webapp/web/vite.config.ts`, `webapp/web/src/registerPwa.ts`), Dexie/IndexedDB outbox (ADR 0006).
 - Clients reach the exe by **raw IP address**, and are **Android Chrome only** (no iOS). Exe host is an old Windows PC on a static LAN IP, not always on. Single user, no auth, "no ops appetite" (ADR 0002).
 - Source confidence: claims carry an inline primary URL. Items marked **[UNVERIFIED]** could not be confirmed against a primary source in this session and need an on-device check.
 

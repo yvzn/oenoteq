@@ -59,7 +59,7 @@ CID="$(docker create --name "$NAME" --user 0 \
   -e LITESTREAM_AZURE_ENDPOINT= \
   "$IMAGE" replicate -config /etc/litestream.yml)"
 echo "Litestream container: $NAME ($(echo "$CID" | cut -c1-12))"
-cp "$DIR/../docker/litestream.yml" "$TMP/litestream.yml"
+cp "$DIR/../webapp/docker/litestream.yml" "$TMP/litestream.yml"
 # Force root ownership: docker cp otherwise keeps the host uid, which the container cannot write.
 tar -C "$TMP" --owner=0 --group=0 -cf - cellar.db | docker cp - "$NAME:/tmp"
 tar -C "$TMP" --owner=0 --group=0 -cf - litestream.yml | docker cp - "$NAME:/etc"

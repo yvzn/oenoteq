@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Color, WineDetail } from '../api/types'
-import fixtures from '../../../testdata/search-fixtures.json'
+import fixtures from '../../../../testdata/search-fixtures.json'
 import { searchLocalWines } from './localSearch'
 import type { SortBy, SortDir } from './wineSort'
 

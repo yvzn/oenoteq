@@ -10,7 +10,7 @@ Single-context. See `docs/agents/domain.md`.
 
 ### API contract
 
-Endpoint added or changed → add/update matching request in `api.http`.
+Endpoint added or changed → add/update matching request in `webapp/api.http`.
 
 ### DB migrations
 

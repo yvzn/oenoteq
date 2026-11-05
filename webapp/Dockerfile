@@ -1,20 +1,20 @@
 # syntax=docker/dockerfile:1
 
 FROM node:24-alpine AS web
-WORKDIR /web
-COPY web/package.json web/package-lock.json ./
+WORKDIR /webapp/web
+COPY webapp/web/package.json webapp/web/package-lock.json ./
 RUN npm ci
-COPY web/ ./
+COPY webapp/web/ ./
 COPY testdata/ /testdata/
 RUN npm run build
 
 FROM golang:1.22-alpine AS build
 WORKDIR /src
-COPY go.mod go.sum ./
+COPY webapp/go.mod webapp/go.sum ./
 RUN go mod download
-COPY . .
+COPY webapp/ ./
 RUN rm -rf internal/static/dist
-COPY --from=web /web/dist internal/static/dist
+COPY --from=web /webapp/web/dist internal/static/dist
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/cellar .
 # Empty data dir, owned by the nonroot user, to hold the SQLite file.
 RUN mkdir /out/data && chown 65532:65532 /out/data
@@ -25,8 +25,8 @@ FROM alpine:3.20
 COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/litestream
 COPY --from=build /out/cellar /cellar
 COPY --from=build --chown=65532:65532 /out/data /data
-COPY docker/litestream.yml /etc/litestream.yml
-COPY --chmod=755 docker/entrypoint.sh /entrypoint.sh
+COPY webapp/docker/litestream.yml /etc/litestream.yml
+COPY --chmod=755 webapp/docker/entrypoint.sh /entrypoint.sh
 ENV PORT=8080 DB_PATH=/data/cellar.db
 EXPOSE 8080
 USER 65532:65532

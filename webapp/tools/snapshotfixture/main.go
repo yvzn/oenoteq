@@ -5,7 +5,7 @@
 //
 // Run from the repo root:
 //
-//	go run ./android/Oenoteq/tools/snapshotfixture android/Oenoteq/app/src/test/resources/snapshot/backend-snapshot.db
+//	go run ./tools/snapshotfixture ../android/Oenoteq/app/src/test/resources/snapshot/backend-snapshot.db
 //
 // The expected contents are asserted in SnapshotImporterTest; change both together.
 package main

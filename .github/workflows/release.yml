@@ -19,25 +19,26 @@ jobs:
           node-version: "24"
 
       - name: Build frontend
-        working-directory: web
+        working-directory: webapp/web
         run: |
           npm ci
           npm run build
 
       - name: Embed frontend build
         run: |
-          rm -rf internal/static/dist
-          cp -r web/dist internal/static/dist
+          rm -rf webapp/internal/static/dist
+          cp -r webapp/web/dist webapp/internal/static/dist
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: webapp/go.mod
 
       - name: Build Windows executable
+        working-directory: webapp
         env:
           GOOS: windows
           GOARCH: amd64
-        run: go build -o cellar.exe .
+        run: go build -o ../cellar.exe .
 
       - name: Zip release artifact
         run: zip cellar-windows-amd64.zip cellar.exe
@@ -74,6 +75,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
+          file: webapp/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

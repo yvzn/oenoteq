@@ -6,7 +6,7 @@ Kotlin, Jetpack Compose (Material 3), Room, Navigation Compose. Single activity,
 
 ## Layout
 
-- `domain/`: pure Kotlin rules ported from `web/src/domain` (Garde Status, cellar search and sort, Consumption History order, pagination, form rules) and `CellarError`, one code per refusal of the Go `db` layer.
+- `domain/`: pure Kotlin rules ported from `webapp/web/src/domain` (Garde Status, cellar search and sort, Consumption History order, pagination, form rules) and `CellarError`, one code per refusal of the Go `db` layer.
 - `data/`: Room entities and DAOs, one repository per aggregate (the only callers of the DAOs, where the backend's rules are enforced), and `data/snapshot/`, the one-time import.
 - `ui/`: one screen and ViewModel per destination. `OenoteqApp.kt` holds the routes: one nested graph per bottom-bar tab, each with its own back stack. `components/` holds the shared pieces (filter bar, sort sheet, pager, autocomplete, highlight, language toggle).
 
@@ -72,10 +72,10 @@ The import is all or nothing and keeps ids, quantities, Garde, Consumptions and 
 
 ### Test fixture
 
-`app/src/test/resources/snapshot/backend-snapshot.db` is written by the real backend code. Regenerate it from the repo root:
+`app/src/test/resources/snapshot/backend-snapshot.db` is written by the real backend code. Regenerate it from `webapp/` (the generator, `webapp/tools/snapshotfixture`, imports the backend `db` package):
 
 ```sh
-go run ./android/Oenoteq/tools/snapshotfixture android/Oenoteq/app/src/test/resources/snapshot/backend-snapshot.db
+go run ./tools/snapshotfixture ../android/Oenoteq/app/src/test/resources/snapshot/backend-snapshot.db
 ```
 
 The expected contents are asserted in `SnapshotImporterTest`; change both together.

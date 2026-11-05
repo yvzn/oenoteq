@@ -1,6 +1,6 @@
 # Backup and restore (Litestream to Azure Blob)
 
-The container image (`Dockerfile`) starts via `docker/entrypoint.sh`. Litestream is **off** unless `LITESTREAM_AZURE_ACCOUNT_NAME` is set, so the Windows exe and plain `docker run` behave as before.
+The container image (`webapp/Dockerfile`) starts via `webapp/docker/entrypoint.sh`. Litestream is **off** unless `LITESTREAM_AZURE_ACCOUNT_NAME` is set, so the Windows exe and plain `docker run` behave as before.
 
 ## Configuration
 
@@ -21,29 +21,29 @@ Keep max replicas = 1 (single writer).
 
 ## Manual restore
 
-Needs the `litestream` CLI (v0.3.x) and the same env vars. Config: `docker/litestream.yml`.
+Needs the `litestream` CLI (v0.3.x) and the same env vars. Config: `webapp/docker/litestream.yml`.
 
 ```sh
 export DB_PATH=/tmp/restored.db LITESTREAM_AZURE_PATH=cellar LITESTREAM_AZURE_ENDPOINT=
-litestream restore -config docker/litestream.yml "$DB_PATH"
+litestream restore -config webapp/docker/litestream.yml "$DB_PATH"
 ```
 
 ## Point-in-time recovery
 
-Retention is 7 days (`retention: 168h`, snapshot every 24h in `docker/litestream.yml`). Litestream deletes older snapshots and WAL itself, so no manual cleanup; nothing older than 7 days can be restored. For a backstop, add an Azure Blob lifecycle rule in the infra ticket (04).
+Retention is 7 days (`retention: 168h`, snapshot every 24h in `webapp/docker/litestream.yml`). Litestream deletes older snapshots and WAL itself, so no manual cleanup; nothing older than 7 days can be restored. For a backstop, add an Azure Blob lifecycle rule in the infra ticket (04).
 
 List generations and snapshots:
 
 ```sh
-litestream generations -config docker/litestream.yml "$DB_PATH"
-litestream snapshots -config docker/litestream.yml "$DB_PATH"
+litestream generations -config webapp/docker/litestream.yml "$DB_PATH"
+litestream snapshots -config webapp/docker/litestream.yml "$DB_PATH"
 ```
 
 Restore to a moment (UTC) or a specific generation/index:
 
 ```sh
-litestream restore -config docker/litestream.yml -timestamp 2026-10-07T15:00:00Z -o /tmp/pitr.db "$DB_PATH"
-litestream restore -config docker/litestream.yml -generation <id> -index <n> -o /tmp/pitr.db "$DB_PATH"
+litestream restore -config webapp/docker/litestream.yml -timestamp 2026-10-07T15:00:00Z -o /tmp/pitr.db "$DB_PATH"
+litestream restore -config webapp/docker/litestream.yml -generation <id> -index <n> -o /tmp/pitr.db "$DB_PATH"
 ```
 
 To roll production back, never delete the existing prefix (it holds the other restore points). Restore the wanted state to a file as above, then verify it with `sqlite3 /tmp/pitr.db "select count(*) from wine"`. Then either re-upload that file to a **new** `LITESTREAM_AZURE_PATH` (run a throwaway container with the file at `DB_PATH` and Litestream pointed at the new prefix, let it replicate) and switch the app's `LITESTREAM_AZURE_PATH` to it, or keep the old prefix and restore with `-timestamp` into a new prefix the same way.

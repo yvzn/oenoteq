@@ -52,7 +52,7 @@ type searchFixtures struct {
 }
 
 func TestSearchMatchesSharedFixtures(t *testing.T) {
-	raw, err := os.ReadFile("../../testdata/search-fixtures.json")
+	raw, err := os.ReadFile("../../../testdata/search-fixtures.json")
 	if err != nil {
 		t.Fatalf("Reading fixtures: %v", err)
 	}
