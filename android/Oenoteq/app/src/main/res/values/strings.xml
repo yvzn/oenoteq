@@ -42,7 +42,6 @@
     <string name="import_error_not_cellar">This file isn\'t a cellar database. Pick a snapshot of the server\'s cellar.db.</string>
     <string name="import_error_corrupt">This snapshot is damaged. Take a new one with sqlite3 .backup and try again.</string>
     <string name="import_error_unsupported_schema">This snapshot comes from a different version of the server (last update: %1$s). Update the server or the app, then take a new snapshot.</string>
-    <string name="import_error_not_empty">Your cellar already has data. Importing only works on an empty cellar.</string>
     <string name="import_error_orphans">The snapshot has %1$d rows pointing at records that no longer exist (%2$s). Clean them up on the server with PRAGMA foreign_key_check, then try again.</string>
     <string name="import_error_invalid_row">The snapshot has an invalid row (%1$s #%2$d: %3$s).</string>
     <string name="import_error_unexpected">The import failed unexpectedly. Your cellar is unchanged.</string>

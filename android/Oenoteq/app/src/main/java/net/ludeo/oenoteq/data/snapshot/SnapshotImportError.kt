@@ -13,7 +13,6 @@ sealed class SnapshotImportError(message: String) : Exception(message) {
         SnapshotImportError("unsupported backend schema: ${found ?: "none"}")
 
     /** Something is already recorded on the device; the import never merges. */
-    class CellarNotEmpty : SnapshotImportError("cellar is not empty")
 
     /** Rows pointing at a missing parent, counted per table. */
     class OrphanRows(val countsByTable: Map<String, Int>) :

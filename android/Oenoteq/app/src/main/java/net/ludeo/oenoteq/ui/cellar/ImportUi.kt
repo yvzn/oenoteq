@@ -121,7 +121,6 @@ private fun importErrorMessage(error: SnapshotImportError?): String = when (erro
     is SnapshotImportError.Corrupt -> stringResource(R.string.import_error_corrupt)
     is SnapshotImportError.UnsupportedSchema ->
         stringResource(R.string.import_error_unsupported_schema, error.found ?: "—")
-    is SnapshotImportError.CellarNotEmpty -> stringResource(R.string.import_error_not_empty)
     is SnapshotImportError.OrphanRows -> stringResource(
         R.string.import_error_orphans,
         error.countsByTable.values.sum(),

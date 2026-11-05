@@ -276,7 +276,22 @@ interface CellarDao {
     )
     suspend fun totalRows(): Int
 
-    /** True while nothing at all has been recorded: the only state the one-time import accepts. */
+    // Children before parents: every foreign key is RESTRICT. Callers run these in one transaction.
+    @Query("DELETE FROM quantity_adjustment") suspend fun deleteQuantityAdjustments()
+
+    @Query("DELETE FROM consumption") suspend fun deleteConsumptions()
+
+    @Query("DELETE FROM meal_pairing") suspend fun deleteMealPairings()
+
+    @Query("DELETE FROM wine") suspend fun deleteWines()
+
+    @Query("DELETE FROM meal") suspend fun deleteMeals()
+
+    @Query("DELETE FROM producer") suspend fun deleteProducers()
+
+    @Query("DELETE FROM appellation") suspend fun deleteAppellations()
+
+    /** True while nothing at all has been recorded: the state in which an import replaces nothing. */
     @Query(
         """
         SELECT NOT EXISTS (SELECT 1 FROM appellation) AND NOT EXISTS (SELECT 1 FROM producer)

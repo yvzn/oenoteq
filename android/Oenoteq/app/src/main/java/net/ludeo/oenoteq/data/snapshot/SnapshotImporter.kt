@@ -18,8 +18,8 @@ data class ImportSummary(
 )
 
 /**
- * One-time import of a backend snapshot into an empty cellar: all or nothing,
- * ids preserved, quantities copied as is (never recomputed from the ledger:
+ * Import of a backend snapshot that replaces whatever the cellar holds (the UI
+ * asks for confirmation first): all or nothing, ids preserved, quantities copied as is (never recomputed from the ledger:
  * Consumptions older than backend migration 005 have no adjustment rows).
  */
 class SnapshotImporter(
@@ -46,14 +46,20 @@ class SnapshotImporter(
 
     /** [file] must be a private copy the importer may open read-write (see [SnapshotReader.read]). */
     suspend fun import(file: File): ImportSummary {
-        if (database.cellarDao().totalRows() > 0) throw SnapshotImportError.CellarNotEmpty()
-
+        // Read and validated before anything is touched: a refused file never costs the cellar a row.
         val rows = withContext(Dispatchers.IO) { SnapshotReader.read(file) }
         val cellar = SnapshotMapper.map(rows, clock())
 
         database.withTransaction {
-            // Checked again inside the transaction: this is the check that counts.
-            if (database.cellarDao().totalRows() > 0) throw SnapshotImportError.CellarNotEmpty()
+            // Same transaction as the inserts: a failure rolls the old cellar back.
+            val cellarDao = database.cellarDao()
+            cellarDao.deleteQuantityAdjustments()
+            cellarDao.deleteConsumptions()
+            cellarDao.deleteMealPairings()
+            cellarDao.deleteWines()
+            cellarDao.deleteMeals()
+            cellarDao.deleteProducers()
+            cellarDao.deleteAppellations()
             database.appellationDao().insertAll(cellar.appellations)
             database.producerDao().insertAll(cellar.producers)
             database.mealDao().insertAll(cellar.meals)

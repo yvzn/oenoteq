@@ -46,7 +46,6 @@
     <string name="import_error_not_cellar">Ce fichier n\'est pas une base de cave. Choisissez une copie du fichier cellar.db du serveur.</string>
     <string name="import_error_corrupt">Cette copie est endommagée. Refaites-en une avec sqlite3 .backup et réessayez.</string>
     <string name="import_error_unsupported_schema">Cette copie vient d\'une autre version du serveur (dernière mise à jour : %1$s). Mettez à jour le serveur ou l\'application, puis refaites une copie.</string>
-    <string name="import_error_not_empty">Votre cave contient déjà des données. L\'import ne fonctionne que sur une cave vide.</string>
     <string name="import_error_orphans">La copie contient %1$d lignes qui pointent vers des éléments disparus (%2$s). Nettoyez-les sur le serveur avec PRAGMA foreign_key_check, puis réessayez.</string>
     <string name="import_error_invalid_row">La copie contient une ligne invalide (%1$s n° %2$d : %3$s).</string>
     <string name="import_error_unexpected">L\'import a échoué de façon inattendue. Votre cave est inchangée.</string>

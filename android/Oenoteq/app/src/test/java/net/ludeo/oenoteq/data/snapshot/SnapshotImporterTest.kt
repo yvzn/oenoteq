@@ -7,10 +7,16 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import net.ludeo.oenoteq.data.AppellationEntity
 import net.ludeo.oenoteq.data.CellarDatabase
+import net.ludeo.oenoteq.data.ConsumptionEntity
 import net.ludeo.oenoteq.data.ConsumptionRepository
+import net.ludeo.oenoteq.data.MealEntity
+import net.ludeo.oenoteq.data.MealPairingEntity
 import net.ludeo.oenoteq.data.MealPairingRepository
 import net.ludeo.oenoteq.data.ProducerEntity
+import net.ludeo.oenoteq.data.QuantityAdjustmentEntity
+import net.ludeo.oenoteq.data.WineEntity
 import net.ludeo.oenoteq.data.WineRepository
 import net.ludeo.oenoteq.domain.HistorySort
 import net.ludeo.oenoteq.domain.SearchFilters
@@ -104,12 +110,45 @@ class SnapshotImporterTest {
         assertEquals(listOf(3L, 2L, 1L), consumptionHistory(history, pairings, SearchFilters(), HistorySort()).map { it.id })
     }
 
-    @Test
-    fun `refuses when the cellar already holds anything`() = runBlocking<Unit> {
-        database.producerDao().insertAll(listOf(ProducerEntity(name = "Déjà là")))
+    /** One row in every table, ids that collide with the fixture's (1) and names that don't. */
+    private suspend fun fillExistingCellar() {
+        database.appellationDao().insertAll(listOf(AppellationEntity(id = 1, name = "Déjà là")))
+        database.producerDao().insertAll(listOf(ProducerEntity(id = 1, name = "Déjà là")))
+        database.mealDao().insertAll(listOf(MealEntity(id = 1, name = "Déjà là")))
+        database.wineDao().insertAll(
+            listOf(WineEntity(id = 1, millesime = 1999, appellationId = 1, producerId = 1, color = WineColor.ROUGE, gardeDebut = null, gardeFin = null, quantity = 7, createdAt = 1, updatedAt = 1)),
+        )
+        database.mealPairingDao().insertAll(listOf(MealPairingEntity(appellationId = 1, color = WineColor.ROUGE, mealId = 1)))
+        database.consumptionDao().insertAll(listOf(ConsumptionEntity(id = 1, wineId = 1, date = "2000-01-01", rating = null, notes = "Déjà là", createdAt = 1, updatedAt = 1)))
+        database.quantityAdjustmentDao().insertAll(listOf(QuantityAdjustmentEntity(id = 1, wineId = 1, delta = 7, createdAt = 1)))
+    }
 
-        importFails<SnapshotImportError.CellarNotEmpty>(snapshot())
-        assertEquals(1, database.cellarDao().totalRows())
+    @Test
+    fun `replaces a cellar that already holds data`() = runBlocking<Unit> {
+        fillExistingCellar()
+
+        val summary = importer.import(snapshot())
+
+        assertEquals(ImportSummary(wines = 4, producers = 4, appellations = 4, meals = 4, mealPairings = 3, consumptions = 3), summary)
+        assertEquals(4, database.producerDao().count())
+        assertNull(database.producerDao().findByName("Déjà là"))
+        assertNull(database.appellationDao().findByName("Déjà là"))
+        assertNull(database.mealDao().findByName("Déjà là"))
+        assertEquals(listOf(5, 0, 3, 1), database.wineDao().all().map { it.quantity })
+        assertEquals(listOf("2025-12-24", "2026-03-15", "2026-05-01"), database.consumptionDao().all().map { it.date })
+        assertEquals(6, database.quantityAdjustmentDao().count())
+        assertEquals(3, database.mealPairingDao().count())
+    }
+
+    @Test
+    fun `a refused snapshot leaves the existing cellar untouched`() = runBlocking<Unit> {
+        fillExistingCellar()
+        val before = database.cellarDao().totalRows()
+
+        importFails<SnapshotImportError.InvalidRow>(snapshot("UPDATE consumption SET date = '01/05/2026' WHERE id = 3"))
+
+        assertEquals(before, database.cellarDao().totalRows())
+        assertEquals(7, database.wineDao().find(1)!!.quantity)
     }
 
     @Test
