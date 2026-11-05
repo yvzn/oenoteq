@@ -48,6 +48,8 @@ fun ManageScreen(
     viewModel: BackupViewModel = viewModel(factory = BackupViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // Outside the branch below, which is replaced while an export or import runs.
+    val scrollState = rememberScrollState()
     // The picked file waits here for the user's confirmation when it would replace something.
     var pendingImport by rememberSaveable { mutableStateOf<Uri?>(null) }
     val pickExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
@@ -67,7 +69,7 @@ fun ManageScreen(
             BackupState.Exporting -> ImportRunning(modifier, R.string.backup_export_running)
             BackupState.Importing -> ImportRunning(modifier)
             else -> Column(
-                modifier.verticalScroll(rememberScrollState()).padding(16.dp).testTag("manage-screen"),
+                modifier.verticalScroll(scrollState).padding(16.dp).testTag("manage-screen"),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 for (kind in Referential.entries) {
